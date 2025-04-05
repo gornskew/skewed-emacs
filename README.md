@@ -1,8 +1,11 @@
-# Gendl-Config: An Emacs-focused Linux/Bash Configuration
+# Skewed Emacs: A Handy Setup for Gnu Emacs, Gendl, and AI
+
+![Skewed Emacs Logo](skewed-1.png)
 
 A comprehensive, opinionated configuration for Emacs and Unix
-environments, optimized for Lisp development (especially with SLIME),
-modern tooling integration, and a developer-friendly shell experience.
+environments, optimized for Lisp/Gendl development (especially with
+SLIME), modern tooling integration, and a developer-friendly shell
+experience.
 
 ## Features
 
@@ -30,12 +33,12 @@ modern tooling integration, and a developer-friendly shell experience.
 
 1. Clone this repo anywhere on your filesystem:
    ```bash
-   git clone <repository-url> gendl-config
+   git clone <repository-url> skewed-emacs
    ```
 
 2. Run the setup script:
    ```bash
-   cd gendl-config
+   cd skewed-emacs
    ./setup
    ```
    
@@ -53,7 +56,7 @@ modern tooling integration, and a developer-friendly shell experience.
    - `--scrub-shadow-suffix=""` or `--scrub-shadow-suffix=`: Removes all default symlinks without a suffix
      (e.g., removes ~/.emacs.d, ~/.bash_profile, etc.)
 
-   The setup script will automatically detect and replace broken symlinks and handle existing dotfiles by backing them up with a `-pre-gendl-config` suffix. It also skips backup files ending with tilde (~) in the dot-files directory.
+   The setup script will automatically detect and replace broken symlinks and handle existing dotfiles by backing them up with a `-pre-skewed-emacs` suffix. It also skips backup files ending with tilde (~) in the dot-files directory.
 
    Example with options:
    ```bash
@@ -93,10 +96,9 @@ modern tooling integration, and a developer-friendly shell experience.
    ```
 
 ⚠️ **Warning**: The setup script will overwrite your existing
-`.emacs.d` directory and several dotfiles in your home directory. Existing files will be backed up with a `-pre-gendl-config` suffix. Run
+`.emacs.d` directory and several dotfiles in your home directory. Existing files will be backed up with a `-pre-skewed-emacs` suffix. Run
 it with `--dry-run` first to see what it will do without it touching
 anything.
-
 
 ## Requirements
 
@@ -155,7 +157,7 @@ source ~/.bash_profile[SUFFIX]
 
 ### Switching Between Configurations
 
-This makes it easy to maintain both your original configuration and multiple versions of gendl-config simultaneously, allowing you to:
+This makes it easy to maintain both your original configuration and multiple versions of Skewed Emacs simultaneously, allowing you to:
 
 - Gradually transition from one configuration to another
 - Test new features without disrupting your existing workflow
@@ -163,15 +165,15 @@ This makes it easy to maintain both your original configuration and multiple ver
 
 ## Rationale
 
-Gendl-config is not currently designed to blend safely and seamlessly
+Skewed Emacs is not currently designed to blend safely and seamlessly
 with your existing configuration. You have two options for installation:
 
 ### 1. Regular Installation (Default)
 
 With the standard installation approach, the `./setup` script will:
 
-- Back up your existing dotfiles with a `-pre-gendl-config` suffix
-- Replace them with symlinks to the gendl-config versions
+- Back up your existing dotfiles with a `-pre-skewed-emacs` suffix
+- Replace them with symlinks to the Skewed Emacs versions
 - Allow you to merge your customizations back in a controlled manner
 
 If you have your own preëxisting config, add it back in a stepwise,
@@ -184,16 +186,16 @@ you sit down at a new machine.
 
 ### 2. Shadow Installation (`--shadow-suffix=NAME`)
 
-If you want to try gendl-config without replacing your existing setup:
+If you want to try Skewed Emacs without replacing your existing setup:
 
 - Use `--shadow-suffix=shadow` to create parallel configuration files with a `-shadow` suffix
 - Or use `--shadow-suffix=NAME` to create files with your own custom suffix
 - This creates a completely separate configuration that doesn't interfere with your original setup
 - You can explicitly choose when to use the shadow configuration (see the "Shadow Installation Options" section)
-- This is ideal for testing or for gradually migrating to gendl-config
+- This is ideal for testing or for gradually migrating to Skewed Emacs
 
 The shadow installation approach is particularly useful for users who:
-- Want to evaluate gendl-config without commitment
+- Want to evaluate Skewed Emacs without commitment
 - Need to maintain multiple configurations for different purposes
 - Prefer to gradually transition to a new configuration setup
 
@@ -206,8 +208,8 @@ This configuration includes a built-in MCP (Model Context Protocol) server that 
 - Access buffers and perform editing operations
 - Assist with complex development tasks
 
-The MCP server is implemented in the `dot-files/emacs.d/sideloaded/emacs-mcp-service/` directory and can be configured to run in various environments including Docker containers for enhanced security. For more details, see the [MCP service README](/projects/gendl-config/dot-files/emacs.d/sideloaded/emacs-mcp-service/README.md).
+The MCP server is implemented in the `dot-files/emacs.d/sideloaded/emacs-mcp-service/` directory and can be configured to run in various environments including Docker containers for enhanced security. For more details, see the [MCP service README](/projects/skewed-emacs/dot-files/emacs.d/sideloaded/emacs-mcp-service/README.md).
 
 ## License
 
-This package is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). 
+This package is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).

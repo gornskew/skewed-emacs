@@ -3,7 +3,7 @@
 # Define the help function
 show_help() {
     echo ""
-    echo "Gendl Configuration Setup"
+    echo "Skewed Emacs Config Setup
     echo "========================="
     echo "This script will set up your home directory with symlinks to the configuration files"
     echo "in the repository's dot-files directory."
@@ -21,7 +21,7 @@ show_help() {
     echo ""
     echo ""
     echo "  --shadow-suffix=\"\", -shadow-suffix=\"\"         Explicitly specifies standard installation"
-    echo "  --shadow-suffix=, -shadow-suffix=             (using this option is optional, as it's the default)"
+    echo "  --shadow-suffix=, -shadow-suffix=             using this option is optional, as it's the default"
     echo ""
     echo "  --scrub-shadow-suffix=NAME, -scrub-shadow-suffix=NAME"
     echo "  --scrub-shadow-suffix NAME, -scrub-shadow-suffix NAME"
@@ -32,8 +32,8 @@ show_help() {
     echo "                                       Removes all default symlinks without a suffix"
     echo ""
     echo "The setup script will automatically detect and replace broken symlinks and handle"
-    echo "existing dotfiles by backing them up with a \"-pre-gendl-config\" suffix."
-    echo "It also skips backup files ending with tilde (~) in the dot-files directory."
+    echo "existing dotfiles by backing them up with a \"-pre-skewed-emacs\" suffix."
+    echo "It also skips backup files ending with tilde \(~\) in the dot-files directory."
     echo ""
     echo "Examples:"
     echo "  # Preview changes without modifying anything"
@@ -56,7 +56,7 @@ show_help() {
     echo ""
     echo "⚠️ Warning: The setup script will overwrite your existing .emacs.d directory and"
     echo "several dotfiles in your home directory. Existing files will be backed up with a"
-    echo "\"-pre-gendl-config\" suffix. Run it with --dry-run first to see what it will do"
+    echo "\"-pre-skewed-emacs\" suffix. Run it with --dry-run first to see what it will do"
     echo "without it touching anything."
 }
 
@@ -72,8 +72,8 @@ do
 done
 
 echo ""
-echo "Gendl Configuration Setup"
-echo "======================="
+echo "Skewed Emacs Config Setup"
+echo "========================="
 echo "This script will set up your home directory with symlinks to the configuration files"
 echo "in the repository's dot-files directory."
 echo ""
@@ -297,7 +297,7 @@ echo ""
 # Make sure dot_files directory exists
 if [ ! -d "$dot_files" ]; then
     echo >&2 "ERROR: Could not find dot-files directory at $dot_files"
-    echo >&2 "Please ensure you're running this script from the root of the gendl-config repository."
+    echo >&2 "Please ensure you're running this script from the root of the skewed-emacs repository."
     exit 1
 fi
 
@@ -340,7 +340,7 @@ do
         fi
         
         # Handle existing target file
-        backup_file=${target_file}-pre-gendl-config
+        backup_file=${target_file}-pre-skewed-emacs
         if [ -e ~/${target_file} ]; then
             if [ -e ~/${backup_file} ] && [ ! -h ~/${target_file} ]; then
                 echo "ERROR - this script will not do anything for your ~/${target_file} because it and ~/${backup_file} both exist."
