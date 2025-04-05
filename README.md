@@ -127,64 +127,76 @@ For personal customizations that shouldn't be committed to this repository, add 
 
 ## Installation Options and Rationale
 
-Skewed Emacs is not currently designed to blend automatically with your existing configuration. You have two installation approaches to choose from:
+Skewed Emacs is not currently designed to blend automatically with
+your existing configuration. You have two installation approaches to
+choose from:
 
 ### 1. Regular Installation (Default)
 
 With the standard installation approach, the `./setup` script will:
 
-- Back up your existing dotfiles with a `-pre-skewed-emacs` suffix
+- Back up your existing dot files with a `-pre-skewed-emacs` suffix
 - Replace them with symlinks to the Skewed Emacs versions
 - Allow you to merge your customizations back in a controlled manner
 
 If you have your own preëxisting config, add it back in a stepwise,
 deliberate manner in your `~/.emacs-local` file, which you can
 version-control separately or together with your own private fork or
-branch of this repo. Keeping your own .emacs-local in a separate repo
-is cleaner -- that would be just two repositories to clone when you
-sit down at or provision a new machine.
+branch of this repo. 
 
 ### 2. Shadow Installation (`--shadow-suffix=NAME`)
-
-If you want to try Skewed Emacs without replacing your existing setup:
+' Shadow Intallation can be usedufl if you want to inspect or play
+with Skewed Emacs without stepping on your existing setup.
 
 - Use `--shadow-suffix=shadow` to create parallel configuration files with a `-shadow` suffix
 - Or use `--shadow-suffix=NAME` to create files with your own custom suffix
 
-This approach is useful for:
-- Testing the configuration without affecting your existing setup
-- Maintaining multiple parallel configurations
-- Gradually transitioning from your existing configuration
-- Creating specific configurations for different purposes (e.g., one for work, one for personal projects)
-
 #### Using Shadow Configurations
 
-To launch Emacs with a shadow configuration (replace `SUFFIX` with your chosen suffix):
+To test the shadow installation you can use techniques such as the
+following:
 
 ```bash
 # Start Emacs with the shadow config
 emacs -q --load "~/.emacs.d[SUFFIX]/init.el"
 ```
 
-To use a shadow bash profile:
 
 ```bash
 # Source the shadow bash profile in your current shell
 source ~/.bash_profile[SUFFIX]
 ```
 
-This makes it easy to maintain both your original configuration and multiple versions of Skewed Emacs simultaneously.
+Or you could edit your existing `~/.bash_profile` and/or
+`~/.emacs.d/init.el` to load the skewed-emacs shadow versions at some
+point in their execution.
+
 
 ## MCP Server for AI Assistants
 
-This configuration includes a built-in MCP (Model Context Protocol) server that allows AI assistants like Claude to interface directly with Emacs. With the MCP server, AI assistants can:
 
-- Evaluate Emacs Lisp code
-- Navigate and edit files
-- Access buffers and perform editing operations
-- Assist with complex development tasks
+This configuration includes a work-in-progress back-end MCP (Model
+Context Protocol) server that is meant to allow AI "agentic clients"
+such as Claude to interface with a running Emacs instance. With this
+MCP backend, AI assistants can send Lisp expressions, which can effect
+operations such as:
 
-The MCP server is implemented in the `dot-files/emacs.d/sideloaded/mcp-service/` directory and can be configured to run in various environments including Docker containers for enhanced security. For more details, see the [MCP service README](/projects/skewed-emacs/dot-files/emacs.d/sideloaded/mcp-service/README.md).
+- Evaluating arbitrary Emacs Lisp code
+- Navigating and managing files
+- Accessing buffers and perform editing operations on them
+- Potentially assisting with more complex development tasks
+
+The MCP backend is implemented in the
+`dot-files/emacs.d/sideloaded/mcp-service/` directory and can be
+configured to run in various environments including Docker containers
+for enhanced security. 
+
+**NOTE:** This MCP backend currently depends on [this generic MCP
+nodejs wrapper](https://github.com/gendl/lispy-mcp.git) which is what
+you configure in e.g. your `claude_desktop_config.json`. See the [MCP
+Service
+README](/projects/skewed-emacs/dot-files/emacs.d/sideloaded/mcp-service/README.md)
+for details.
 
 ## License
 
