@@ -1,6 +1,6 @@
 # Skewed Emacs: A Handy Setup for Gnu Emacs, Gendl, and AI
 
-![Skewed Emacs Logo](skewed-1.png)
+![Skewed Emacs Logo](img/skewed-1-t.png)
 
 A comprehensive, opinionated configuration for Emacs and Unix
 environments, optimized for Lisp/Gendl development (especially with
@@ -106,7 +106,7 @@ anything.
 - Node.js 22+ (for Copilot and AI integrations)
 - Docker (optional, for containerized development)
 - Git
-- realpath
+- realpath (included in coreutils on Linux; on macOS install via Homebrew: `brew install coreutils`)
 
 ## Configuration Structure
 
@@ -125,48 +125,9 @@ anything.
 
 For personal customizations that shouldn't be committed to this repository, add them to a `~/.emacs-local` file, which will be loaded at the end of the Emacs initialization process.
 
-## Shadow Installation Options
+## Installation Options and Rationale
 
-The shadow installation options allow you to install the configuration files with a custom suffix, which means they won't interfere with your existing configuration files.
-
-This approach is useful for:
-- Testing the configuration without affecting your existing setup
-- Maintaining multiple parallel configurations
-- Gradually transitioning from your existing configuration
-- Creating specific configurations for different purposes (e.g., one for work, one for personal projects)
-
-You can use:
-- `--shadow-suffix=NAME` or `--shadow-suffix NAME`: Uses a custom suffix "-NAME" (replace NAME with your preferred suffix)
-- For the traditional "-shadow" suffix, simply use `--shadow-suffix=shadow`
-
-### Launching Emacs with a Shadow Configuration
-
-Replace `SUFFIX` with your chosen suffix (e.g., `-shadow`, `-work`, etc.):
-
-```bash
-# Start Emacs with the shadow config
-emacs -q --load "~/.emacs.d[SUFFIX]/init.el"
-```
-
-### Using the Shadow Bash Profile
-
-```bash
-# Source the shadow bash profile in your current shell
-source ~/.bash_profile[SUFFIX]
-```
-
-### Switching Between Configurations
-
-This makes it easy to maintain both your original configuration and multiple versions of Skewed Emacs simultaneously, allowing you to:
-
-- Gradually transition from one configuration to another
-- Test new features without disrupting your existing workflow
-- Maintain separate environments for different purposes (work, personal, etc.)
-
-## Rationale
-
-Skewed Emacs is not currently designed to blend safely and seamlessly
-with your existing configuration. You have two options for installation:
+Skewed Emacs is not currently designed to blend automatically with your existing configuration. You have two installation approaches to choose from:
 
 ### 1. Regular Installation (Default)
 
@@ -177,12 +138,11 @@ With the standard installation approach, the `./setup` script will:
 - Allow you to merge your customizations back in a controlled manner
 
 If you have your own preëxisting config, add it back in a stepwise,
-deliberate manner in your `~/.emacs-local` file, which you can version-control
-separately or together with your own private fork or branch of this
-repo (which you can keep up to date by merging from upstream
-pristine). Probably cleaner to keep your own .emacs-local in a
-separate repo -- so that would be a total of two things to clone when
-you sit down at a new machine.
+deliberate manner in your `~/.emacs-local` file, which you can
+version-control separately or together with your own private fork or
+branch of this repo. Keeping your own .emacs-local in a separate repo
+is cleaner -- that would be just two repositories to clone when you
+sit down at or provision a new machine.
 
 ### 2. Shadow Installation (`--shadow-suffix=NAME`)
 
@@ -190,14 +150,30 @@ If you want to try Skewed Emacs without replacing your existing setup:
 
 - Use `--shadow-suffix=shadow` to create parallel configuration files with a `-shadow` suffix
 - Or use `--shadow-suffix=NAME` to create files with your own custom suffix
-- This creates a completely separate configuration that doesn't interfere with your original setup
-- You can explicitly choose when to use the shadow configuration (see the "Shadow Installation Options" section)
-- This is ideal for testing or for gradually migrating to Skewed Emacs
 
-The shadow installation approach is particularly useful for users who:
-- Want to evaluate Skewed Emacs without commitment
-- Need to maintain multiple configurations for different purposes
-- Prefer to gradually transition to a new configuration setup
+This approach is useful for:
+- Testing the configuration without affecting your existing setup
+- Maintaining multiple parallel configurations
+- Gradually transitioning from your existing configuration
+- Creating specific configurations for different purposes (e.g., one for work, one for personal projects)
+
+#### Using Shadow Configurations
+
+To launch Emacs with a shadow configuration (replace `SUFFIX` with your chosen suffix):
+
+```bash
+# Start Emacs with the shadow config
+emacs -q --load "~/.emacs.d[SUFFIX]/init.el"
+```
+
+To use a shadow bash profile:
+
+```bash
+# Source the shadow bash profile in your current shell
+source ~/.bash_profile[SUFFIX]
+```
+
+This makes it easy to maintain both your original configuration and multiple versions of Skewed Emacs simultaneously.
 
 ## MCP Server for AI Assistants
 
@@ -208,7 +184,7 @@ This configuration includes a built-in MCP (Model Context Protocol) server that 
 - Access buffers and perform editing operations
 - Assist with complex development tasks
 
-The MCP server is implemented in the `dot-files/emacs.d/sideloaded/emacs-mcp-service/` directory and can be configured to run in various environments including Docker containers for enhanced security. For more details, see the [MCP service README](/projects/skewed-emacs/dot-files/emacs.d/sideloaded/emacs-mcp-service/README.md).
+The MCP server is implemented in the `dot-files/emacs.d/sideloaded/mcp-service/` directory and can be configured to run in various environments including Docker containers for enhanced security. For more details, see the [MCP service README](/projects/skewed-emacs/dot-files/emacs.d/sideloaded/mcp-service/README.md).
 
 ## License
 
