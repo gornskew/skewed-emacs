@@ -1,0 +1,158 @@
+#!/bin/bash
+
+PATH="/snap/bin":${PATH}
+
+export ALTERNATE_EDITOR=""
+export EDITOR="emacsclient -t"
+export VISUAL="emacsclient -c -a emacs" # gui
+
+
+
+# Start a Gendl instance with a Swank server
+function gswank
+{
+    local gdl_path=${1:-"/opt/gendl/gdl/program/gdl-ccl"}
+    local port=${2:-4005}
+    
+    if [ -e "$gdl_path" ]; then
+        echo "Starting Gendl Swank server on port $port using $gdl_path"
+        "$gdl_path" -e "(swank:create-server :port $port :dont-close t)" ${@:3}
+    else
+        echo "Error: Gendl executable not found at $gdl_path"
+        echo "Usage: gswank [gdl_path] [port] [additional_args...]"
+        echo "Default: gswank /opt/gendl/gdl/program/gdl-ccl 4005"
+        return 1
+    fi
+}
+
+
+
+function egui
+{
+    file=${1:-"~/."};
+    emacsclient --create-frame ${file}
+}
+
+
+function e
+{
+    file=${1:-"."};
+    emacsclient -nw ${file}
+}
+
+
+# Run a Gendl container with specified Lisp implementation
+function rgc
+{
+    local impl="ccl"  # Default implementation
+    
+    # Parse command line arguments
+    while [[ "$#" -gt 0 ]]; do
+        case $1 in
+            --impl=*) impl="${1#*=}"; shift ;;
+            --sbcl) impl="sbcl"; shift ;;
+            --ccl) impl="ccl"; shift ;;
+            *) break ;;
+        esac
+    done
+    
+    echo "Using Lisp implementation: ${impl}"
+    
+    # Ensure gendl repo is available
+    local gendl_dir="$HOME/gendl"
+    local docker_run_script=""
+    
+    if [ -d "$HOME/genworks/gendl/docker" ]; then
+        docker_run_script="$HOME/genworks/gendl/docker/run"
+    elif [ -d "$gendl_dir/docker" ]; then
+        docker_run_script="$gendl_dir/docker/run"
+    else
+        echo "Error: Gendl repository not found at $HOME/genworks/gendl or $gendl_dir"
+        echo "Please clone gitlab.common-lisp.net/gendl/gendl.git to ~/gendl"
+        return 1
+    fi
+    
+    # Run the container
+    local run_output=$($docker_run_script $([ "$impl" != "ccl" ] && echo "--$impl"))
+    local cid=$(echo "$run_output" | tail -1)
+    
+    # Setup environment in container
+    docker exec -d $cid ln -s /home /Users
+    docker exec -d $cid ln -s /home/gendl-user ${HOME} >$(tty)
+    
+    echo "${run_output}"
+    echo "Container ID: ${cid}"
+}
+
+# file naming utilities.
+
+
+function latest_grep {
+    # Move into the logs directory
+    cd ~/logs
+    # Grep the logs for a pattern and extract file names, then sort them by modification time
+    grep "$1" *.log | cut -d':' -f1 | xargs ls -t | head -n 1
+}
+
+
+kill_port() {
+    if [[ -z "$1" ]]; then
+        echo "Usage: kill_port <port_number>"
+        return 1
+    fi
+
+    local port=$1
+    echo "Attempting to kill process on port $port..."
+    sudo fuser -k -n tcp $port
+}
+
+
+
+# Check if running in Bash
+if [ -n "$BASH_VERSION" ]; then
+    # Only proceed if .bash_profile hasn’t been loaded yet
+    if [ -z "$DOT_BASH_PROFILE_LOADED" ]; then
+        # Mark .bash_profile as loaded
+        export DOT_BASH_PROFILE_LOADED=1
+
+        # Source .profile if it exists and hasn’t been loaded
+        if [ -f "$HOME/.profile" ] && [ -z "$DOT_PROFILE_LOADED" ]; then
+            . "$HOME/.profile"
+            export DOT_PROFILE_LOADED=1
+        fi
+
+        # Source .bashrc if it exists and hasn’t been loaded
+        if [ -f "$HOME/.bashrc" ] && [ -z "$DOT_BASHRC_LOADED" ]; then
+            . "$HOME/.bashrc"
+            export DOT_BASHRC_LOADED=1
+        fi
+    fi
+fi
+
+
+
+# Start the SSH agent if not already running
+
+#if ! [ -f "/data/data/com.termux/" ]; then
+#    if ! pgrep -u "$USER" ssh-agent > /dev/null; then
+#	eval "$(ssh-agent -s)"
+#    fi
+#fi
+
+
+
+# Start Gotty if it's not already running
+#if [ -f "$HOME/meta-quest.txt" ]; then
+#
+#    export LD_LIBRARY_PATH="/data/data/com.termux/files/usr/lib:${LD_LIBRARY_PATH}"
+#    
+#	if ! pgrep "gotty" > /dev/null
+#	then
+#		~/bin/goty
+#	fi
+#fi
+
+
+if [ -f "$HOME/.local/bin/env" ]; then 
+. "$HOME/.local/bin/env"
+fi

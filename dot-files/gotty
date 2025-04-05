@@ -1,0 +1,11 @@
+// Listen at port 8888 by default
+port = "6942"
+
+// Enable TSL/SSL by default
+//enable_tls = true
+
+
+preferences {
+    font_family = "monospace"
+    font_size = 15
+}

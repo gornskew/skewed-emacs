@@ -1,0 +1,213 @@
+# Gendl-Config: An Emacs-focused Linux/Bash Configuration
+
+A comprehensive, opinionated configuration for Emacs and Unix
+environments, optimized for Lisp development (especially with SLIME),
+modern tooling integration, and a developer-friendly shell experience.
+
+## Features
+
+- **Emacs Configuration:**
+  - Modern package management via straight.el
+  - SLIME setup for Common Lisp development with extensive customizations
+  - AI assistance integration (Copilot, GPT, Claude, and more)
+  - Built-in MCP (Model Context Protocol) server for AI assistants
+  - Org-mode configuration
+  - Magit for Git integration
+  - Various quality-of-life improvements and custom keybindings
+
+- **Terminal/Shell Integration:**
+  - Custom bash profile with useful functions and aliases for Emacs and Gendl
+  - Gendl integration via the `gswank` and `rgc` functions
+  - tmux configuration
+  - Shell script utilities
+  - Cross-platform support (including WSL)
+
+- **Docker Integration:**
+  - Helper functions for running containerized environments
+  - Development container setup
+
+## Installation
+
+1. Clone this repo anywhere on your filesystem:
+   ```bash
+   git clone <repository-url> gendl-config
+   ```
+
+2. Run the setup script:
+   ```bash
+   cd gendl-config
+   ./setup
+   ```
+   
+   The setup script will create symlinks to the configuration files regardless of where you've cloned the repository.
+
+   Available options:
+   - `--dry-run`: Shows what would happen without making any changes
+   - `--shadow-suffix=NAME` or `--shadow-suffix NAME`: Creates symlinks with a "-NAME" suffix
+     (e.g., with `--shadow-suffix=test` or `--shadow-suffix test` creates ~/.emacs.d-test instead of ~/.emacs.d)
+   - `--shadow-suffix=shadow`: Creates symlinks with a "-shadow" suffix
+   - `--shadow-suffix=""` or `--shadow-suffix=`: Explicitly specifies standard installation mode (no suffix)
+     (using this option is optional, as it's the default behavior)
+   - `--scrub-shadow-suffix=NAME` or `--scrub-shadow-suffix NAME`: Removes all symlinks with the "-NAME" suffix
+     (e.g., `--scrub-shadow-suffix=test` removes ~/.emacs.d-test, ~/.bash_profile-test, etc.)
+   - `--scrub-shadow-suffix=""` or `--scrub-shadow-suffix=`: Removes all default symlinks without a suffix
+     (e.g., removes ~/.emacs.d, ~/.bash_profile, etc.)
+
+   The setup script will automatically detect and replace broken symlinks and handle existing dotfiles by backing them up with a `-pre-gendl-config` suffix. It also skips backup files ending with tilde (~) in the dot-files directory.
+
+   Example with options:
+   ```bash
+   # Preview changes without modifying anything
+   ./setup --dry-run
+   
+   # Install configuration files with regular names
+   ./setup
+   
+   # Install configuration files with "-shadow" suffix
+   # (useful for testing or for maintaining multiple configurations)
+   ./setup --shadow-suffix=shadow
+   
+   # Install with a custom suffix
+   ./setup --shadow-suffix=work
+   
+   # Preview shadow installation without making changes
+   ./setup --dry-run --shadow-suffix=shadow
+   
+   # Preview custom suffix installation without making changes
+   ./setup --dry-run --shadow-suffix=test
+   
+   # Remove all symlinks with the "-test" suffix
+   ./setup --scrub-shadow-suffix=test
+   
+   # Preview removal of all symlinks with the "-shadow" suffix without making changes
+   ./setup --dry-run --scrub-shadow-suffix=shadow
+   
+   # Remove all symlinks with the "-test" suffix and create new ones with "-work" suffix
+   ./setup --scrub-shadow-suffix=test --shadow-suffix=work
+   
+   # Preview removing all symlinks with the "-test" suffix and creating new ones with "-work" suffix
+   ./setup --dry-run --scrub-shadow-suffix=test --shadow-suffix=work
+   
+   # Explicitly use standard installation (same as default, without any suffix)
+   ./setup --shadow-suffix=""
+   ```
+
+⚠️ **Warning**: The setup script will overwrite your existing
+`.emacs.d` directory and several dotfiles in your home directory. Existing files will be backed up with a `-pre-gendl-config` suffix. Run
+it with `--dry-run` first to see what it will do without it touching
+anything.
+
+
+## Requirements
+
+- Emacs 29+ recommended 
+- Node.js 22+ (for Copilot and AI integrations)
+- Docker (optional, for containerized development)
+- Git
+- realpath
+
+## Configuration Structure
+
+- `dot-files/` - Contains all dotfiles that will be symlinked to your home directory
+  - `emacs.d/` - Emacs configuration, to be linked to ~/.emacs.d/
+    - `init.el` - Main Emacs configuration entry point
+    - `etc/` - Modular configuration files
+    - `sideloaded/` - Third-party packages
+  - `bash_profile` - Bash configuration
+  - `tmux.conf` - tmux configuration
+  - `zshrc` - ZSH configuration
+
+- `notes/` - Documentation and setup guides
+
+## Customization
+
+For personal customizations that shouldn't be committed to this repository, add them to a `~/.emacs-local` file, which will be loaded at the end of the Emacs initialization process.
+
+## Shadow Installation Options
+
+The shadow installation options allow you to install the configuration files with a custom suffix, which means they won't interfere with your existing configuration files.
+
+This approach is useful for:
+- Testing the configuration without affecting your existing setup
+- Maintaining multiple parallel configurations
+- Gradually transitioning from your existing configuration
+- Creating specific configurations for different purposes (e.g., one for work, one for personal projects)
+
+You can use:
+- `--shadow-suffix=NAME` or `--shadow-suffix NAME`: Uses a custom suffix "-NAME" (replace NAME with your preferred suffix)
+- For the traditional "-shadow" suffix, simply use `--shadow-suffix=shadow`
+
+### Launching Emacs with a Shadow Configuration
+
+Replace `SUFFIX` with your chosen suffix (e.g., `-shadow`, `-work`, etc.):
+
+```bash
+# Start Emacs with the shadow config
+emacs -q --load "~/.emacs.d[SUFFIX]/init.el"
+```
+
+### Using the Shadow Bash Profile
+
+```bash
+# Source the shadow bash profile in your current shell
+source ~/.bash_profile[SUFFIX]
+```
+
+### Switching Between Configurations
+
+This makes it easy to maintain both your original configuration and multiple versions of gendl-config simultaneously, allowing you to:
+
+- Gradually transition from one configuration to another
+- Test new features without disrupting your existing workflow
+- Maintain separate environments for different purposes (work, personal, etc.)
+
+## Rationale
+
+Gendl-config is not currently designed to blend safely and seamlessly
+with your existing configuration. You have two options for installation:
+
+### 1. Regular Installation (Default)
+
+With the standard installation approach, the `./setup` script will:
+
+- Back up your existing dotfiles with a `-pre-gendl-config` suffix
+- Replace them with symlinks to the gendl-config versions
+- Allow you to merge your customizations back in a controlled manner
+
+If you have your own preëxisting config, add it back in a stepwise,
+deliberate manner in your `~/.emacs-local` file, which you can version-control
+separately or together with your own private fork or branch of this
+repo (which you can keep up to date by merging from upstream
+pristine). Probably cleaner to keep your own .emacs-local in a
+separate repo -- so that would be a total of two things to clone when
+you sit down at a new machine.
+
+### 2. Shadow Installation (`--shadow-suffix=NAME`)
+
+If you want to try gendl-config without replacing your existing setup:
+
+- Use `--shadow-suffix=shadow` to create parallel configuration files with a `-shadow` suffix
+- Or use `--shadow-suffix=NAME` to create files with your own custom suffix
+- This creates a completely separate configuration that doesn't interfere with your original setup
+- You can explicitly choose when to use the shadow configuration (see the "Shadow Installation Options" section)
+- This is ideal for testing or for gradually migrating to gendl-config
+
+The shadow installation approach is particularly useful for users who:
+- Want to evaluate gendl-config without commitment
+- Need to maintain multiple configurations for different purposes
+- Prefer to gradually transition to a new configuration setup
+
+## MCP Server for AI Assistants
+
+This configuration includes a built-in MCP (Model Context Protocol) server that allows AI assistants like Claude to interface directly with Emacs. With the MCP server, AI assistants can:
+
+- Evaluate Emacs Lisp code
+- Navigate and edit files
+- Access buffers and perform editing operations
+- Assist with complex development tasks
+
+The MCP server is implemented in the `dot-files/emacs.d/sideloaded/emacs-mcp-service/` directory and can be configured to run in various environments including Docker containers for enhanced security. For more details, see the [MCP service README](/projects/gendl-config/dot-files/emacs.d/sideloaded/emacs-mcp-service/README.md).
+
+## License
+
+This package is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0). 

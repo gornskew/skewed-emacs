@@ -1,0 +1,40 @@
+*~
+*.log
+dot-files/emacs.d/straight
+dot-files/emacs.d/transient
+dot-files/emacs.d/tramp
+dot-files/emacs.d/vterm/
+dot-files/emacs.d/ellama-sessions/
+dot-files/emacs.d/org-persist/
+dot-files/emacs.d/eshell/
+dot-files/emacs.d/ielm-history.eld
+dot-files/emacs.d/org-clock-save.el
+.cache
+node_modules/
+.vscode/
+__pycache__/
+.npm/
+.idea/
+tmp/
+temp/
+dot-files/emacs.d/url/
+dot-files/emacs.d/var/
+
+# Compiled files
+*.elc
+
+# Auth files
+.authinfo
+.authinfo.gpg
+
+# History files
+.bash_history
+history.*
+
+# Local configuration that might contain sensitive info
+.emacs-local
+
+# Log files (broader pattern)
+*.log*
+.tokens/
+*token*
