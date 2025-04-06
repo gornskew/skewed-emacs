@@ -245,20 +245,23 @@ FLAG: make sure these don't clobber graphical mode bindings,
 
 
 (defvar dark-theme-options
-  '(("modus-vivendi" . modus-vivendi-deuteranopia)
+  '(("doom-tokyo-night" . doom-gruvbox)
     ("doom-one" . doom-one)
+    ("doom-pine" . doom-pine)
+    ("doom-purple" . doom-shades-of-purple)
     ("doom-gruvbox" . doom-gruvbox)
+    ("modus-vivendi" . modus-vivendi-deuteranopia)
     ("zenburn" . zenburn))
   "List of dark themes for `dark-theme' function.")
 
 (defun dark-theme (&optional theme-name)
-  "Load a dark theme, defaulting to \='modus-vivendi\='.
-THEME-NAME is a string, e.g., \='doom-one\='."
+  "Load a dark theme, defaulting to \='doom-tokyo-night\='.
+THEME-NAME is a string, e.g., \='doom-tokyo-night\='."
   (interactive
    (list (completing-read "Select dark theme: "
                           (mapcar #'car dark-theme-options)  ; Use defvar directly
-                          nil t "modus-vivendi")))
-  (let* ((selected-theme (or theme-name "modus-vivendi"))  ; Default if nil
+                          nil t "doom-tokyo-night")))
+  (let* ((selected-theme (or theme-name "doom-tokyo-night"))  ; Default if nil
          (theme-symbol (cdr (assoc selected-theme dark-theme-options))))
     (unless theme-symbol
       (error "Unknown theme: %s" selected-theme))
@@ -272,7 +275,11 @@ THEME-NAME is a string, e.g., \='doom-one\='."
 
 (defvar light-theme-options
   '(("adwaita" . adwaita)
-    ("doom-one-light" . doom-one-light))
+    ("tsdh-light" . tsdh-light)
+    ("light-blue" . light-blue)
+    ("doom-one-light" . doom-one-light)
+    ("doom-feather-light" . doom-feather-light)
+    ("doom-light" . doom-gruvbox-light))
   "List of light themes for `light-theme' function.")
 
 (defun light-theme (&optional theme-name)
@@ -363,7 +370,7 @@ THEME-NAME is a string, e.g., \='adwaita\='."
 
   ;; Load MCP service if enabled
   (when load-mcp-service-p
-    (let ((mcp-service-dir (concat emacs-config-directory "/sideloaded/emacs-mcp-service/source/")))
+    (let ((mcp-service-dir (concat emacs-config-directory "/sideloaded/mcp-service/source/")))
       (when (file-exists-p mcp-service-dir)
         (message "Loading MCP service from %s" mcp-service-dir)
         (dolist (file '("mcp-http-setup.el" "mcp-endpoints.el" "emacs-mcp-service.el"))
@@ -464,7 +471,16 @@ Make it tiled to the left."
   (interactive)
   (unfill-region (point-min) (point-max)))
 
-(use-package eat :ensure t)
+
+(use-package eat
+  :ensure t
+  :config
+  ;; Set TERM to a true color-capable value inside eat
+  (setq eat-term-name "xterm-truecolor")
+  ;; Optional: Ensure true color is recognized
+  (add-hook 'eat-mode-hook
+            (lambda ()
+              (setenv "TERM" "xterm-truecolor"))))
 
 (add-hook 'eshell-load-hook #'eat-eshell-mode)
 
@@ -630,3 +646,23 @@ Make it tiled to the left."
 (provide 'init)
 ;;; init.el ends here
 
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(custom-safe-themes
+   '("0c83e0b50946e39e237769ad368a08f2cd1c854ccbcd1a01d39fdce4d6f86478"
+     "113a135eb7a2ace6d9801469324f9f7624f8c696b72e3709feb7368b06ddaccc"
+     "691d671429fa6c6d73098fc6ff05d4a14a323ea0a18787daeb93fde0e48ab18b"
+     "56044c5a9cc45b6ec45c0eb28df100d3f0a576f18eef33ff8ff5d32bac2d9700"
+     "e8bd9bbf6506afca133125b0be48b1f033b1c8647c628652ab7a2fe065c10ef0"
+     "4594d6b9753691142f02e67b8eb0fda7d12f6cc9f1299a49b819312d6addad1d"
+     "ffafb0e9f63935183713b204c11d22225008559fa62133a69848835f4f4a758c"
+     default)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )

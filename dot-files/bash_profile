@@ -1,11 +1,146 @@
 #!/bin/bash
 
+# Set flag to indicate bash_profile has been loaded (if not already set)
+if [ -z "$DOT_BASH_PROFILE_LOADED" ]; then
+    export DOT_BASH_PROFILE_LOADED=1
+fi
+
+# USERS: Add the following code to your ~/.bashrc to ensure this file gets loaded
+# if it hasn't been already:
+#
+# # Load bash_profile if it hasn't been loaded yet
+# if [ -n "$BASH_VERSION" ] && [ -z "$DOT_BASH_PROFILE_LOADED" ]; then
+#     if [ -f "$HOME/.bash_profile" ]; then
+#         . "$HOME/.bash_profile"
+#     fi
+# fi
+
 PATH="/snap/bin":${PATH}
 
 export ALTERNATE_EDITOR=""
 export EDITOR="emacsclient -t"
-export VISUAL="emacsclient -c -a emacs" # gui
+export VISUAL="emacsclient -c -a emacs"
 
+# Use xterm-256color and signal true color via COLORTERM
+export TERM="xterm-256color"
+export COLORTERM="truecolor"
+alias ssh='TERM=xterm-256color COLORTERM=truecolor ssh'
+
+# Theme-switching functions (unchanged)
+set_prompt_theme() {
+    local theme="${1:-dark}"
+    case "$theme" in
+        dark)
+            PS1='${debian_chroot:+($debian_chroot)}\[\033[38;2;0;255;128m\]\u@\h\[\033[0m\]:\[\033[38;2;0;191;255m\]\w\[\033[0m\]\$ '
+            ;;
+        light)
+            PS1='${debian_chroot:+($debian_chroot)}\[\033[38;2;139;0;0m\]\u@\h\[\033[0m\]:\[\033[38;2;0;0;139m\]\w\[\033[0m\]\$ '
+            ;;
+        solarized)
+            PS1='${debian_chroot:+($debian_chroot)}\[\033[38;2;181;137;0m\]\u@\h\[\033[0m\]:\[\033[38;2;38;139;210m\]\w\[\033[0m\]\$ '
+            ;;
+        custom)
+            PS1='${debian_chroot:+($debian_chroot)}\[\033[38;2;255;165;0m\]\u@\h\[\033[0m\]:\[\033[38;2;147;112;219m\]\w\[\033[0m\]\$ '
+            ;;
+        *)
+            echo "Unknown theme: $theme"
+            return 1
+            ;;
+    esac
+    export PS1
+}
+
+set_dircolors_theme() {
+    local theme="${1:-dark}"
+    if [ -x /usr/bin/dircolors ]; then
+        local colors
+        case "$theme" in
+            dark)
+                colors="DIR 38;2;0;191;255
+FILE 38;2;255;255;255
+EXEC 38;2;0;255;128
+LINK 38;2;255;215;0"
+                ;;
+            light)
+                colors="DIR 38;2;0;0;139
+FILE 38;2;0;0;0
+EXEC 38;2;139;0;0
+LINK 38;2;0;139;139"
+                ;;
+            solarized)
+                colors="DIR 38;2;38;139;210
+FILE 38;2;147;161;161
+EXEC 38;2;181;137;0
+LINK 38;2;203;75;22"
+                ;;
+            custom)
+                colors="DIR 38;2;147;112;219
+FILE 38;2;245;245;220
+EXEC 38;2;255;165;0
+LINK 38;2;255;215;0"
+                ;;
+            *)
+                colors=""
+                ;;
+        esac
+        if [ -n "$colors" ]; then
+            eval "$(echo "$colors" | dircolors -b -)"
+        else
+            eval "$(dircolors -b)"
+        fi
+    else
+        echo "Warning: dircolors not found, using default colors."
+    fi
+}
+
+theme() {
+    local theme="${1:-dark}"
+    local quiet=${2:-0}
+    
+    set_prompt_theme "$theme"
+    set_dircolors_theme "$theme"
+    alias ls='ls --color=auto'
+    alias grep='grep --color=auto'
+    alias fgrep='fgrep --color=auto'
+    alias egrep='egrep --color=auto'
+    case "$TERM" in
+        xterm*|rxvt*)
+            PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
+            ;;
+    esac
+    
+    # Only show message if not in quiet mode
+    if [ "$quiet" -eq 0 ]; then
+        echo "Switched to $theme theme."
+    fi
+}
+
+# Source .bashrc if it hasn't been loaded yet
+if [ -n "$BASH_VERSION" ] && [ -z "$DOT_BASHRC_LOADED" ]; then
+    if [ -f "$HOME/.bashrc" ]; then
+        . "$HOME/.bashrc"
+    fi
+fi
+
+# Define theme_help function to show usage
+theme_help() {
+    echo "Terminal theme switching:"
+    echo "  theme dark     - Switch to dark theme"
+    echo "  theme light    - Switch to light theme"
+    echo "  theme solarized - Switch to solarized theme"
+    echo "  theme custom   - Switch to custom theme"
+}
+
+# Apply default theme quietly
+theme "${THEME:-dark}" 1
+
+# Show a one-time hint
+echo ""
+echo "Welcome to the 🦖Skewed Emacs🦖  Bash Profile"
+echo "" 
+echo "Color Tip: Use 'theme dark|light|solarized|custom' to change terminal colors."
+echo "Run 'theme_help' for more info."
+echo ""
 
 
 # Start a Gendl instance with a Swank server
@@ -24,7 +159,6 @@ function gswank
         return 1
     fi
 }
-
 
 
 function egui
@@ -59,17 +193,17 @@ function rgc
     echo "Using Lisp implementation: ${impl}"
     
     # Ensure gendl repo is available
-    local gendl_dir="$HOME/gendl"
+    local gendl_dir="$HOME/projects/gendl"
     local docker_run_script=""
     
-    if [ -d "$HOME/genworks/gendl/docker" ]; then
-        docker_run_script="$HOME/genworks/gendl/docker/run"
-    elif [ -d "$gendl_dir/docker" ]; then
-        docker_run_script="$gendl_dir/docker/run"
+    if [ -d "${gendl_dir}" ]; then
+        docker_run_script="${gendl_dir}/docker/run"
     else
-        echo "Error: Gendl repository not found at $HOME/genworks/gendl or $gendl_dir"
-        echo "Please clone gitlab.common-lisp.net/gendl/gendl.git to ~/gendl"
-        return 1
+        echo "Gendl repository not found at $HOME/projects/gendl or $gendl_dir"
+        echo "Cloning into place, please stand by..."
+	mkdir -p ${HOME}/projects
+	cd ${HOME}/projects
+	git clone https://gitlab.common-lisp.net/gendl/gendl
     fi
     
     # Run the container
@@ -78,7 +212,7 @@ function rgc
     
     # Setup environment in container
     docker exec -d $cid ln -s /home /Users
-    docker exec -d $cid ln -s /home/gendl-user ${HOME} >$(tty)
+    docker exec -d $cid ln -s /home/gendl-user ${HOME}
     
     echo "${run_output}"
     echo "Container ID: ${cid}"
@@ -129,28 +263,6 @@ if [ -n "$BASH_VERSION" ]; then
     fi
 fi
 
-
-
-# Start the SSH agent if not already running
-
-#if ! [ -f "/data/data/com.termux/" ]; then
-#    if ! pgrep -u "$USER" ssh-agent > /dev/null; then
-#	eval "$(ssh-agent -s)"
-#    fi
-#fi
-
-
-
-# Start Gotty if it's not already running
-#if [ -f "$HOME/meta-quest.txt" ]; then
-#
-#    export LD_LIBRARY_PATH="/data/data/com.termux/files/usr/lib:${LD_LIBRARY_PATH}"
-#    
-#	if ! pgrep "gotty" > /dev/null
-#	then
-#		~/bin/goty
-#	fi
-#fi
 
 
 if [ -f "$HOME/.local/bin/env" ]; then 

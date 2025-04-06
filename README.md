@@ -25,6 +25,10 @@ experience.
   - Shell script utilities
   - Cross-platform support (including WSL)
 
+- **Windows Integration:**
+  - [Windows keybindings](windows-keybindings/README.md) for CapsLock to Control and Emacs-style navigation keys
+  - AutoHotkey configuration for Microsoft Edge, Claude, and other applications
+
 - **Docker Integration:**
   - Helper functions for running containerized environments
   - Development container setup
