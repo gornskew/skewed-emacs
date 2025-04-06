@@ -11,6 +11,9 @@
 (use-package copilot
   :straight (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el")) :ensure t)
 
+
+(unless (ignore-errors (copilot-install-server))
+  (warn "Copilot server did not install - try M-x copilot-install-server later."))
 ;;(add-hook 'prog-mode-hook 'copilot-mode)
 
 (require 'bind-key)

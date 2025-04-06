@@ -90,6 +90,8 @@
 		    ;;lsp-treemacs
 		    ;;treemacs-all-the-icons
 		    ;;lsp-ivy
+		    doom-themes
+		    zenburn-theme
 		    use-package
 		    ellama
 		    ))
@@ -120,6 +122,7 @@
     
     (require 'flycheck)(global-flycheck-mode)
     (require 'company)
+    (require 'doom-themes)(require 'zenburn-theme)
     (dolist (hook '(c-mode-hook c++-mode-hook python-mode-hook
 				emacs-lisp-mode-hook lisp-mode-hook))
       (add-hook hook 'enable-company-mode))
@@ -233,18 +236,63 @@ FLAG: make sure these don't clobber graphical mode bindings,
   "Clear all themes."
   (interactive)
   (dolist (theme custom-enabled-themes) (disable-theme theme)))
-
-(defun light-theme ()
-  "Load the default light theme."
+(defun set-cursor-bright ()
+  "Set cursor to a bright magenta color."
   (interactive)
-  (clear-themes)
-  (load-theme 'adwaita t))
+  (when (not (display-graphic-p))
+    (send-string-to-terminal "\e]12;rgb:ff/00/ff\a"))  ; Magenta
+  (set-cursor-color "#ff00ff"))  ; Fallback for consistency
 
-(defun dark-theme ()
-  "Load the default dark theme."
-  (interactive)
-  (clear-themes)
-  (load-theme 'wombat t))
+
+(defvar dark-theme-options
+  '(("modus-vivendi" . modus-vivendi-deuteranopia)
+    ("doom-one" . doom-one)
+    ("doom-gruvbox" . doom-gruvbox)
+    ("zenburn" . zenburn))
+  "List of dark themes for `dark-theme' function.")
+
+(defun dark-theme (&optional theme-name)
+  "Load a dark theme, defaulting to \='modus-vivendi\='.
+THEME-NAME is a string, e.g., \='doom-one\='."
+  (interactive
+   (list (completing-read "Select dark theme: "
+                          (mapcar #'car dark-theme-options)  ; Use defvar directly
+                          nil t "modus-vivendi")))
+  (let* ((selected-theme (or theme-name "modus-vivendi"))  ; Default if nil
+         (theme-symbol (cdr (assoc selected-theme dark-theme-options))))
+    (unless theme-symbol
+      (error "Unknown theme: %s" selected-theme))
+    (clear-themes)
+    (load-theme theme-symbol t)
+    (when (not (display-graphic-p))
+      (send-string-to-terminal "\e]12;rgb:ff/00/ff\a"))  ; Magenta cursor
+    (set-cursor-color "#ff00ff")  ; Fallback
+    (setq cursor-type 'bar)
+    (message "Loaded dark theme: %s" selected-theme)))
+
+(defvar light-theme-options
+  '(("adwaita" . adwaita)
+    ("doom-one-light" . doom-one-light))
+  "List of light themes for `light-theme' function.")
+
+(defun light-theme (&optional theme-name)
+  "Load a light theme, defaulting to \='adwaita\='.
+THEME-NAME is a string, e.g., \='adwaita\='."
+  (interactive
+   (list (completing-read "Select light theme: "
+			  (mapcar #'car light-theme-options)  ; Use defvar directly
+			  nil t "adwaita")))
+  (let* ((selected-theme (or theme-name "adwaita"))  ; Default if nil
+	 (theme-symbol (cdr (assoc selected-theme light-theme-options))))
+    (unless theme-symbol
+      (error "Unknown theme: %s" selected-theme))
+    (clear-themes)
+    (load-theme theme-symbol t)
+    (when (not (display-graphic-p))
+      (send-string-to-terminal "\e]12;rgb:00/00/ff\a"))  ; Dark blue cursor for light
+    (set-cursor-color "#0000ff")  ; Fallback
+    (setq cursor-type 'bar)
+    (message "Loaded light theme: %s" selected-theme)))
 
 
 (defun setup-input-methods ()
@@ -265,8 +313,6 @@ FLAG: make sure these don't clobber graphical mode bindings,
   ;;
   ;; (global-undo-tree-mode)
   ;;
-  
-  (dark-theme)
   (if (display-graphic-p)
       (setup-graphical-keybindings-and-faces)
     (setup-terminal-keybindings-and-faces))
@@ -373,10 +419,8 @@ Make it tiled to the left."
 
 (defun setup-themes ()
   "Set up my preferred default themes."
-  ;; FLAG -- fill in
-  ;;
-  ;;(clear-themes)
-  ;;
+  (dark-theme)
+
   )
 
 

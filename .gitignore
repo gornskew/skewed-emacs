@@ -9,6 +9,11 @@ dot-files/emacs.d/org-persist/
 dot-files/emacs.d/eshell/
 dot-files/emacs.d/ielm-history.eld
 dot-files/emacs.d/org-clock-save.el
+dot-files/emacs.d/.chatgpt-shell.el
+dot-files/emacs.d/eln-cache/
+dot-files/emacs.d/elpa/
+
+
 .cache
 node_modules/
 .vscode/
@@ -38,3 +43,4 @@ history.*
 *.log*
 .tokens/
 *token*
+
