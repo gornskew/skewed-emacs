@@ -10,7 +10,7 @@
 (defvar inhibit-gendl-splash-p t)
 (defvar emacs-config-directory (file-name-directory (file-truename load-file-name)))
 (defvar my-files-to-load nil)
-(defvar load-mcp-service-p t)
+(defvar load-lisply? t)
 
 (defun ensure-package-installed (pkg)
   "Ensure PKG is installed.  If not, install it."
@@ -368,13 +368,13 @@ THEME-NAME is a string, e.g., \='adwaita\='."
     ;;(add-hook 'prog-mode-hook 'minimap-mode)
 ;;    )
 
-  ;; Load MCP service if enabled
-  (when load-mcp-service-p
-    (let ((mcp-service-dir (concat emacs-config-directory "/sideloaded/mcp-service/source/")))
-      (when (file-exists-p mcp-service-dir)
-        (message "Loading MCP service from %s" mcp-service-dir)
-        (dolist (file '("mcp-http-setup.el" "mcp-endpoints.el" "emacs-mcp-service.el"))
-          (let ((file-path (concat mcp-service-dir file)))
+  ;; Load Lisply MCP service if enabled
+  (when load-lisply?
+    (let ((lisply-dir (concat emacs-config-directory "/sideloaded/lisply/source/")))
+      (when (file-exists-p lisply-dir)
+        (message "Loading Lisply service from %s" lisply-dir)
+        (dolist (file '("lisply-http-setup.el" "lisply-endpoints.el" "lisply-backend.el"))
+          (let ((file-path (concat lisply-dir file)))
             (if (file-exists-p file-path)
                 (load-file file-path)
               (message "Warning: MCP service file %s not found" file-path)))))))

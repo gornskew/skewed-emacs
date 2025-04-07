@@ -191,7 +191,7 @@ operations such as:
 - Potentially assisting with more complex development tasks
 
 The MCP backend is implemented in the
-`dot-files/emacs.d/sideloaded/mcp-service/` directory and can be
+`dot-files/emacs.d/sideloaded/lisply-backend/` directory and can be
 configured to run in various environments including Docker containers
 for enhanced security. 
 
