@@ -1,4 +1,4 @@
-;;; lisply-endpoints.el --- MCP protocol endpoints for Emacs integration
+;;; lisply-endpoints.el --- Lisply protocol endpoints for Emacs integration
 
 ;; Copyright (C) 2025 Genworks
 
@@ -16,7 +16,7 @@
 ;; along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 ;;; Commentary:
-;; This file defines the MCP protocol endpoints for Emacs,
+;; This file defines the Lisply protocol endpoints for Emacs,
 ;; compatible with the Model Context Protocol for LLM integration.
 
 ;;; Code:
@@ -52,23 +52,23 @@
   "List of tool definitions for the Emacs Lisply server.")
 
 (defun emacs-lisply-generate-tool-description ()
-  "Generate a tool description for Claude MCP integration."
+  "Generate a tool description for LLM integration."
   `(("tools" . ,emacs-lisply-tools)))
 
 ;; Lisply HTTP handlers
 
 (defservlet* lisply/ping-lisp text/plain ()
-  "Handle generic ping endpoint for MCP."
+  "Handle generic ping-lisp endpoint for Lisply."
   (emacs-lisply-log "Handling ping-lisp request")
   (insert "pong"))
 
 (defservlet* lisply/tools/list application/json ()
-  "Handle tools list endpoint for MCP."
+  "Handle tools tools/list endpoint for Lisply."
   (emacs-lisply-log "Handling tools/list request")
   (emacs-lisply-send-response (emacs-lisply-generate-tool-description)))
 
 (defservlet* lisply/lisp-eval application/json ()
-  "Handle Emacs Lisp evaluation endpoint for MCP."
+  "Handle Emacs Lisp evaluation endpoint for Lisply."
   (emacs-lisply-log "Handling lisp-eval request")
   (let* ((json-input (emacs-lisply-parse-json-body))
          (code (and json-input (cdr (assoc 'code json-input))))
@@ -108,7 +108,7 @@
        ,@(when error `(("error" . ,error)))))))
 
 (defservlet* lisply/specs application/json ()
-  "Handle specs endpoint for MCP configuration."
+  "Handle suggested specs endpoint for MCP client configuration."
   (emacs-lisply-log "Handling specs request")
   (let ((local-endpoint (format "http://127.0.0.1:%d/lisply" emacs-lisply-port)))
     (insert (format "

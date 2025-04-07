@@ -1,17 +1,26 @@
-FROM silex/emacs:28.2-alpine
+FROM silex/emacs:28.2-alpine@sha256:b7e60f8debb85dc49fca5ebc241a4cd97a0d1d1cd7fdceae9c8de87d76b28e97
 
-# Install necessary packages
+# Add metadata labels
+LABEL maintainer="Genworks" \
+      description="Emacs Lisply Backend for Model Context Protocol" \
+      version="1.0" \
+      org.opencontainers.image.source="https://github.com/gendl/emacs-lisply-backend"
+
+# Install necessary packages with specific versions
 RUN apk add --no-cache \
-    git \
-    curl \
-    wget \
-    openssh-client \
-    bash \
-    tzdata \
+    git=2.36.5-r0 \
+    curl=8.0.1-r0 \
+    wget=1.21.3-r0 \
+    openssh-client=9.0_p1-r2 \
+    bash=5.1.16-r2 \
+    tzdata=2022a-r0 \
+    coreutils=9.1-r0 \
+    findutils=4.9.0-r0 \
     && rm -rf /var/cache/apk/*
 
-# Create a non-root user
-RUN adduser -D -h /home/emacs emacs
+# Create a non-root user with specific UID/GID for better security
+RUN addgroup -g 1000 emacs && \
+    adduser -D -h /home/emacs -s /bin/bash -G emacs -u 1000 emacs
 
 # Set up SSH for Git (only used during build)
 RUN mkdir -p /home/emacs/.ssh && \
@@ -33,12 +42,14 @@ RUN if [ -n "$SSH_PRIVATE_KEY" ]; then \
 USER emacs
 WORKDIR /home/emacs
 
-# Clone config repository and set up environment (during build only)
-RUN if [ -n "$SSH_PRIVATE_KEY" ]; then \
-    git clone git@gitlab.genworks.com/dnd/config.git /home/emacs/.config && \
-    chmod +x /home/emacs/.config/setup && \
-    /home/emacs/.config/setup; \
-    fi
+# Copy the skewed-emacs repository into the container
+COPY --chown=emacs:emacs . /home/emacs/skewed-emacs
+
+# Run the setup script to configure dotfiles
+RUN cd /home/emacs/skewed-emacs && \
+    chmod +x ./setup && \
+    ./setup && \
+    echo "Skewed Emacs configuration installed successfully."
 
 # Copy Lisply files
 RUN mkdir -p /home/emacs/.emacs.d/lisp
@@ -46,12 +57,14 @@ COPY --chown=emacs:emacs source/lisply-http-setup.el /home/emacs/.emacs.d/lisp/
 COPY --chown=emacs:emacs source/lisply-endpoints.el /home/emacs/.emacs.d/lisp/
 COPY --chown=emacs:emacs source/emacs-lisply-backend.el /home/emacs/.emacs.d/lisp/
 
-# Copy the package installation script
-COPY --chown=emacs:emacs docker/install-packages.el /home/emacs/.emacs.d/lisp/
-RUN emacs --batch -l /home/emacs/.emacs.d/lisp/install-packages.el
-
 # Add Lisply backend configuration to init.el
 RUN echo '\n;; Lisply Backend configuration\n(add-to-list '\''load-path "~/.emacs.d/lisp")\n(require '\''simple-httpd)\n(require '\''emacs-lisply-backend)\n(emacs-lisply-start)' >> /home/emacs/.emacs.d/init.el
+
+# Launch Emacs once to bootstrap package installation through init.el
+RUN emacs --batch --eval "(require 'package)" \
+          --eval "(package-initialize)" \
+          --eval "(load-file \"~/.emacs.d/init.el\")" \
+          --eval "(message \"Package installation complete\")"
 
 # Clean up SSH keys after build (security best practice)
 USER root

@@ -41,9 +41,13 @@ echo "Building Docker image: ${FULL_IMAGE_NAME}"
 # Get script directory and project root directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+SKEWED_EMACS_ROOT="$(cd "${PROJECT_ROOT}/../../.." && pwd)"
 
-# Build the Docker image from the project root, specifying the Dockerfile in docker/
-cd "${PROJECT_ROOT}"
+# Build the Docker image from the skewed-emacs root to include all configuration files
+cd "${SKEWED_EMACS_ROOT}"
+
+echo "Building from skewed-emacs root directory: ${SKEWED_EMACS_ROOT}"
+echo "Using Dockerfile from: ${SCRIPT_DIR}/Dockerfile"
 
 # Check if we're using a private repository
 ECHO_WARNING=""
@@ -63,6 +67,7 @@ fi
 eval "${ECHO_WARNING}"
 
 # Build with or without SSH key
+echo "Running: docker build -t \"${FULL_IMAGE_NAME}\" -f \"${SCRIPT_DIR}/Dockerfile\" ."
 eval "docker build ${SSH_KEY_ARG} -t \"${FULL_IMAGE_NAME}\" -f \"${SCRIPT_DIR}/Dockerfile\" ."
 
 echo "Successfully built ${FULL_IMAGE_NAME}"

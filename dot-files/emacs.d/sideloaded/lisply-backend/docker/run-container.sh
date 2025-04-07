@@ -13,7 +13,7 @@ set -e
 
 # Default values
 IMAGE_NAME="emacs-lisply:latest"
-PORT=7080
+PORT=7081
 MOUNT_DIR=""
 
 # Parse command line arguments

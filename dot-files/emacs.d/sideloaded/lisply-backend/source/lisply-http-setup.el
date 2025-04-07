@@ -34,8 +34,8 @@
   :type 'integer
   :group 'emacs-lisply)
 
-(defcustom emacs-lisply-debug t
-  "Whether to enable debug logging."
+(defcustom emacs-lisply-debug nil
+  "Whether to enable debug logging. Should be disabled in production."
   :type 'boolean
   :group 'emacs-lisply)
 
