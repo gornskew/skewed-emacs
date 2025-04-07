@@ -1,12 +1,12 @@
-;;; emacs-mcp-service.el --- Emacs Model Context Protocol integration
+;;; emacs-lisply-backend.el --- Emacs Model Context Protocol integration
 
 ;; Copyright (C) 2025 Genworks
 
 ;; Author: Genworks
 ;; Version: 1.0.0
 ;; Package-Requires: ((emacs "27.1") (simple-httpd "1.5.1"))
-;; Keywords: tools, ai, mcp
-;; URL: https://github.com/genworks/emacs-mcp
+;; Keywords: tools, ai, lisply
+;; URL: https://github.com/genworks/emacs-lisply
 
 ;; This program is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU Affero General Public License as
@@ -27,34 +27,34 @@
 ;; with Emacs through a standardized API.
 ;;
 ;; Usage:
-;; 1. Start the Emacs MCP server: M-x emacs-mcp-start
+;; 1. Start the Emacs Lisply backend: M-x emacs-lisply-start
 ;; 2. Connect Claude Desktop with the appropriate configuration.
 ;; 3. Now Claude can evaluate Emacs Lisp code, inspect buffers,
 ;;    and perform other Emacs operations via the MCP protocol.
 
 ;;; Code:
 
-(require 'mcp-http-setup)
-(require 'mcp-endpoints)
+(require 'lisply-http-setup)
+(require 'lisply-endpoints)
 
 ;;;###autoload
-(defun emacs-mcp-start ()
-  "Start the Emacs MCP integration."
+(defun emacs-lisply-start ()
+  "Start the Emacs Lisply integration."
   (interactive)
-  (emacs-mcp-start-server)
-  (message "Emacs MCP integration started"))
+  (emacs-lisply-start-server)
+  (message "Emacs Lisply integration started"))
 
 ;;;###autoload
-(defun emacs-mcp-stop ()
-  "Stop the Emacs MCP integration."
+(defun emacs-lisply-stop ()
+  "Stop the Emacs Lisply integration."
   (interactive)
-  (emacs-mcp-stop-server)
-  (message "Emacs MCP integration stopped"))
+  (emacs-lisply-stop-server)
+  (message "Emacs Lisply integration stopped"))
 
-(defun emacs-mcp-version ()
-  "Return the Emacs MCP version."
+(defun emacs-lisply-version ()
+  "Return the Emacs Lisply version."
   (interactive)
-  (message "Emacs MCP version 1.0.0"))
+  (message "Emacs Lisply version 1.0.0"))
 
-(provide 'emacs-mcp-service)
-;;; emacs-mcp.el ends here
+(provide 'emacs-lisply-backend)
+;;; emacs-lisply-backend.el ends here

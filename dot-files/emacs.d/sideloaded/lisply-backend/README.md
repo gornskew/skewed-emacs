@@ -1,11 +1,11 @@
-# Emacs MCP Service - Model Context Protocol for LLMs to drive Emacs
+# Emacs Lisply Backend - Model Context Protocol for LLMs to drive Emacs
 
 This repository depends on the [lisp-mcp
 project](https://github.com/gendl/lisp-mcp), which provides a generic
 MCP server wrapper for backend Lisp-speaking services. This project
-(emacs-mcp-service) contains a compatible back-end server
+(emacs-lisply-backend) contains a compatible back-end server
 implementation for Gnu Emacs and emacs lisp. It is named
-"emacs-mcp-service" to avoid confusion with other projects such as
+"emacs-lisply-backend" to avoid confusion with other projects such as
 [`mcp.el`](https://github.com/lizqwerscott/mcp.el) which aim to build
 mcp _clients_ within emacs (another worthy goal).
 
@@ -57,7 +57,7 @@ evaluated against the running Emacs daemon, best practices are:
 
 3. Add to your `init.el`:
    ```elisp
-   (require 'emacs-mcp)
+   (require 'emacs-lisply-backend)
    ```
 
 ### Docker Container
@@ -201,23 +201,23 @@ should go directly to the container started here.
 
 ## API Endpoints
 
-- `/mcp/ping-lisp` - Check if the server is available
-- `/mcp/lisp-eval` - Evaluate Emacs Lisp code
-- `/mcp/tools/list` - List available MCP tools
-- `/mcp/specs` - Get MCP configuration specs
-- `/mcp/buffers` - List all Emacs buffers
-- `/mcp/current-buffer` - Get information about the current buffer
-- `/mcp/buffer-content` - Get the content of a specific buffer
-- `/mcp/read-file` - Read a file
-- `/mcp/write-file` - Write to a file
+- `/lisply/ping-lisp` - Check if the server is available
+- `/lisply/lisp-eval` - Evaluate Emacs Lisp code
+- `/lisply/tools/list` - List available MCP tools
+- `/lisply/specs` - Get MCP configuration specs
+- `/lisply/buffers` - List all Emacs buffers
+- `/lisply/current-buffer` - Get information about the current buffer
+- `/lisply/buffer-content` - Get the content of a specific buffer
+- `/lisply/read-file` - Read a file
+- `/lisply/write-file` - Write to a file
 
 ## Development
 
 ### Project Structure
 
-- `source/emacs-mcp.el` - Main entry point
-- `source/mcp-http-setup.el` - HTTP server configuration
-- `source/mcp-endpoints.el` - MCP endpoint definitions
+- `source/emacs-lisply-backend.el` - Main entry point
+- `source/lisply-http-setup.el` - HTTP server configuration
+- `source/lisply-endpoints.el` - MCP endpoint definitions
 
 ### Building the Container
 

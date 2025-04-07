@@ -40,14 +40,18 @@ RUN if [ -n "$SSH_PRIVATE_KEY" ]; then \
     /home/emacs/.config/setup; \
     fi
 
-# Copy MCP files
+# Copy Lisply files
 RUN mkdir -p /home/emacs/.emacs.d/lisp
-COPY --chown=emacs:emacs source/mcp-http-setup.el /home/emacs/.emacs.d/lisp/
-COPY --chown=emacs:emacs source/mcp-endpoints.el /home/emacs/.emacs.d/lisp/
-COPY --chown=emacs:emacs source/emacs-mcp-service.el /home/emacs/.emacs.d/lisp/
+COPY --chown=emacs:emacs source/lisply-http-setup.el /home/emacs/.emacs.d/lisp/
+COPY --chown=emacs:emacs source/lisply-endpoints.el /home/emacs/.emacs.d/lisp/
+COPY --chown=emacs:emacs source/emacs-lisply-backend.el /home/emacs/.emacs.d/lisp/
 
-# Add MCP service configuration to init.el
-RUN echo '\n;; MCP Service configuration\n(add-to-list '\''load-path "~/.emacs.d/lisp")\n(require '\''simple-httpd)\n(require '\''emacs-mcp-service)' >> /home/emacs/.emacs.d/init.el
+# Copy the package installation script
+COPY --chown=emacs:emacs docker/install-packages.el /home/emacs/.emacs.d/lisp/
+RUN emacs --batch -l /home/emacs/.emacs.d/lisp/install-packages.el
+
+# Add Lisply backend configuration to init.el
+RUN echo '\n;; Lisply Backend configuration\n(add-to-list '\''load-path "~/.emacs.d/lisp")\n(require '\''simple-httpd)\n(require '\''emacs-lisply-backend)\n(emacs-lisply-start)' >> /home/emacs/.emacs.d/init.el
 
 # Clean up SSH keys after build (security best practice)
 USER root

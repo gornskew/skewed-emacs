@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# build.sh - Build Emacs MCP Docker container
+# build.sh - Build Emacs Lisply Backend Docker container
 # 
 # Copyright (C) 2025 Genworks
 # 
@@ -13,7 +13,7 @@ set -e
 
 # Default values
 TAG="latest"
-IMAGE_NAME="emacs-mcp"
+IMAGE_NAME="emacs-lisply"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do

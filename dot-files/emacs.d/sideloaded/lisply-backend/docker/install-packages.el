@@ -1,4 +1,4 @@
-;; Package installation script
+;; Package installation script for Lisply Backend
 (require 'package)
 (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
 (package-initialize)

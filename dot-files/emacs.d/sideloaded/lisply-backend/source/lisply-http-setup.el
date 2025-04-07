@@ -1,4 +1,4 @@
-;;; mcp-http-setup.el --- HTTP server setup for MCP protocol
+;;; lisply-http-setup.el --- HTTP server setup for MCP protocol
 
 ;; Copyright (C) 2025 Genworks
 
@@ -25,35 +25,35 @@
 (require 'json)
 (require 'simple-httpd)
 
-(defgroup emacs-mcp nil
-  "Emacs MCP Server for LLM integration."
+(defgroup emacs-lisply nil
+  "Emacs Lisply Server for LLM integration."
   :group 'tools)
 
-(defcustom emacs-mcp-port 7080
-  "Port for the Emacs MCP server."
+(defcustom emacs-lisply-port 7080
+  "Port for the Emacs Lisply server."
   :type 'integer
-  :group 'emacs-mcp)
+  :group 'emacs-lisply)
 
-(defcustom emacs-mcp-debug t
+(defcustom emacs-lisply-debug t
   "Whether to enable debug logging."
   :type 'boolean
-  :group 'emacs-mcp)
+  :group 'emacs-lisply)
 
-(defcustom emacs-mcp-base-path "/mcp"
-  "Base path for the MCP endpoints."
+(defcustom emacs-lisply-base-path "/lisply"
+  "Base path for the Lisply endpoints."
   :type 'string
-  :group 'emacs-mcp)
+  :group 'emacs-lisply)
 
-(defvar emacs-mcp-server-running nil
-  "Flag tracking whether the MCP server is running.")
+(defvar emacs-lisply-server-running nil
+  "Flag tracking whether the Lisply server is running.")
 
-(defun emacs-mcp-log (format-string &rest args)
+(defun emacs-lisply-log (format-string &rest args)
   "Log a message with FORMAT-STRING and ARGS if debug is enabled."
-  (when emacs-mcp-debug
+  (when emacs-lisply-debug
     (let ((msg (apply 'format format-string args)))
-      (message "[EMACS-MCP] %s" msg))))
+      (message "[EMACS-LISPLY] %s" msg))))
 
-(defun emacs-mcp-get-request-body ()
+(defun emacs-lisply-get-request-body ()
   "Get the body of the current HTTP request as a string."
   (let ((length (or (cdr (assoc "content-length" httpd-headers)) "0")))
     (if (> (string-to-number length) 0)
@@ -64,17 +64,17 @@
           (buffer-substring-no-properties (point) (point-max)))
       nil)))
 
-(defun emacs-mcp-parse-json-body ()
+(defun emacs-lisply-parse-json-body ()
   "Parse the JSON body from the current HTTP request."
-  (let ((body (emacs-mcp-get-request-body)))
+  (let ((body (emacs-lisply-get-request-body)))
     (when (and body (not (string-empty-p body)))
       (condition-case err
           (json-read-from-string body)
         (error
-         (emacs-mcp-log "Error parsing JSON body: %s" err)
+         (emacs-lisply-log "Error parsing JSON body: %s" err)
          nil)))))
 
-(defun emacs-mcp-send-response (data &optional content-type)
+(defun emacs-lisply-send-response (data &optional content-type)
   "Send a response with DATA and optional CONTENT-TYPE.
 DATA can be a string, in which case it will be sent as-is,
 or an object which will be JSON-encoded."
@@ -87,32 +87,32 @@ or an object which will be JSON-encoded."
        (json-encode data)))))
 
 ;;;###autoload
-(defun emacs-mcp-start-server ()
-  "Start the Emacs MCP server."
+(defun emacs-lisply-start-server ()
+  "Start the Emacs Lisply server."
   (interactive)
   (httpd-stop)
-  (setq httpd-port emacs-mcp-port)
+  (setq httpd-port emacs-lisply-port)
   (httpd-start)
-  (setq emacs-mcp-server-running t)
-  (emacs-mcp-log "Emacs MCP server started on port %d" emacs-mcp-port)
-  (message "Emacs MCP server started on port %d" emacs-mcp-port))
+  (setq emacs-lisply-server-running t)
+  (emacs-lisply-log "Emacs Lisply server started on port %d" emacs-lisply-port)
+  (message "Emacs Lisply server started on port %d" emacs-lisply-port))
 
 ;;;###autoload
-(defun emacs-mcp-stop-server ()
-  "Stop the Emacs MCP server."
+(defun emacs-lisply-stop-server ()
+  "Stop the Emacs Lisply server."
   (interactive)
   (httpd-stop)
-  (setq emacs-mcp-server-running nil)
-  (emacs-mcp-log "Emacs MCP server stopped")
-  (message "Emacs MCP server stopped"))
+  (setq emacs-lisply-server-running nil)
+  (emacs-lisply-log "Emacs Lisply server stopped")
+  (message "Emacs Lisply server stopped"))
 
 ;;;###autoload
-(defun emacs-mcp-server-status ()
-  "Show the status of the Emacs MCP server."
+(defun emacs-lisply-server-status ()
+  "Show the status of the Emacs Lisply server."
   (interactive)
-  (if emacs-mcp-server-running
-      (message "Emacs MCP server is running on port %d" emacs-mcp-port)
-    (message "Emacs MCP server is not running")))
+  (if emacs-lisply-server-running
+      (message "Emacs Lisply server is running on port %d" emacs-lisply-port)
+    (message "Emacs Lisply server is not running")))
 
-(provide 'mcp-http-setup)
-;;; mcp-http-setup.el ends here
+(provide 'lisply-http-setup)
+;;; lisply-http-setup.el ends here
