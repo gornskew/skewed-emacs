@@ -245,7 +245,7 @@ FLAG: make sure these don't clobber graphical mode bindings,
 
 
 (defvar dark-theme-options
-  '(("doom-tokyo-night" . doom-gruvbox)
+  '(("doom-tokyo-night" . doom-tokyo-night)
     ("doom-one" . doom-one)
     ("doom-pine" . doom-pine)
     ("doom-purple" . doom-shades-of-purple)
@@ -473,14 +473,16 @@ Make it tiled to the left."
 
 
 (use-package eat
-  :ensure t
-  :config
+  :ensure t)
+  ;; :config
   ;; Set TERM to a true color-capable value inside eat
-  (setq eat-term-name "xterm-truecolor")
+;;;  (setq eat-term-name "xterm-truecolor")
   ;; Optional: Ensure true color is recognized
-  (add-hook 'eat-mode-hook
-            (lambda ()
-              (setenv "TERM" "xterm-truecolor"))))
+  ;; NOTE - eat currently doesn't support xterm-truecolor,
+  ;; we need to hold it back to xterm-256color.
+(add-hook 'eat-mode-hook
+          (lambda ()
+            (setenv "TERM" "xterm-256color")))
 
 (add-hook 'eshell-load-hook #'eat-eshell-mode)
 
