@@ -1,6 +1,10 @@
 # Dockerfile for Skewed Emacs with Lisply Backend
 # Uses the emacs-base image which already has Emacs 30.1 built and installed
 
+# FLAG -- this is failing on the emacs --batch job. `as` and `git`
+# executables not found, despite them being installed and in path of
+# emacs-user.
+
 # Start with the pre-built Emacs base image
 FROM skewed-emacs-base:latest
 
