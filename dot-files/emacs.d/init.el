@@ -484,6 +484,11 @@ Make it tiled to the left."
           (lambda ()
             (setenv "TERM" "xterm-256color")))
 
+(when (not (display-graphic-p))
+  (setenv "TERM" "xterm-256color")
+  (require 'term)
+  (terminal-init-xterm))
+
 (add-hook 'eshell-load-hook #'eat-eshell-mode)
 
 (add-hook 'eshell-load-hook #'eat-eshell-visual-command-mode)

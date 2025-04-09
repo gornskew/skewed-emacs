@@ -2,7 +2,7 @@
 # This builds Emacs from source and creates a reusable base image
 
 # Build stage
-FROM ubuntu:latest AS builder
+FROM debian:latest AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -58,7 +58,7 @@ RUN ./autogen.sh && \
     && make install prefix=/usr/local
 
 # Runtime stage
-FROM ubuntu:latest
+FROM debian:latest
 
 # Install runtime dependencies including assembler for native compilation
 RUN apt-get update && apt-get install -y \
@@ -70,10 +70,31 @@ RUN apt-get update && apt-get install -y \
     libgpm2 \
     libgccjit0 \
     binutils \
-    gcc-12 \
-    git \
+    build-essential \
+    git sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Emacs from the builder stage - use usr/local to preserve all files
 COPY --from=builder /usr/local /usr/local
-ENV PATH="/usr/local/bin:${PATH}"
+
+
+# Create emacs-user with UID 1000
+RUN useradd -m -s /bin/bash -u 1000 emacs-user && \
+    usermod -aG sudo emacs-user
+
+# Copy the skewed-emacs repository content with our user configuration
+COPY --chown=emacs-user:emacs-user . /home/emacs-user/skewed-emacs/
+
+USER emacs-user
+ENV HOME="/home/emacs-user"
+WORKDIR /home/emacs-user
+
+# Run the setup script to install the configuration
+RUN cd skewed-emacs && ./setup
+
+
+# Set environment variable for terminal
+ENV TERM=xterm-256color
+
+
+CMD /bin/bash

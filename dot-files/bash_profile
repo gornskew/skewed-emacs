@@ -1,27 +1,18 @@
 #!/bin/bash
 
-# Set flag to indicate bash_profile has been loaded (if not already set)
+# Set flag to indicate bash_profile has been loaded
 if [ -z "$DOT_BASH_PROFILE_LOADED" ]; then
     export DOT_BASH_PROFILE_LOADED=1
 fi
 
-# USERS: Add the following code to your ~/.bashrc to ensure this file gets loaded
-# if it hasn't been already:
-#
-# # Load bash_profile if it hasn't been loaded yet
-# if [ -n "$BASH_VERSION" ] && [ -z "$DOT_BASH_PROFILE_LOADED" ]; then
-#     if [ -f "$HOME/.bash_profile" ]; then
-#         . "$HOME/.bash_profile"
-#     fi
-# fi
-
-PATH="/snap/bin":${PATH}
+# Set PATH early and cleanly
+export PATH="/snap/bin:$PATH"
 
 export ALTERNATE_EDITOR=""
 export EDITOR="emacsclient -t"
 export VISUAL="emacsclient -c -a emacs"
 
-# Use xterm-256color and signal true color via COLORTERM
+# Terminal settings
 export TERM="xterm-256color"
 export COLORTERM="truecolor"
 alias ssh='TERM=xterm-256color COLORTERM=truecolor ssh'
@@ -88,15 +79,12 @@ LINK 38;2;255;215;0"
         else
             eval "$(dircolors -b)"
         fi
-    else
-        echo "Warning: dircolors not found, using default colors."
     fi
 }
 
 theme() {
     local theme="${1:-dark}"
     local quiet=${2:-0}
-    
     set_prompt_theme "$theme"
     set_dircolors_theme "$theme"
     alias ls='ls --color=auto'
@@ -108,21 +96,11 @@ theme() {
             PS1="\[\e]0;${debian_chroot:+($debian_chroot)}\u@\h: \w\a\]$PS1"
             ;;
     esac
-    
-    # Only show message if not in quiet mode
     if [ "$quiet" -eq 0 ]; then
         echo "Switched to $theme theme."
     fi
 }
 
-# Source .bashrc if it hasn't been loaded yet
-if [ -n "$BASH_VERSION" ] && [ -z "$DOT_BASHRC_LOADED" ]; then
-    if [ -f "$HOME/.bashrc" ]; then
-        . "$HOME/.bashrc"
-    fi
-fi
-
-# Define theme_help function to show usage
 theme_help() {
     echo "Terminal theme switching:"
     echo "  theme dark     - Switch to dark theme"
@@ -131,16 +109,18 @@ theme_help() {
     echo "  theme custom   - Switch to custom theme"
 }
 
-# Apply default theme quietly
-theme "${THEME:-dark}" 1
-
-# Show a one-time hint
-echo ""
-echo "Welcome to the 🦖Skewed Emacs🦖  Bash Profile"
-echo "" 
-echo "Color Tip: Use 'theme dark|light|solarized|custom' to change terminal colors."
-echo "Run 'theme_help' for more info."
-echo ""
+# Interactive shell setup
+if [[ $- == *i* ]]; then
+    # Apply default theme quietly
+    theme "${THEME:-dark}" 1
+    # Show welcome message
+    echo ""
+    echo "Welcome to the 🦖Skewed Emacs🦖  Bash Profile"
+    echo ""
+    echo "Color Tip: Use 'theme dark|light|solarized|custom' to change terminal colors."
+    echo "Run 'theme_help' for more info."
+    echo ""
+fi
 
 
 # Start a Gendl instance with a Swank server
