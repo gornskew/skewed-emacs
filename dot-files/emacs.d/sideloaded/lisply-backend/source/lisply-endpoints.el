@@ -44,9 +44,7 @@
                        ("properties" . (("code" . (("type" . "string")
                                                  ("description" . "The Emacs Lisp code to evaluate")))
                                        ("package" . (("type" . "string")
-                                                   ("description" . "Not used in Emacs Lisp but kept for protocol compatibility")))
-                                       ("mode" . (("type" . "string") ;; mode is used only by middleware wrapper.
-                                                 ("description" . "The mode to use to talk to Emacs, either http (default) or stdio. Stdio will only be respected for local Emacs containers started by the MCP server itself.")))))
+                                                   ("description" . "Not used in Emacs Lisp but kept for protocol compatibility")))))
                        ("required" . ["code"]))))
 
 
