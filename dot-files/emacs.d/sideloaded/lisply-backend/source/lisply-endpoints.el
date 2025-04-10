@@ -48,6 +48,13 @@
                                        ("mode" . (("type" . "string") 
                                                  ("description" . "The mode to use to talk to Emacs, either http (default) or stdio. Stdio will only be respected for local Emacs containers started by the MCP server itself.")))))
                        ("required" . ["code"]))))
+
+
+   ;;
+   ;; FLAG -- http_request is implemented in middleware, not in this backend. 
+   ;;
+   
+   
    )
   "List of tool definitions for the Emacs Lisply server.")
 

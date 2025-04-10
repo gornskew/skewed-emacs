@@ -197,7 +197,7 @@ implementation is
 
 
 **NOTE:** [This generic MCP nodejs
-wrapper](https://github.com/gendl/lispy-mcp.git) is what you
+wrapper](https://github.com/gendl/lisply-mcp.git) is what you
 need to configure in e.g. your `claude_desktop_config.json`. See the [Lisply
 Backend
 README](/projects/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/README.md)

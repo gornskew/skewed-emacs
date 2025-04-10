@@ -83,13 +83,11 @@ curl -X POST http://localhost:7081/lisply/lisp-eval \
   -H "Content-Type: application/json" \
   -d '{"code": "(+ 1 2 3)"}'
 
-# Get a list of buffers
-curl http://localhost:7081/lisply/buffers
-
-# Read a file
-curl -X POST http://localhost:7081/lisply/read-file \
+# Evaluate a simple expression with side-effect printing to *standard-output*
+curl -X POST http://localhost:7081/lisply/lisp-eval \
   -H "Content-Type: application/json" \
-  -d '{"path": "/projects/myfile.txt"}'
+  -d '{"code": "(let ((result (+ 1 2 3))) (format t "Result is: ~a~%" result) result)"}'
+
 ```
 
 ### Integration with Other Tools
@@ -108,12 +106,6 @@ When integrating with tool frameworks that support the Model Context Protocol, y
 - `/lisply/ping-lisp` - Check if the server is available
 - `/lisply/lisp-eval` - Evaluate Emacs Lisp code
 - `/lisply/tools/list` - List available MCP tools
-- `/lisply/specs` - Get MCP configuration specs
-- `/lisply/buffers` - List all Emacs buffers
-- `/lisply/current-buffer` - Get information about the current buffer
-- `/lisply/buffer-content` - Get the content of a specific buffer
-- `/lisply/read-file` - Read a file
-- `/lisply/write-file` - Write to a file
 
 ## Development
 
@@ -145,7 +137,11 @@ Note: By default, the container exposes port 7080 internally but maps to port 70
 
 ## License
 
-This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0), which is compatible with GNU Emacs' GPL-3.0 license. The AGPL-3.0 provides all the protections of GPL-3.0 plus an additional provision to ensure that modifications to the software when used over a network are also made available to users.
+This project is licensed under the GNU Affero General Public License
+v3.0 (AGPL-3.0), which is compatible with GNU Emacs' GPL-3.0
+license. The AGPL-3.0 provides all the protections of GPL-3.0 plus an
+additional provision to ensure that modifications to the software when
+used over a network are also made available to users.
 
 ## Acknowledgments
 
