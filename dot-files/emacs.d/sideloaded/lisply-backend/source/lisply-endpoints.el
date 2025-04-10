@@ -45,13 +45,13 @@
                                                  ("description" . "The Emacs Lisp code to evaluate")))
                                        ("package" . (("type" . "string")
                                                    ("description" . "Not used in Emacs Lisp but kept for protocol compatibility")))
-                                       ("mode" . (("type" . "string") 
+                                       ("mode" . (("type" . "string") ;; mode is used only by middleware wrapper.
                                                  ("description" . "The mode to use to talk to Emacs, either http (default) or stdio. Stdio will only be respected for local Emacs containers started by the MCP server itself.")))))
                        ("required" . ["code"]))))
 
 
    ;;
-   ;; FLAG -- http_request is implemented in middleware, not in this backend. 
+   ;; FLAG -- http_request is implemented in middleware, not in this backend.
    ;;
    
    
@@ -68,6 +68,16 @@
   "Handle generic ping-lisp endpoint for Lisply."
   (emacs-lisply-log "Handling ping-lisp request")
   (insert "pong"))
+
+(defservlet* lisply/resources/list application/json ()
+  "Handle resources/list endpoint for Lisply."
+  (emacs-lisply-log "Handling tools/resources request")
+  (emacs-lisply-send-response nil)) ;; no resources for you yet.
+
+(defservlet* lisply/prompts/list application/json ()
+  "Handle prompts/list endpoint for Lisply."
+  (emacs-lisply-log "Handling prompts/resources request")
+  (emacs-lisply-send-response nil)) ;; no prompts for you yet.
 
 (defservlet* lisply/tools/list application/json ()
   "Handle tools tools/list endpoint for Lisply."
@@ -108,7 +118,7 @@
          (setq error (format "%s" err))
          (setq success nil)))))
 
-    (emacs-lisply-send-response 
+    (emacs-lisply-send-response
      `(("success" . ,success)
        ("result" . ,(format "%S" result))
        ("stdout" . ,stdout-string)
