@@ -368,12 +368,14 @@ THEME-NAME is a string, e.g., \='adwaita\='."
     ;;(add-hook 'prog-mode-hook 'minimap-mode)
 ;;    )
 
-  ;; Load Lisply MCP service if enabled
+  ;; Load Lisply MCP service if enabled still using manual load, this
+  ;; is not quite packaged yet as a proper emacs package,
+  ;; it's just built-in to skewed-emacs's config thusly:
   (when load-lisply?
     (let ((lisply-dir (concat emacs-config-directory "/sideloaded/lisply/source/")))
       (when (file-exists-p lisply-dir)
         (message "Loading Lisply service from %s" lisply-dir)
-        (dolist (file '("lisply-http-setup.el" "lisply-endpoints.el" "lisply-backend.el"))
+        (dolist (file '("http-setup.el" "endpoints.el" "backend.el"))
           (let ((file-path (concat lisply-dir file)))
             (if (file-exists-p file-path)
                 (load-file file-path)

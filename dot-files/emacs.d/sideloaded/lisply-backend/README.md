@@ -101,19 +101,32 @@ This backend can be integrated with any client that can make HTTP requests. It p
 
 When integrating with tool frameworks that support the Model Context Protocol, you'll need to point them to this server's endpoint.
 
+## MCP Tools
+
+The Emacs Lisply implementation provides two tools for Claude interaction:
+
+- `ping_lisp` - Check if the Emacs server is accessible
+- `lisp_eval` - Evaluate Emacs Lisp code in the Emacs environment
+
+Note: A third tool, `http_request`, is implemented in the Lisply MCP wrapper middleware and not directly in this backend. This tool allows Claude to make HTTP requests to any endpoint on the Emacs server.
+
 ## API Endpoints
 
 - `/lisply/ping-lisp` - Check if the server is available
 - `/lisply/lisp-eval` - Evaluate Emacs Lisp code
 - `/lisply/tools/list` - List available MCP tools
+- `/lisply/resources/list` - List available resources (currently empty)
+- `/lisply/prompts/list` - List available prompts (currently empty)
+
+These endpoint paths are configurable via variables in the backend implementation to allow alignment with the MCP wrapper configuration.
 
 ## Development
 
 ### Project Structure
 
-- `source/emacs-lisply-backend.el` - Main entry point
-- `source/lisply-http-setup.el` - HTTP server configuration
-- `source/lisply-endpoints.el` - MCP endpoint definitions
+- `source/backend.el` - Main entry point
+- `source/http-setup.el` - HTTP server configuration
+- `source/endpoints.el` - MCP endpoint definitions
 
 ### Building the Container
 
@@ -127,13 +140,24 @@ The container build process:
 ./docker/build.sh -t your-tag -n your-image-name
 ```
 
-To run the container after building:
+Now you can configure your mcp-wrapper.js to use this new container
+image, or first test it by running manually:
 
 ```bash
 ./docker/run-container.sh -i your-image-name:your-tag -p 7081 -m /path/to/your/projects
 ```
 
-Note: By default, the container exposes port 7080 internally but maps to port 7081 on the host to avoid potential conflicts.
+Note: By default, the container exposes port 7080 internally but maps
+to port 7081 on the host to avoid potential conflicts.
+
+## Error Handling
+
+The Lisply backend provides structured error handling via HTTP responses:
+
+- Success responses include a `success` field set to `true`, along with `result` and `stdout` fields
+- Error responses set the `success` field to `false` and include an `error` field with the error message
+
+Unlike Common Lisp implementations, Emacs Lisp doesn't have a built-in interactive debugger that can be exposed via stdio. The error handling is entirely through the structured HTTP responses.
 
 ## License
 

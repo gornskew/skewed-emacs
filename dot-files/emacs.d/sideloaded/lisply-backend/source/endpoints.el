@@ -67,6 +67,9 @@
   (emacs-lisply-log "Handling ping-lisp request")
   (insert "pong"))
 
+;; Note: The defservlet* macro already constructs paths using emacs-lisply-endpoint-prefix
+;; for prefix "lisply/" but we keep the variables for documentation and API alignment
+
 (defservlet* lisply/resources/list application/json ()
   "Handle resources/list endpoint for Lisply."
   (emacs-lisply-log "Handling tools/resources request")
@@ -84,6 +87,7 @@
 
 (defservlet* lisply/lisp-eval application/json ()
   "Handle Emacs Lisp evaluation endpoint for Lisply."
+  ;; This endpoint aligns with emacs-lisply-endpoint-prefix + emacs-lisply-eval-endpoint
   (emacs-lisply-log "Handling lisp-eval request")
   (let* ((json-input (emacs-lisply-parse-json-body))
          (code (and json-input (cdr (assoc 'code json-input))))

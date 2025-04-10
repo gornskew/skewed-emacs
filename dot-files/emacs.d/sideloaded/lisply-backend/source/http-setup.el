@@ -39,8 +39,18 @@
   :type 'boolean
   :group 'emacs-lisply)
 
-(defcustom emacs-lisply-base-path "/lisply"
+(defcustom emacs-lisply-endpoint-prefix "/lisply"
   "Base path for the Lisply endpoints."
+  :type 'string
+  :group 'emacs-lisply)
+
+(defcustom emacs-lisply-ping-endpoint "/ping-lisp"
+  "Endpoint path for ping-lisp."
+  :type 'string
+  :group 'emacs-lisply)
+
+(defcustom emacs-lisply-eval-endpoint "/lisp-eval"
+  "Endpoint path for lisp-eval."
   :type 'string
   :group 'emacs-lisply)
 
