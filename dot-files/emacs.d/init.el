@@ -118,7 +118,7 @@
     (dolist (pack packages-to-install)
       (ensure-package-installed pack))
 
-    (install-chatgpt)
+    ;;(install-chatgpt) ;; needs some troubleshooting
     
     (require 'flycheck)(global-flycheck-mode)
     (require 'company)
@@ -183,7 +183,7 @@ FLAG: make sure these don't clobber graphical mode bindings,
   (global-set-key (kbd "ESC C-M-k") 'kill-sexp)
   (global-set-key (kbd "ESC C-M-q") 'indent-sexp)
 
-  (global-set-key (kbd "C-c C-e") 'chatgpt-shell-prompt-compose)
+  ;; (global-set-key (kbd "C-c C-e") 'chatgpt-shell-prompt-compose)
   
   (message "Done with keybindings setup."))
 
