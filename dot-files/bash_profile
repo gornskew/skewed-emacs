@@ -115,9 +115,9 @@ if [[ $- == *i* ]]; then
     theme "${THEME:-dark}" 1
     # Show welcome message
     echo ""
-    echo "Welcome to the 🦖Skewed Emacs🦖  Bash Profile"
-    echo ""
-    echo "Color Tip: Use 'theme dark|light|solarized|custom' to change terminal colors."
+    echo "Welcome to the 🦖 Skewed Emacs 🦖  Bash Profile"
+    echo "Type 'e' to get a terminal-mode emacsclient on current directory."
+    echo "Terminal Color Tip: Use 'theme dark|light|solarized|custom' to change terminal colors."
     echo "Run 'theme_help' for more info."
     echo ""
 fi
