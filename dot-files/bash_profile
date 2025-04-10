@@ -248,3 +248,7 @@ fi
 if [ -f "$HOME/.local/bin/env" ]; then 
 . "$HOME/.local/bin/env"
 fi
+
+if [ -f "$HOME/.private-config/dot-files/bash_profile" ]; then 
+ . "$HOME/.private-config/dot-files/bash_profile"
+fi
