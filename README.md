@@ -190,16 +190,17 @@ operations such as:
 - Accessing buffers and perform editing operations on them
 - Potentially assisting with more complex development tasks
 
-The MCP backend is implemented in the
-`dot-files/emacs.d/sideloaded/lisply-backend/` directory and can be
-configured to run in various environments including Docker containers
-for enhanced security. 
+The MCP backend is meant for use with the
+[lisply-mcp](https://github.com/gornskew/lisply-mcp.git) wrapper, and its
+implementation is
+[here](./dot-files/emacs.d/sideloaded/lisply-backend).
 
-**NOTE:** This MCP backend currently depends on [this generic MCP
-nodejs wrapper](https://github.com/gendl/lispy-mcp.git) which is what
-you configure in e.g. your `claude_desktop_config.json`. See the [MCP
-Service
-README](/projects/skewed-emacs/dot-files/emacs.d/sideloaded/mcp-service/README.md)
+
+**NOTE:** [This generic MCP nodejs
+wrapper](https://github.com/gendl/lispy-mcp.git) is what you
+need to configure in e.g. your `claude_desktop_config.json`. See the [Lisply
+Backend
+README](/projects/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/README.md)
 for details.
 
 ## License
