@@ -29,15 +29,14 @@ Because this implementation allows arbitrary Emacs Lisp code to be
 evaluated against the running Emacs daemon, best practices are:
 
 - Allow an LLM to connect only to a containerized version of emacs
-  (handled automatically by default by [lisp-mcp
-  project](https://github.com/gendl/lisp-mcp);
+  (handled automatically by default by [lisply-mcp
+  project](https://github.com/gornskew/lisply-mcp);
 - Make sure not to mount any valuable directories to that container;
 - Take steps to [limit RAM and CPU
   usage](https://docs.docker.com/engine/containers/resource_constraints/)
-  of the container ([lisp-mcp
-  project](https://github.com/gendl/lisp-mcp) is being actively
-  updated to support these options as pass-through to the automated
-  container startup).
+  of the container ([lisply-mcp
+  project](https://github.com/gornskew/lisply-mcp) aims to support
+  these options as pass-through to the automated container startup).
 
 
 ## Installation

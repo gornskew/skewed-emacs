@@ -2,15 +2,16 @@
 
 ![Skewed Emacs Logo](img/skewed-1-t.png)
 
-A comprehensive, opinionated configuration for Emacs and Unix
-environments, optimized for Lisp/Gendl development (especially with
-SLIME), modern tooling integration, and a developer-friendly shell
-experience.
+A comprehensive, opinionated configuration for Emacs and Linux/Unix
+bash environments, optimized for Terminal-mode Emacs-based Lisp/Gendl
+development. Includes a built-in [Lisply
+backend](./dot-files/emacs.d/sideloaded/lisply-backend/README.md) for
+exposing your emacs to an AI Agent as an MCP server.
 
 ## Features
 
 - **Emacs Configuration:**
-  - Modern package management via straight.el
+  - Package management 
   - SLIME setup for Common Lisp development with extensive customizations
   - AI assistance integration (Copilot, GPT, Claude, and more)
   - Built-in MCP (Model Context Protocol) server for AI assistants
@@ -106,15 +107,15 @@ anything.
 
 ## Requirements
 
-- Emacs 29+ recommended 
-- Node.js 22+ (for Copilot and AI integrations)
-- Docker (optional, for containerized development)
-- Git
-- realpath (included in coreutils on Linux; on macOS install via Homebrew: `brew install coreutils`)
+ - Emacs 29+ recommended 
+ - Node.js 22+ (for Copilot and AI integrations)
+ - Docker (optional, for containerized development)
+ - Git
+ - realpath (included in coreutils on Linux; on macOS install via Homebrew: `brew install coreutils`)
 
 ## Configuration Structure
 
-- `dot-files/` - Contains all dotfiles that will be symlinked to your home directory
+ - `dot-files/` - Contains all dotfiles that will be symlinked to your home directory
   - `emacs.d/` - Emacs configuration, to be linked to ~/.emacs.d/
     - `init.el` - Main Emacs configuration entry point
     - `etc/` - Modular configuration files
@@ -123,7 +124,7 @@ anything.
   - `tmux.conf` - tmux configuration
   - `zshrc` - ZSH configuration
 
-- `notes/` - Documentation and setup guides
+ - `notes/` - Documentation and setup guides
 
 ## Customization
 
