@@ -1,34 +1,46 @@
-# Skewed Emacs: A Handy Setup for Gnu Emacs, Gendl, and AI
+# Skewed Emacs: A Handy Setup for Gnu Emacs with Slime and AI
 
 ![Skewed Emacs Logo](img/skewed-1-t.png)
 
-A comprehensive, opinionated configuration for Emacs and Linux/Unix
-bash environments, optimized for Terminal-mode Emacs-based Lisp/Gendl
-development. Includes a built-in [Lisply
+This is a comprehensive, opinionated configuration for Emacs and
+Linux/Unix bash environments, optimized for Terminal-mode Emacs-based
+Slime Common Lisp and Gendl development. Skewed-emacs ships with a
+built-in [Lisply
 backend](./dot-files/emacs.d/sideloaded/lisply-backend/README.md) for
-exposing your emacs to an AI Agent as an MCP server.
+exposing your emacs to an AI Agent as an MCP server (currently
+work-in-progress).
 
 ## Features
 
 - **Emacs Configuration:**
-  - Package management 
-  - SLIME setup for Common Lisp development with extensive customizations
-  - AI assistance integration (Copilot, GPT, Claude, and more)
-  - Built-in MCP (Model Context Protocol) server for AI assistants
+  - Automatically downloads and installs useful emacs packages 
+  - Includes [Slime](https://en.wikipedia.org/wiki/SLIME) setup for
+    Common Lisp and Gendl development, with extensive customizations
+  - AI client integration (Copilot, GPT, Ellama, etc)
+  - Built-in MCP (Model Context Protocol) server for driving your
+    emacs from AI agents (work-in-progress)
   - Org-mode configuration
   - Magit for Git integration
   - Various quality-of-life improvements and custom keybindings
+  - Extensive color theme installations and convenience theme
+    switching and loading functions
 
 - **Terminal/Shell Integration:**
-  - Custom bash profile with useful functions and aliases for Emacs and Gendl
-  - Gendl integration via the `gswank` and `rgc` functions
+  - Custom bash profile with useful functions and aliases for Emacs
+    and Gendl
+  - Gendl integration via the `gswank` and `rgc` functions to start
+    Lisp-based container images
   - tmux configuration
+  - gotty for serving terminal through web browser
   - Shell script utilities
   - Cross-platform support (including WSL)
 
 - **Windows Integration:**
-  - [Windows keybindings](windows-keybindings/README.md) for CapsLock to Control and Emacs-style navigation keys
-  - AutoHotkey configuration for Microsoft Edge, Claude, and other applications
+  - [Windows keybindings](windows-keybindings/README.md) for
+    CapsLock-to-Control
+  - AutoHotkey configuration for Emacs-style keybindings across
+    Microsoft Edge, Chroms, Claude, and other applications as per your
+    specification.
 
 - **Docker Integration:**
   - Helper functions for running containerized environments
@@ -47,24 +59,34 @@ exposing your emacs to an AI Agent as an MCP server.
    ./setup
    ```
    
-   The setup script will create symlinks to the configuration files regardless of where you've cloned the repository.
+   The setup script will create symlinks of the salient "dot-files"
+   (hidden files starting with `.` pointing to the corresponding files
+   in the cloned repo, for example:
+   
+    `~/.emacs.d -> ~/skewed-emacs/dot-files/emacs.d`
+   
+   If you already have any of these dot files existing (as links or
+   actual files/directories), the existing files will be backed up
+   with names appended with `-pre-skewed-emacs`.
 
-   Available options:
-   - `--dry-run`: Shows what would happen without making any changes
-   - `--shadow-suffix=NAME` or `--shadow-suffix NAME`: Creates symlinks with a "-NAME" suffix
+
+# Optional options
+
+- `--dry-run`: Shows what would happen without making any changes
+- `--shadow-suffix=NAME` or `--shadow-suffix NAME`: Creates symlinks with a "-NAME" suffix
      (e.g., with `--shadow-suffix=test` or `--shadow-suffix test` creates ~/.emacs.d-test instead of ~/.emacs.d)
-   - `--shadow-suffix=shadow`: Creates symlinks with a "-shadow" suffix
-   - `--shadow-suffix=""` or `--shadow-suffix=`: Explicitly specifies standard installation mode (no suffix)
-     (using this option is optional, as it's the default behavior)
-   - `--scrub-shadow-suffix=NAME` or `--scrub-shadow-suffix NAME`: Removes all symlinks with the "-NAME" suffix
+- `--scrub-shadow-suffix=NAME` or `--scrub-shadow-suffix NAME`: Removes all symlinks with the "-NAME" suffix
      (e.g., `--scrub-shadow-suffix=test` removes ~/.emacs.d-test, ~/.bash_profile-test, etc.)
-   - `--scrub-shadow-suffix=""` or `--scrub-shadow-suffix=`: Removes all default symlinks without a suffix
-     (e.g., removes ~/.emacs.d, ~/.bash_profile, etc.)
+- `--scrub-shadow-suffix=""` or `--scrub-shadow-suffix=`: Removes all default symlinks without a suffix (e.g., removes ~/.emacs.d, ~/.bash_profile, etc.)
 
-   The setup script will automatically detect and replace broken symlinks and handle existing dotfiles by backing them up with a `-pre-skewed-emacs` suffix. It also skips backup files ending with tilde (~) in the dot-files directory.
+The setup script will automatically detect and replace broken symlinks
+and handle existing dotfiles by backing them up with a
+`-pre-skewed-emacs` suffix. It also skips backup files ending with
+tilde (~) in the dot-files directory.
 
-   Example with options:
-   ```bash
+##   Example with options:
+
+```bash
    # Preview changes without modifying anything
    ./setup --dry-run
    
@@ -93,29 +115,30 @@ exposing your emacs to an AI Agent as an MCP server.
    # Remove all symlinks with the "-test" suffix and create new ones with "-work" suffix
    ./setup --scrub-shadow-suffix=test --shadow-suffix=work
    
-   # Preview removing all symlinks with the "-test" suffix and creating new ones with "-work" suffix
-   ./setup --dry-run --scrub-shadow-suffix=test --shadow-suffix=work
+   # Preview removing all symlinks with the "-test" suffix and creating
    
-   # Explicitly use standard installation (same as default, without any suffix)
-   ./setup --shadow-suffix=""
-   ```
+```
+
 
 ⚠️ **Warning**: The setup script will overwrite your existing
-`.emacs.d` directory and several dotfiles in your home directory. Existing files will be backed up with a `-pre-skewed-emacs` suffix. Run
-it with `--dry-run` first to see what it will do without it touching
-anything.
+`.emacs.d` directory and several dotfiles in your home
+directory. Existing files will be backed up with a `-pre-skewed-emacs`
+suffix. Run it with `--dry-run` first to see what it will do without
+it touching anything.
 
 ## Requirements
 
- - Emacs 29+ recommended 
- - Node.js 22+ (for Copilot and AI integrations)
- - Docker (optional, for containerized development)
+ - Emacs 29+ (30+ recommended)
+ - Node.js (optional, 22+ recommended, for github copilot install)
+ - Docker (optional, 20+ recommended, for containerized development)
  - Git
- - realpath (included in coreutils on Linux; on macOS install via Homebrew: `brew install coreutils`)
+ - realpath (included in coreutils on Linux; on macOS install via
+   Homebrew: `brew install coreutils`)
 
 ## Configuration Structure
 
- - `dot-files/` - Contains all dotfiles that will be symlinked to your home directory
+ - `dot-files/` - Contains all dotfiles that will end up symlinked to
+   your home directory
   - `emacs.d/` - Emacs configuration, to be linked to ~/.emacs.d/
     - `init.el` - Main Emacs configuration entry point
     - `etc/` - Modular configuration files
@@ -128,7 +151,9 @@ anything.
 
 ## Customization
 
-For personal customizations that shouldn't be committed to this repository, add them to a `~/.emacs-local` file, which will be loaded at the end of the Emacs initialization process.
+For personal customizations that shouldn't be committed to this
+repository, add them to a `~/.emacs-local` file, which will be loaded
+at the end of the Emacs initialization process.
 
 ## Installation Options and Rationale
 
@@ -150,8 +175,8 @@ version-control separately or together with your own private fork or
 branch of this repo. 
 
 ### 2. Shadow Installation (`--shadow-suffix=NAME`)
-' Shadow Intallation can be usedufl if you want to inspect or play
-with Skewed Emacs without stepping on your existing setup.
+Shadow Intallation can be used if you want to inspect or play with
+Skewed Emacs without stepping on your existing setup.
 
 - Use `--shadow-suffix=shadow` to create parallel configuration files with a `-shadow` suffix
 - Or use `--shadow-suffix=NAME` to create files with your own custom suffix
@@ -163,7 +188,7 @@ following:
 
 ```bash
 # Start Emacs with the shadow config
-emacs -q --load "~/.emacs.d[SUFFIX]/init.el"
+emacs -q --load "~/.emacs.d-shadow/init.el"
 ```
 
 
@@ -192,8 +217,8 @@ operations such as:
 - Potentially assisting with more complex development tasks
 
 The MCP backend is meant for use with the
-[lisply-mcp](https://github.com/gornskew/lisply-mcp.git) wrapper, and its
-implementation is
+[lisply-mcp](https://github.com/gornskew/lisply-mcp.git) middleware,
+and the emacs-lisp backend implementation is
 [here](./dot-files/emacs.d/sideloaded/lisply-backend).
 
 
@@ -206,4 +231,8 @@ for details.
 
 ## License
 
-This package is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+This package is licensed under the GNU Affero General Public License
+v3.0 (AGPL-3.0) which presumably is compatible with Gnu Emacs's GPL.
+
+
+
