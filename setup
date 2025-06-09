@@ -13,6 +13,7 @@ show_help() {
     echo "Options:"
     echo "  --help, -help, -h             Show this help message and exit"
     echo "  --dry-run, -dry-run           Show what would happen without making any changes"
+    echo "  --force, -force, -f           Force replacement of existing valid symlinks"
     echo ""
     echo "  --shadow-suffix=NAME, -shadow-suffix=NAME     Creates symlinks with a \"-NAME\" suffix"
     echo "  --shadow-suffix NAME, -shadow-suffix NAME     (e.g., with --shadow-suffix=test creates ~/.emacs.d-test)"
@@ -33,6 +34,7 @@ show_help() {
     echo ""
     echo "The setup script will automatically detect and replace broken symlinks and handle"
     echo "existing dotfiles by backing them up with a \"-pre-skewed-emacs\" suffix."
+    echo "With --force, existing valid symlinks are renamed with a timestamp before new ones are created."
     echo "It also skips backup files ending with tilde \(~\) in the dot-files directory."
     echo ""
     echo "Examples:"
@@ -53,6 +55,9 @@ show_help() {
     echo ""
     echo "  # Remove all default symlinks and create new ones with \"-work\" suffix"
     echo "  ./setup --scrub-shadow-suffix=\"\" --shadow-suffix=work"
+    echo ""
+    echo "  # Force replacement of existing valid symlinks"
+    echo "  ./setup --force"
     echo ""
     echo "⚠️ Warning: The setup script will overwrite your existing .emacs.d directory and"
     echo "several dotfiles in your home directory. Existing files will be backed up with a"
@@ -81,6 +86,7 @@ echo ""
 # Parse command line arguments
 shadow_suffix=""
 dry_run=false
+force=false
 next_is_suffix=false
 next_is_scrub_suffix=false
 scrub_suffix=""
@@ -137,6 +143,10 @@ do
 
         --dry-run|-dry-run)
         dry_run=true
+        shift
+        ;;
+        --force|-force|-f)
+        force=true
         shift
         ;;
     esac
@@ -333,57 +343,68 @@ do
                     ln -s "${dot_files}${nondot_file}" ~/${target_file}
                     echo "Recreated symlink from ~/${target_file} to ${dot_files}${nondot_file}"
                 fi
+            elif $force; then
+                # Force replacement of existing valid symlink
+                backup_file_force=${target_file}-pre-skewed-emacs-$(date +%Y%m%d-%H%M%S)
+                if $dry_run; then
+                    echo "[DRY RUN] Would rename existing valid symlink ~/${target_file} to ~/${backup_file_force} and create new symlink"
+                else
+                    echo "Force mode: Renaming existing valid symlink ~/${target_file} to ~/${backup_file_force}"
+                    mv ~/${target_file} ~/${backup_file_force}
+                    ln -s "${dot_files}${nondot_file}" ~/${target_file}
+                    echo "Created new symlink from ~/${target_file} to ${dot_files}${nondot_file}"
+                fi
             else
                 echo "${target_file} is already linked correctly."
             fi
             continue
         fi
         
-        # Handle existing target file
-        backup_file=${target_file}-pre-skewed-emacs
-        if [ -e ~/${target_file} ]; then
-            if [ -e ~/${backup_file} ] && [ ! -h ~/${target_file} ]; then
-                echo "ERROR - this script will not do anything for your ~/${target_file} because it and ~/${backup_file} both exist."
-                echo "To resolve this issue, you have a few options:"
-                echo "  1. Move or delete ~/${backup_file} if it's no longer needed"
-                echo "  2. Move ~/${target_file} to a different location"
-                echo "  3. Use a different suffix with --shadow-suffix=NAME"
-                exit 1
-            fi
-            
-            if [ -h ~/${target_file} ]; then
-                target=$(readlink ~/${target_file})
-                target_realpath=$(realpath "$target" 2>/dev/null)
-                correct_target_realpath=$(realpath "${dot_files}${nondot_file}" 2>/dev/null)
-                
-                # Check if symlink points to wrong location or is broken
-                if [ "$target_realpath" != "$correct_target_realpath" ] || [ ! -e "$target" ]; then
-                    symlink_status="pointing to wrong location"
-                    if [ ! -e "$target" ]; then
-                        symlink_status="broken"
-                    fi
-                    
-                    if $dry_run; then
-                        echo "[DRY RUN] Would move existing symlink ~/${target_file} ($symlink_status, currently pointing to $target) to ~/${backup_file}"
-                    else
-                        echo "Moving existing symlink ~/${target_file} ($symlink_status, currently pointing to $target) to ~/${backup_file}..."
-                        # Remove existing backup file if it exists
-                        if [ -e ~/${backup_file} ]; then
-                            rm -rf ~/${backup_file}
-                        fi
-                        mv ~/${target_file} ~/${backup_file}
-                    fi
+        # Handle existing target file (including broken symlinks)
+        if [ -e ~/${target_file} ] || [ -h ~/${target_file} ]; then
+            if $force; then
+                # Force mode: move existing file/symlink with timestamp
+                backup_file_force=${target_file}-pre-skewed-emacs-$(date +%Y%m%d-%H%M%S)
+                if $dry_run; then
+                    echo "[DRY RUN] Would move existing ~/${target_file} to ~/${backup_file_force} and create new symlink"
+                else
+                    echo "Force mode: Moving existing ~/${target_file} to ~/${backup_file_force}"
+                    mv ~/${target_file} ~/${backup_file_force}
                 fi
             else
-                # Regular file
-                if $dry_run; then
-                    echo "[DRY RUN] Would move ~/${target_file} to ~/${backup_file}"
-                else
-                    echo "Moving ~/${target_file} to ~/${backup_file}..."
-                    if [ -e ~/${backup_file} ]; then
-                        rm -rf ~/${backup_file}
+                # Without force, check what type of existing file we have
+                if [ -h ~/${target_file} ]; then
+                    target=$(readlink ~/${target_file})
+                    target_realpath=$(realpath "$target" 2>/dev/null)
+                    correct_target_realpath=$(realpath "${dot_files}${nondot_file}" 2>/dev/null)
+                    
+                    # Only move broken symlinks or those pointing to wrong location
+                    if [ "$target_realpath" != "$correct_target_realpath" ] || [ ! -e "$target" ]; then
+                        symlink_status="pointing to wrong location"
+                        if [ ! -e "$target" ]; then
+                            symlink_status="broken"
+                        fi
+                        
+                        backup_file=${target_file}-pre-skewed-emacs
+                        if $dry_run; then
+                            echo "[DRY RUN] Would move existing symlink ~/${target_file} ($symlink_status, currently pointing to $target) to ~/${backup_file}"
+                        else
+                            echo "Moving existing symlink ~/${target_file} ($symlink_status, currently pointing to $target) to ~/${backup_file}..."
+                            # Remove existing backup file if it exists
+                            if [ -e ~/${backup_file} ]; then
+                                rm -rf ~/${backup_file}
+                            fi
+                            mv ~/${target_file} ~/${backup_file}
+                        fi
+                    else
+                        # Valid symlink exists, don't replace without force
+                        echo "~/${target_file} already exists and points to the correct location. Use --force to replace it."
+                        continue
                     fi
-                    mv ~/${target_file} ~/${backup_file}
+                else
+                    # Regular file or directory exists, don't replace without force
+                    echo "~/${target_file} already exists (not a symlink). Use --force to replace it."
+                    continue
                 fi
             fi
         fi
