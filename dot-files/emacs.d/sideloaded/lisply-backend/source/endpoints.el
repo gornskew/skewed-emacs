@@ -92,11 +92,12 @@
   (let* ((json-input (emacs-lisply-parse-json-body))
          (code (and json-input (cdr (assoc 'code json-input))))
          (stdout-string "")
-         result
-         error
-         success)
+         (result nil)
+         (error nil)
+         (success nil))
     
-    (emacs-lisply-log "Attempting to evaluate code: %s" code)
+    (emacs-lisply-log "Attempting to evaluate code: %s"
+		      (or code "nil"))
     
     (cond
      ((null json-input)
@@ -108,6 +109,9 @@
       (setq success nil))
 
      (t
+      (emacs-lisply-log
+       "About to evaluate apparently valid code..")
+      
       (condition-case err
           (progn
             (setq stdout-string
@@ -120,11 +124,20 @@
          (setq error (format "%s" err))
          (setq success nil)))))
 
-    (emacs-lisply-send-response
-     `(("success" . ,success)
-       ("result" . ,(format "%S" result))
-       ("stdout" . ,stdout-string)
-       ,@(when error `(("error" . ,error)))))))
+    
+    (emacs-lisply-log
+       "About to send response with result.. %S" (or result "nil"))
+
+    (let ((response `(("success" . ,success)
+		      ("result" . ,(format "%s" (or result "")))
+		      ("stdout" . ,stdout-string)
+		      ,@(when error `(("error" . ,error))))))
+
+      (emacs-lisply-log "About to send lisply response %S"
+			response)
+    
+      ;; Send as formatted string instead of JSON for testing
+      (emacs-lisply-send-response  response))))
 
 (defservlet* lisply/specs application/json ()
   "Handle suggested specs endpoint for MCP client configuration."

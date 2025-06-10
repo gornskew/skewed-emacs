@@ -77,6 +77,7 @@
 
   (let ((packages-to-install
 	 '(flycheck company
+		    simple-httpd
 		    ;;undo-tree
 		    ;;vscode-dark-plus-theme
 		    ;;all-the-icons
@@ -372,7 +373,7 @@ THEME-NAME is a string, e.g., \='adwaita\='."
   ;; is not quite packaged yet as a proper emacs package,
   ;; it's just built-in to skewed-emacs's config thusly:
   (when load-lisply?
-    (let ((lisply-dir (concat emacs-config-directory "/sideloaded/lisply/source/")))
+   (let ((lisply-dir (concat emacs-config-directory "/sideloaded/lisply-backend/source/")))
       (when (file-exists-p lisply-dir)
         (message "Loading Lisply service from %s" lisply-dir)
         (dolist (file '("http-setup.el" "endpoints.el" "backend.el"))

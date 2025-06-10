@@ -65,14 +65,7 @@
 
 (defun emacs-lisply-get-request-body ()
   "Get the body of the current HTTP request as a string."
-  (let ((length (or (cdr (assoc "content-length" httpd-headers)) "0")))
-    (if (> (string-to-number length) 0)
-        (with-temp-buffer
-          (insert-buffer-substring httpd--current-buffer)
-          (goto-char (point-min))
-          (search-forward "\r\n\r\n" nil t)
-          (buffer-substring-no-properties (point) (point-max)))
-      nil)))
+  (cadr (assoc "Content" httpd-request)))
 
 (defun emacs-lisply-parse-json-body ()
   "Parse the JSON body from the current HTTP request."
@@ -84,17 +77,28 @@
          (emacs-lisply-log "Error parsing JSON body: %s" err)
          nil)))))
 
+;;(defun emacs-lisply-send-response (data &optional content-type)
+;;  "Send a response with DATA and optional CONTENT-TYPE.
+;;DATA can be a string, in which case it will be sent as-is,
+;;or an object which will be JSON-encoded."
+;;  (let ((content-type (or content-type "application/json")))
+;;    (httpd-send-header content-type 200
+;;                        '("Access-Control-Allow-Origin" . "*"))
+;;    (princ
+;;     (if t ;;(stringp data)
+;;         data
+;;       (json-encode data)))))
+
 (defun emacs-lisply-send-response (data &optional content-type)
   "Send a response with DATA and optional CONTENT-TYPE.
 DATA can be a string, in which case it will be sent as-is,
 or an object which will be JSON-encoded."
-  (let ((content-type (or content-type "application/json")))
-    (httpd-send-header content-type 200 
-                        '("Access-Control-Allow-Origin" . "*"))
-    (princ
-     (if (stringp data)
-         data
-       (json-encode data)))))
+  (insert
+   (if (stringp data)
+       data
+     (json-encode data))))
+
+
 
 ;;;###autoload
 (defun emacs-lisply-start-server ()
