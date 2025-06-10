@@ -233,6 +233,3 @@ for details.
 
 This package is licensed under the GNU Affero General Public License
 v3.0 (AGPL-3.0) which presumably is compatible with Gnu Emacs's GPL.
-
-
-
