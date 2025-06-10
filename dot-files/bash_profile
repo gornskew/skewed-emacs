@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# document what this next section does:
+# This script sets up the environment for a Bash shell, including PATH, editor settings,
+# terminal settings, and theme-switching functions. It also includes a welcome message and
+# a function to start a Gendl instance with a Swank server. The script is designed to be
+# sourced in an interactive shell, ensuring that it does not exit prematurely and that it
+# only runs once per session.
+# Check if .bash_profile has already been loaded
+
+
 # Set PATH early and cleanly
 export PATH="/snap/bin:$PATH"
 
@@ -163,7 +172,7 @@ function e
 function gendl-run-container {
     local impl="ccl"
     local offset=1
-    local container_name http_host_port
+    local container_name http_host_port json_flag=""
 
     # Parse command-line arguments
     while [[ "$#" -gt 0 ]]; do
@@ -175,6 +184,41 @@ function gendl-run-container {
             *) break ;;
         esac
     done
+
+    # Helper functions
+    is_verbose() { [[ "$json_flag" != "--quiet" && "$json_flag" != "--id-only" && "$json_flag" != "--json" ]]; }
+    
+    log_verbose() { is_verbose && echo "$@"; }
+    
+    format_output() {
+        local cid="$1" status="${2:-ok}" message="$3"
+        case "$json_flag" in
+            --json)
+                echo "{
+  \"container_id\": \"$cid\",
+  \"impl\": \"$impl\",
+  \"port_swank\": $((4200 + offset)),
+  \"port_http\": $((9080 + offset)),
+  \"port_https\": $((9443 + offset)),
+  \"port_telnet\": $((4023 + offset)),
+  \"gendl_mode\": \"${GENDL_MODE:-default}\",
+  \"project_mount\": \"${USER_PROJECTS:-$HOME/projects}\",
+  \"status\": \"$status\"
+}"
+                ;;
+            --id-only|--quiet)
+                echo "$cid"
+                ;;
+            *)
+                [[ -n "$message" ]] && echo "$message"
+                echo "Container ID: $cid"
+                ;;
+        esac
+    }
+
+    is_valid_gendl_service() {
+        curl -s -f "http://localhost:$1/lisply/ping-lisp" | grep -q "pong"
+    }
 
     # Configure based on implementation
     case "$impl" in
@@ -190,7 +234,7 @@ function gendl-run-container {
             ;;
     esac
 
-    echo "Using Lisp implementation: ${impl}"
+    log_verbose "Using Lisp implementation: ${impl}"
 
     # Resolve run script path
     find_docker_run_script() {
@@ -207,25 +251,19 @@ function gendl-run-container {
     }
 
     docker_run_script=$(find_docker_run_script) || {
-        echo "Error: Gendl Docker run script not found."
+        log_verbose "Error: Gendl Docker run script not found."
         return 1
     }
 
-    echo "Using docker run script: ${docker_run_script}..."
-
-    # Helper to check if port is running a Gendl service
-    is_valid_gendl_service() {
-        curl -s -f "http://localhost:$1/lisply/ping-lisp" | grep -q "pong"
-    }
+    log_verbose "Using docker run script: ${docker_run_script}..."
 
     # Check for existing container by name
     if existing_cid=$(docker ps -q --filter "name=^${container_name}$"); [ -n "$existing_cid" ]; then
         if is_valid_gendl_service "$http_host_port"; then
-            echo "Service already existing: Container ${container_name} (ID: ${existing_cid}) is running a valid Gendl service on port ${http_host_port}."
-            echo "Container ID: ${existing_cid}"
+            format_output "$existing_cid" "existing" "Service already existing: Container ${container_name} (ID: ${existing_cid}) is running a valid Gendl service on port ${http_host_port}."
             return 1
         else
-            echo "Error: Container ${container_name} (ID: ${existing_cid}) exists but is not responding on port ${http_host_port}."
+            log_verbose "Error: Container ${container_name} (ID: ${existing_cid}) exists but is not responding on port ${http_host_port}."
             return 1
         fi
     fi
@@ -234,11 +272,10 @@ function gendl-run-container {
     if ss -tln | grep -q ":${http_host_port}\b"; then
         if is_valid_gendl_service "$http_host_port"; then
             port_cid=$(docker ps --filter "publish=${http_host_port}" --format "{{.ID}}")
-            echo "Service already existing: A valid Gendl service is running on port ${http_host_port}."
-            [ -n "$port_cid" ] && echo "Container ID: ${port_cid}"
+            format_output "${port_cid:-unknown}" "existing" "Service already existing: A valid Gendl service is running on port ${http_host_port}."
             return 1
         else
-            echo "Error: Port ${http_host_port} is in use by something else."
+            log_verbose "Error: Port ${http_host_port} is in use by something else."
             return 1
         fi
     fi
@@ -248,16 +285,16 @@ function gendl-run-container {
     run_status=$?
 
     if [ $run_status -ne 0 ]; then
-        echo "Error: Failed to start container."
-        echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:"
+        log_verbose "Error: Failed to start container."
+        is_verbose && echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:"
         return 1
     fi
 
     # Extract container ID from output
     cid=$(echo "$run_output" | grep "Container ID is:" | tail -1 | awk '{print $NF}')
     [ -z "$cid" ] && {
-        echo "Error: Could not retrieve container ID."
-        echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:"
+        log_verbose "Error: Could not retrieve container ID."
+        is_verbose && echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:"
         return 1
     }
 
@@ -265,24 +302,15 @@ function gendl-run-container {
     docker exec -d "$cid" ln -s /home /Users
     docker exec -d "$cid" ln -s /home/gendl-user "$HOME"
 
-    # Output
-    if [[ "$json_flag" == "--json" ]]; then
-        echo "{
-  \"container_id\": \"$cid\",
-  \"impl\": \"$impl\",
-  \"port_swank\": $((4200 + offset)),
-  \"port_http\": $((9080 + offset)),
-  \"port_https\": $((9443 + offset)),
-  \"port_telnet\": $((4023 + offset)),
-  \"gendl_mode\": \"${GENDL_MODE:-default}\",
-  \"project_mount\": \"${USER_PROJECTS:-$HOME/projects}\",
-  \"status\": \"ok\"
-}"
-    elif [[ "$json_flag" == "--id-only" || "$json_flag" == "--quiet" ]]; then
-        echo "$cid"
+    # Output - for new container, include the run script output in verbose mode
+    local verbose_message=""
+    is_verbose && verbose_message=$(echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:")
+    
+    if [[ "$json_flag" != "--json" && "$json_flag" != "--id-only" && "$json_flag" != "--quiet" ]]; then
+        echo "$verbose_message"
+        format_output "$cid" "ok"
     else
-        echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:"
-        echo "Container ID: ${cid}"
+        format_output "$cid" "ok"
     fi
 }
 
