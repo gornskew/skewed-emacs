@@ -192,6 +192,136 @@ curl -X POST http://127.0.0.1:9081/lisply/lisp-eval -d '{"code": "(ql:quickload 
 curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(find-file \"/path/to/file.lisp\")"}' 2>&1 | cat
 ```
 
+## Real-World Example: Bulk Find and Replace
+
+This example demonstrates the power of combining multiple Emacs Lisp operations in a single `progn` form to perform sophisticated file operations. This was used to replace "GendL" with "Gendl" across an entire codebase.
+
+### Step 1: Discover Files
+```bash
+# Find all relevant files, excluding temp directories
+curl -X POST http://127.0.0.1:9081/lisply/lisp-eval -d '{"code": "(length (remove-if (lambda (path) (search \"tmp-copies\" path)) (mapcar (quote namestring) (append (directory \"/home/dcooper8/projects/training/**/*.lisp\") (directory \"/home/dcooper8/projects/training/**/*.gdl\") (directory \"/home/dcooper8/projects/training/**/*.gendl\"))))"}' 2>&1 | cat
+# Result: {"success":true,"result":"152","stdout":""}
+```
+
+### Step 2: Find Files Containing Target Pattern
+```bash
+# Define search function and find files containing "GendL"
+curl -X POST http://127.0.0.1:9081/lisply/lisp-eval -d '{"code": "(progn (defun file-contains-pattern (filepath pattern) \"Check if file contains pattern\" (when (probe-file filepath) (with-open-file (stream filepath :direction :input :if-does-not-exist nil) (when stream (let ((content (make-string (file-length stream)))) (read-sequence content stream) (search pattern content)))))) (setq training-files (remove-if (lambda (path) (search \"tmp-copies\" path)) (mapcar (quote namestring) (append (directory \"/home/dcooper8/projects/training/**/*.lisp\") (directory \"/home/dcooper8/projects/training/**/*.gdl\") (directory \"/home/dcooper8/projects/training/**/*.gendl\"))))) (setq files-with-gendl (remove-if-not (lambda (file) (file-contains-pattern file \"GendL\")) training-files)) (list :count (length files-with-gendl) :files (subseq files-with-gendl 0 (min 5 (length files-with-gendl)))))"}' 2>&1 | cat
+# Result: {"success":true,"result":"(:COUNT 44 :FILES (...))","stdout":""}
+```
+
+### Step 3: Bulk Replace Across All Files
+```bash
+# Define replacement functions and execute bulk replacement
+curl -X POST http://127.0.0.1:9081/lisply/lisp-eval -d '{"code": "(progn (defun replace-in-file (filepath old-text new-text) \"Replace all occurrences of old-text with new-text in file\" (when (probe-file filepath) (let ((content)) (with-open-file (stream filepath :direction :input) (setq content (make-string (file-length stream))) (read-sequence content stream)) (let ((new-content (substitute-string content old-text new-text))) (when (not (string= content new-content)) (with-open-file (stream filepath :direction :output :if-exists :supersede) (write-sequence new-content stream)) t))))) (defun substitute-string (string old new) \"Replace all occurrences of old with new in string\" (let ((result (copy-seq string)) (old-len (length old)) (new-len (length new))) (loop with pos = 0 while (setq pos (search old result :start2 pos)) do (setq result (concatenate (quote string) (subseq result 0 pos) new (subseq result (+ pos old-len)))) (incf pos new-len)) result)) (setq files-to-update files-with-gendl) (setq update-count 0) (dolist (file files-to-update) (when (replace-in-file file \"GendL\" \"Gendl\") (incf update-count))) (list :files-updated update-count :total-files (length files-to-update)))"}' 2>&1 | cat
+# Result: {"success":true,"result":"(:FILES-UPDATED 44 :TOTAL-FILES 44)","stdout":""}
+```
+
+### Step 4: Verification
+```bash
+# Verify replacement success
+curl -X POST http://127.0.0.1:9081/lisply/lisp-eval -d '{"code": "(progn (setq total-old-count 0) (setq total-new-count 0) (dolist (file training-files) (when (file-contains-pattern file \"GendL\") (incf total-old-count)) (when (file-contains-pattern file \"Gendl\") (incf total-new-count))) (list :old-gendl-remaining total-old-count :new-gendl-found total-new-count))"}' 2>&1 | cat
+# Result: {"success":true,"result":"(:OLD-GENDL-REMAINING 0 :NEW-GENDL-FOUND 48)","stdout":""}
+```
+
+### Key Techniques Demonstrated
+
+1. **Function Definition in Context**: Define helper functions within the same `progn` block where they're used
+2. **File Content Processing**: Read entire files into strings for pattern matching and replacement
+3. **Bulk Operations**: Process multiple files in a single operation with iteration
+4. **String Manipulation**: Custom string replacement without external dependencies
+5. **Verification**: Built-in verification to confirm operation success
+6. **Filtering**: Exclude unwanted directories/files using predicates
+
+This approach replaced "GendL" with "Gendl" across 44 files in a single operation, demonstrating the power of Lisp for text processing and file manipulation tasks.
+
+## Advanced File Operations: Directory Movement
+
+Building on the bulk editing example, here's how to move entire directory trees using Emacs Lisp, demonstrated with moving a `sanskrit` directory to a different location.
+
+### Complete Directory Tree Copy and Move
+```bash
+# Step 1: Copy all files with proper relative path handling
+curl -X POST http://127.0.0.1:9081/lisply/lisp-eval -d '{"code": "(progn (defun copy-file-contents (source target) \"Copy file contents from source to target\" (ensure-directories-exist (directory-namestring target)) (with-open-file (in source :direction :input :element-type (quote (unsigned-byte 8))) (with-open-file (out target :direction :output :element-type (quote (unsigned-byte 8)) :if-exists :supersede) (let ((buffer (make-array 4096 :element-type (quote (unsigned-byte 8))))) (loop for bytes-read = (read-sequence buffer in) while (> bytes-read 0) do (write-sequence buffer out :end bytes-read)))))) (setq source-base \"/home/dcooper8/projects/training/sanskrit/\") (setq target-base \"/home/dcooper8/projects/xfer/sanskrit/\") (setq sanskrit-files (remove-if-not (lambda (f) (pathname-name f)) (directory (concatenate (quote string) source-base \"**/*\")))) (setq copied-count 0) (dolist (file sanskrit-files) (let* ((relative-path (subseq (namestring file) (length source-base))) (target-file (concatenate (quote string) target-base relative-path))) (copy-file-contents file target-file) (incf copied-count))) (list :files-copied copied-count :source-base source-base :target-base target-base))"}' 2>&1 | cat
+# Result: {"success":true,"result":"(:FILES-COPIED 16 :SOURCE-BASE \"/home/dcooper8/projects/training/sanskrit/\" :TARGET-BASE \"/home/dcooper8/projects/xfer/sanskrit/\")","stdout":""}
+
+# Step 2: Verify the copy operation
+curl -X POST http://127.0.0.1:9081/lisply/lisp-eval -d '{"code": "(progn (setq xfer-files (remove-if-not (lambda (f) (pathname-name f)) (directory \"/home/dcooper8/projects/xfer/sanskrit/**/*\"))) (list :xfer-files-count (length xfer-files) :sample-files (mapcar (lambda (f) (subseq (namestring f) (length \"/home/dcooper8/projects/xfer/sanskrit/\"))) (subseq xfer-files 0 (min 5 (length xfer-files))))))"}' 2>&1 | cat
+# Result: {"success":true,"result":"(:XFER-FILES-COUNT 16 :SAMPLE-FILES (\"vocab/animals.csv\" \"vocab/asanas-gpt.csv\" \"vocab/asanas-test.csv\" \"vocab/asanas.csv\" \"vocab/asanas.iast\"))","stdout":""}
+
+# Step 3: Verify source and target states
+curl -X POST http://127.0.0.1:9081/lisply/lisp-eval -d '{"code": "(list :training-sanskrit-exists (probe-file \"/home/dcooper8/projects/training/sanskrit/\") :xfer-sanskrit-exists (probe-file \"/home/dcooper8/projects/xfer/sanskrit/\") :xfer-file-count (length (remove-if-not (lambda (f) (pathname-name f)) (directory \"/home/dcooper8/projects/xfer/sanskrit/**/*\"))))"}' 2>&1 | cat
+```
+
+### Key File Operation Techniques
+
+1. **Binary File Copying**: Use `(unsigned-byte 8)` element type for reliable copying of any file type
+2. **Relative Path Handling**: Use `subseq` and `namestring` to maintain directory structure
+3. **Directory Creation**: `ensure-directories-exist` automatically creates parent directories
+4. **Bulk File Processing**: Combine file discovery, filtering, and operations in single expressions
+5. **Stream-Based Operations**: Use buffered reading/writing for efficient large file handling
+
+## Why Choose Emacs Lisp for File Operations?
+
+### Advantages Over Shell Scripts
+
+1. **Unified Language**: Same language for logic, file operations, and text processing
+2. **Rich Data Structures**: Lists, property lists, and hash tables for complex operations
+3. **Powerful String Manipulation**: Built-in functions for pattern matching and replacement
+4. **Interactive Development**: Test and refine operations interactively via REPL
+5. **Error Handling**: Comprehensive condition system with `ignore-errors` and custom handlers
+6. **Cross-Platform**: Works identically on Unix, Windows, and macOS
+
+### Pattern: Single-Expression File Operations
+
+Instead of multiple shell commands:
+```bash
+find /path -name "*.ext" | xargs grep "pattern" | cut -d: -f1 | sort | uniq > files.txt
+sed -i 's/old/new/g' $(cat files.txt)
+rm files.txt
+```
+
+Use single Emacs Lisp expression:
+```lisp
+(progn
+  (defun find-and-replace-in-files (directory pattern old new)
+    (let ((files (remove-if-not 
+                   (lambda (file) (file-contains-pattern file pattern))
+                   (directory (concat directory "**/*." ext)))))
+      (mapcar (lambda (file) (replace-in-file file old new)) files)))
+  (find-and-replace-in-files "/path/" "pattern" "old" "new"))
+```
+
+### Advanced Patterns
+
+**Conditional File Processing:**
+```lisp
+(dolist (file files)
+  (cond ((string-match "\\.lisp$" file) (process-lisp-file file))
+        ((string-match "\\.gdl$" file) (process-gdl-file file))
+        (t (process-generic-file file))))
+```
+
+**File Content Analysis:**
+```lisp
+(mapcar (lambda (file)
+          (list :file file
+                :lines (count-lines-in-file file)
+                :functions (count-function-definitions file)
+                :size (file-size file)))
+        source-files)
+```
+
+**Backup Before Modification:**
+```lisp
+(defun safe-replace-in-file (file old new)
+  (let ((backup (concat file ".bak")))
+    (copy-file-contents file backup)
+    (when (replace-in-file file old new)
+      (delete-file backup)
+      t)))
+```
+
 ## Integration with Other Tools
 
 This backend is designed to work with:
