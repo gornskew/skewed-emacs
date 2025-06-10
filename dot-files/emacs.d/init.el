@@ -380,7 +380,11 @@ THEME-NAME is a string, e.g., \='adwaita\='."
           (let ((file-path (concat lisply-dir file)))
             (if (file-exists-p file-path)
                 (load-file file-path)
-              (message "Warning: MCP service file %s not found" file-path)))))))
+              (message "Warning: MCP service file %s not found" file-path))))))
+
+
+   (emacs-lisply-start-server))
+
 
   ;; Load local customizations if they exist
   (when (file-exists-p "~/.emacs-local")

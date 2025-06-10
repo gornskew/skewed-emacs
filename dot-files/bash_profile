@@ -1,10 +1,5 @@
 #!/bin/bash
 
-# Set flag to indicate bash_profile has been loaded
-if [ -z "$DOT_BASH_PROFILE_LOADED" ]; then
-    export DOT_BASH_PROFILE_LOADED=1
-fi
-
 # Set PATH early and cleanly
 export PATH="/snap/bin:$PATH"
 
@@ -109,8 +104,13 @@ theme_help() {
     echo "  theme custom   - Switch to custom theme"
 }
 
-# Interactive shell setup
-if [[ $- == *i* ]]; then
+# Interactive shell setup add conditional for setting theme and
+# printing Welcome message - welcome message should be printed only
+# once and a flag set so it won't be printed a second time e.g. after
+# an exec.  If not interactive shell, do not exit, simply continue. 
+
+
+if [[ $- == *i* && -z "$DOT_BASH_PROFILE_WELCOME" ]]; then
     # Apply default theme quietly
     theme "${THEME:-dark}" 1
     # Show welcome message
@@ -120,8 +120,13 @@ if [[ $- == *i* ]]; then
     echo "Terminal Color Tip: Use 'theme dark|light|solarized|custom' to change terminal colors."
     echo "Run 'theme_help' for more info."
     echo ""
+    export DOT_BASH_PROFILE_WELCOME=1
 fi
 
+
+#
+#FLAG -- end of conditional behavior based on interactive shell plus not already ran. 
+#
 
 # Start a Gendl instance with a Swank server
 function gswank
@@ -155,48 +160,137 @@ function e
 }
 
 
-# Run a Gendl container with specified Lisp implementation
-function rgc
-{
-    local impl="ccl"  # Default implementation
-    
-    # Parse command line arguments
+function gendl-run-container {
+    local impl="ccl"
+    local offset=1
+    local container_name http_host_port
+
+    # Parse command-line arguments
     while [[ "$#" -gt 0 ]]; do
         case $1 in
             --impl=*) impl="${1#*=}"; shift ;;
             --sbcl) impl="sbcl"; shift ;;
             --ccl) impl="ccl"; shift ;;
+            --json|--id-only|--quiet) json_flag="$1"; shift ;;
             *) break ;;
         esac
     done
-    
+
+    # Configure based on implementation
+    case "$impl" in
+        sbcl)
+            offset=2
+            container_name="gendl-sbcl"
+            http_host_port=9082
+            ;;
+        ccl|*)
+            offset=1
+            container_name="gendl-ccl"
+            http_host_port=9081
+            ;;
+    esac
+
     echo "Using Lisp implementation: ${impl}"
-    
-    # Ensure gendl repo is available
-    local gendl_dir="$HOME/projects/gendl"
-    local docker_run_script=""
-    
-    if [ -d "${gendl_dir}" ]; then
-        docker_run_script="${gendl_dir}/docker/run"
-    else
-        echo "Gendl repository not found at $HOME/projects/gendl or $gendl_dir"
-        echo "Cloning into place, please stand by..."
-	mkdir -p ${HOME}/projects
-	cd ${HOME}/projects
-	git clone https://gitlab.common-lisp.net/gendl/gendl
+
+    # Resolve run script path
+    find_docker_run_script() {
+        local paths=(
+            "$HOME/.emacs.d/etc/gendl/docker/run"
+            "$HOME/emacs.d/etc/gendl/docker/run"
+            "$HOME/projects/gendl/docker/run"
+            "/projects/gendl/docker/run"
+        )
+        for path in "${paths[@]}"; do
+            [ -f "$path" ] || [ -L "$path" ] && echo "$path" && return 0
+        done
+        return 1
+    }
+
+    docker_run_script=$(find_docker_run_script) || {
+        echo "Error: Gendl Docker run script not found."
+        return 1
+    }
+
+    echo "Using docker run script: ${docker_run_script}..."
+
+    # Helper to check if port is running a Gendl service
+    is_valid_gendl_service() {
+        curl -s -f "http://localhost:$1/lisply/ping-lisp" | grep -q "pong"
+    }
+
+    # Check for existing container by name
+    if existing_cid=$(docker ps -q --filter "name=^${container_name}$"); [ -n "$existing_cid" ]; then
+        if is_valid_gendl_service "$http_host_port"; then
+            echo "Service already existing: Container ${container_name} (ID: ${existing_cid}) is running a valid Gendl service on port ${http_host_port}."
+            echo "Container ID: ${existing_cid}"
+            return 1
+        else
+            echo "Error: Container ${container_name} (ID: ${existing_cid}) exists but is not responding on port ${http_host_port}."
+            return 1
+        fi
     fi
-    
+
+    # Check if HTTP port already in use
+    if ss -tln | grep -q ":${http_host_port}\b"; then
+        if is_valid_gendl_service "$http_host_port"; then
+            port_cid=$(docker ps --filter "publish=${http_host_port}" --format "{{.ID}}")
+            echo "Service already existing: A valid Gendl service is running on port ${http_host_port}."
+            [ -n "$port_cid" ] && echo "Container ID: ${port_cid}"
+            return 1
+        else
+            echo "Error: Port ${http_host_port} is in use by something else."
+            return 1
+        fi
+    fi
+
     # Run the container
-    local run_output=$($docker_run_script $([ "$impl" != "ccl" ] && echo "--$impl"))
-    local cid=$(echo "$run_output" | tail -1)
-    
-    # Setup environment in container
-    docker exec -d $cid ln -s /home /Users
-    docker exec -d $cid ln -s /home/gendl-user ${HOME}
-    
-    echo "${run_output}"
-    echo "Container ID: ${cid}"
+    run_output=$($docker_run_script $([ "$impl" != "ccl" ] && echo "--$impl") 2>&1)
+    run_status=$?
+
+    if [ $run_status -ne 0 ]; then
+        echo "Error: Failed to start container."
+        echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:"
+        return 1
+    fi
+
+    # Extract container ID from output
+    cid=$(echo "$run_output" | grep "Container ID is:" | tail -1 | awk '{print $NF}')
+    [ -z "$cid" ] && {
+        echo "Error: Could not retrieve container ID."
+        echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:"
+        return 1
+    }
+
+    # Symlink setup inside container
+    docker exec -d "$cid" ln -s /home /Users
+    docker exec -d "$cid" ln -s /home/gendl-user "$HOME"
+
+    # Output
+    if [[ "$json_flag" == "--json" ]]; then
+        echo "{
+  \"container_id\": \"$cid\",
+  \"impl\": \"$impl\",
+  \"port_swank\": $((4200 + offset)),
+  \"port_http\": $((9080 + offset)),
+  \"port_https\": $((9443 + offset)),
+  \"port_telnet\": $((4023 + offset)),
+  \"gendl_mode\": \"${GENDL_MODE:-default}\",
+  \"project_mount\": \"${USER_PROJECTS:-$HOME/projects}\",
+  \"status\": \"ok\"
+}"
+    elif [[ "$json_flag" == "--id-only" || "$json_flag" == "--quiet" ]]; then
+        echo "$cid"
+    else
+        echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:"
+        echo "Container ID: ${cid}"
+    fi
 }
+
+function rgc {
+    echo "⚠️  Warning: 'rgc' is deprecated. Use 'gendl-run-container' instead." >&2
+    gendl-run-container "$@"
+}
+
 
 # file naming utilities.
 
