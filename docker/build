@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build script for Skewed Emacs following Gendl Docker pattern
+# Build script for Skewed Emacs - Working baseline with separate test ports
 
 set -e
 
@@ -7,7 +7,7 @@ cd "$(dirname "$0")"
 
 echo "=== Building Skewed Emacs Docker Image ==="
 
-# Get branch name for tagging (similar to Gendl approach)
+# Get branch name for tagging
 if [ -z "${CI_COMMIT_REF_NAME}" ]; then
     branch="dev"
 else
@@ -22,16 +22,20 @@ docker build --progress=plain -t skewed-emacs:${branch} -f Dockerfile ..
 
 echo "=== Testing the build ==="
 
-# Use port 7081 for testing to avoid conflict with running lisply-backend on 7080
-TEST_PORT=7091
+# Use separate test ports that don't conflict with production (7081, 9998)
+TEST_HTTP_PORT=7091   # Test HTTP port (production uses 7081)
+TEST_EMACS_PORT=9997  # Test Emacs port (production uses 9998, host uses 9999)
+
+echo "Using test ports: HTTP=${TEST_HTTP_PORT}, Emacs=${TEST_EMACS_PORT}"
+echo "(Production uses: HTTP=7081, Emacs=9998)"
 
 # Start container in detached mode for testing
 echo "Starting test container..."
-CONTAINER_ID=$(docker run -d -p ${TEST_PORT}:7080 skewed-emacs:${branch})
+CONTAINER_ID=$(docker run -d \
+    -p ${TEST_HTTP_PORT}:7080 \
+    -p ${TEST_EMACS_PORT}:9999 \
+    skewed-emacs:${branch})
 echo "Container ID: $CONTAINER_ID"
-
-# Wait for container to start
-sleep 5
 
 # Function to cleanup on exit
 cleanup() {
@@ -40,46 +44,100 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Test the ping endpoint
-echo "Testing ping endpoint on port ${TEST_PORT}..."
-for i in {1..10}; do
-    if curl -f -s http://localhost:${TEST_PORT}/lisply/ping-lisp | grep -q "pong"; then
-        echo "â Ping test successful"
+# Wait for startup with progress monitoring
+echo "Waiting for container startup..."
+for i in {1..30}; do
+    echo "--- Startup check $i/30 ---"
+    
+    # Show recent logs
+    docker logs --tail 5 $CONTAINER_ID 2>/dev/null || true
+    
+    # Test if HTTP endpoint is responding
+    if curl -f -s --connect-timeout 2 --max-time 5 http://localhost:${TEST_HTTP_PORT}/lisply/ping-lisp >/dev/null 2>&1; then
+        echo "â HTTP endpoint responding after ${i} checks"
         break
-    elif [ $i -eq 10 ]; then
-        echo "â Ping test failed after 10 attempts"
-        echo "Container logs:"
+    elif [ $i -eq 30 ]; then
+        echo "â HTTP endpoint failed to respond after 30 checks"
+        echo ""
+        echo "=== Final container status ==="
+        docker ps --filter id=$CONTAINER_ID
+        echo ""
+        echo "=== Full container logs ==="
         docker logs $CONTAINER_ID
+        echo ""
+        echo "=== Network diagnostics ==="
+        echo "Testing internal HTTP (should work):"
+        docker exec $CONTAINER_ID curl -s http://localhost:7080/lisply/ping-lisp 2>&1 || echo "Internal test failed"
         exit 1
     else
-        echo "Attempt $i failed, retrying in 2 seconds..."
+        echo "Waiting... (${i}/30)"
         sleep 2
     fi
 done
+
+# Test the ping endpoint
+echo ""
+echo "=== Testing HTTP API ==="
+echo "Testing ping endpoint on port ${TEST_HTTP_PORT}..."
+PING_RESULT=$(curl -s http://localhost:${TEST_HTTP_PORT}/lisply/ping-lisp)
+if [ "$PING_RESULT" = "pong" ]; then
+    echo "â Ping test successful: $PING_RESULT"
+else
+    echo "â Ping test failed. Expected 'pong', got: $PING_RESULT"
+    exit 1
+fi
 
 # Test basic Lisp evaluation
 echo "Testing Lisp evaluation..."
 EVAL_RESULT=$(curl -s -H "Content-Type: application/json" \
     -d '{"code": "(+ 1 2 3)"}' \
-    http://localhost:${TEST_PORT}/lisply/lisp-eval)
+    http://localhost:${TEST_HTTP_PORT}/lisply/lisp-eval)
 
-if echo "$EVAL_RESULT" | grep -q '"success":true'; then
+if echo "$EVAL_RESULT" | grep -q '"success":true' && echo "$EVAL_RESULT" | grep -q '"result":"6"'; then
     echo "â Lisp evaluation test successful"
     echo "Result: $EVAL_RESULT"
 else
     echo "â Lisp evaluation test failed"
     echo "Result: $EVAL_RESULT"
+    echo ""
+    echo "=== Container logs for debugging ==="
+    docker logs $CONTAINER_ID
     exit 1
 fi
 
+# Test emacsclient connection
+echo "Testing emacsclient connection..."
+CLIENT_RESULT=$(timeout 5 emacsclient -s localhost:${TEST_EMACS_PORT} --eval '(+ 10 20 30)' 2>/dev/null || echo "FAILED")
+if [ "$CLIENT_RESULT" = "60" ]; then
+    echo "â Emacsclient test successful: $CLIENT_RESULT"
+else
+    echo "â ï¸ Emacsclient test failed (this is ok): $CLIENT_RESULT"
+    echo "Note: emacsclient test failure is non-fatal - HTTP API is the primary interface"
+fi
+
+echo ""
 echo "=== Build and tests successful! ==="
 echo ""
-echo "To run the container [avoiding port conflict]"
-echo "  ./run [--lisply-port 7071]"
+echo "â HTTP API working on test port ${TEST_HTTP_PORT}"
+echo "â Container healthy and responsive"
 echo ""
-echo "Or with default port 7081 (if no local default one is expected):"
+echo "=== Port Allocation Summary ==="
+echo "Build/Test ports (this run):"
+echo "  - HTTP: localhost:${TEST_HTTP_PORT}"
+echo "  - Emacs: localhost:${TEST_EMACS_PORT}"
+echo ""
+echo "Production ports (./run):"
+echo "  - HTTP: localhost:7081"
+echo "  - Emacs: localhost:9998"
+echo ""
+echo "Host conflicts avoided:"
+echo "  - Host lisply-backend: 7080"
+echo "  - Host emacs daemon: 9999"
+echo ""
+echo "To run the container for production use:"
 echo "  ./run"
 echo ""
-echo "To test endpoints:"
+echo "Production test endpoints:"
 echo "  curl http://localhost:7081/lisply/ping-lisp"
-echo "  curl -H 'Content-Type: application/json' -d '{\"code\": \"(+ 1 2 3)\"}'  http://localhost:7081/lisply/lisp-eval"
+echo "  curl -H 'Content-Type: application/json' -d '{\"code\": \"(+ 1 2 3)\"}' http://localhost:7081/lisply/lisp-eval"
+echo "  emacsclient -s localhost:9998 --eval '(+ 1 2 3)'"

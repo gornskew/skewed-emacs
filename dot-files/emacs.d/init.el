@@ -383,7 +383,10 @@ THEME-NAME is a string, e.g., \='adwaita\='."
               (message "Warning: MCP service file %s not found" file-path))))))
 
 
-   (emacs-lisply-start-server))
+;; COMMENTED OUT FOR CONTAINER USE - startup.sh handles this
+   ) ;; Close the (when load-lisply? block
+
+   ;;    (emacs-lisply-start-server))
 
 
   ;; Load local customizations if they exist

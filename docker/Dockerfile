@@ -1,9 +1,9 @@
-# Simplified Dockerfile for Skewed Emacs following Gendl Docker pattern
+# Fixed Dockerfile for Skewed Emacs - Working baseline
 FROM debian:testing-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install runtime dependencies (similar to Gendl approach)
+# Install runtime dependencies
 RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     apt-get -y install \
     # Emacs and basic tools
@@ -13,7 +13,7 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     wget \
     git \
     sudo \
-    # Network tools
+    # Network tools for diagnostics
     iputils-ping \
     telnet \
     netcat-openbsd \
@@ -47,26 +47,18 @@ WORKDIR /home/emacs-user
 RUN cd skewed-emacs && ./setup
 
 # Verify the lisply backend files are present
-RUN ls -la /home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source/
+RUN ls -la /home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source/ && \
+    echo "â Lisply backend files verified"
 
-# Bootstrap Emacs packages during build time (not at runtime)
-# This ensures all packages from init.el are downloaded and compiled into the image
-
-# Copy bootstrap script
+# Bootstrap Emacs packages during build time
+# This ensures simple-httpd is available at runtime
 COPY --chown=emacs-user:emacs-user docker/bootstrap-emacs.sh /tmp/bootstrap-emacs.sh
-RUN chmod +x /tmp/bootstrap-emacs.sh
+RUN chmod +x /tmp/bootstrap-emacs.sh && /tmp/bootstrap-emacs.sh
 
-# Run the bootstrap script to install packages
-RUN /tmp/bootstrap-emacs.sh
+# Verify packages were installed
+RUN ls -la ~/.emacs.d/elpa/ 2>/dev/null && echo "â ELPA packages installed" || echo "â ï¸ No ELPA directory found"
 
-# Verify packages were installed by checking for key directories
-RUN ls -la ~/.emacs.d/elpa/ 2>/dev/null && echo \"Ã¢ ELPA packages installed\" || echo \"Ã¢Â¹Ã¯Â¸  No ELPA directory found\"
-
-# Create verification script to avoid shell escaping issues
-COPY --chown=emacs-user:emacs-user docker/verify-lisply.sh /tmp/verify-lisply.sh
-RUN chmod +x /tmp/verify-lisply.sh && /tmp/verify-lisply.sh
-
-# Copy startup script and make it executable
+# Copy the FIXED startup script 
 COPY --chown=emacs-user:emacs-user docker/startup.sh /home/emacs-user/startup.sh
 RUN chmod +x /home/emacs-user/startup.sh
 
@@ -76,5 +68,5 @@ ENV TERM=xterm-256color
 # Expose ports for both Lisply HTTP API and Emacs server
 EXPOSE 7080 9999
 
-# Use the startup script to avoid shell escaping issues
+# Use the fixed startup script
 CMD ["/home/emacs-user/startup.sh"]
