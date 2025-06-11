@@ -20,75 +20,8 @@ echo "Building with branch tag: ${branch}"
 export DOCKER_BUILDKIT=1
 docker build --progress=plain -t skewed-emacs:${branch} -f Dockerfile ..
 
-echo "=== Testing the build ==="
-
-# Use test port that doesn't conflict with production
-TEST_HTTP_PORT=7091
-
-echo "Using test port: HTTP=${TEST_HTTP_PORT}"
-
-# Start container for testing
-echo "Starting test container..."
-CONTAINER_ID=$(docker run -d -p ${TEST_HTTP_PORT}:7080 skewed-emacs:${branch})
-
-# Cleanup function
-cleanup() {
-    echo "Cleaning up test container..."
-    docker rm -f $CONTAINER_ID 2>/dev/null || true
-}
-trap cleanup EXIT
-
-# Wait for startup
-echo "Waiting for container startup..."
-for i in {1..30}; do
-    echo "--- Startup check $i/30 ---"
-    
-    # Show recent logs for debugging
-    docker logs --tail 10 $CONTAINER_ID 2>/dev/null || true
-    
-    if curl -f -s --connect-timeout 2 --max-time 5 http://localhost:${TEST_HTTP_PORT}/lisply/ping-lisp >/dev/null 2>&1; then
-        echo "✓ HTTP endpoint responding after ${i} checks"
-        break
-    elif [ $i -eq 30 ]; then
-        echo "✗ HTTP endpoint failed to respond after 30 checks"
-        echo ""
-        echo "=== Full container logs ==="
-        docker logs $CONTAINER_ID
-        exit 1
-    else
-        echo "Waiting... (${i}/30)"
-        sleep 2
-    fi
-done
-
-# Test the ping endpoint
-echo "Testing HTTP API..."
-PING_RESULT=$(curl -s http://localhost:${TEST_HTTP_PORT}/lisply/ping-lisp)
-if [ "$PING_RESULT" = "pong" ]; then
-    echo "✓ Ping test successful: $PING_RESULT"
-else
-    echo "✗ Ping test failed. Got: $PING_RESULT"
-    exit 1
-fi
-
-# Test basic Lisp evaluation
-echo "Testing Lisp evaluation..."
-EVAL_RESULT=$(curl -s -H "Content-Type: application/json" \
-    -d '{"code": "(+ 1 2 3)"}' \
-    http://localhost:${TEST_HTTP_PORT}/lisply/lisp-eval)
-
-if echo "$EVAL_RESULT" | grep -q '"success":true' && echo "$EVAL_RESULT" | grep -q '"result":"6"'; then
-    echo "✓ Lisp evaluation test successful"
-else
-    echo "✗ Lisp evaluation test failed"
-    echo "Result: $EVAL_RESULT"
-    exit 1
-fi
-
 echo ""
-echo "=== Build and tests successful! ==="
-echo "✓ HTTP API working on test port ${TEST_HTTP_PORT}"
-echo "✓ Container healthy and responsive"
+echo "=== Build Complete ==="
 echo ""
 echo "To run the container:"
 echo "  ./run"

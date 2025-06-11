@@ -1,5 +1,5 @@
 #!/bin/bash
-# Consolidated startup script - Clean Emacs Lisp REPL with HTTP backend
+# Startup script - Start Emacs daemon with HTTP backend, then exec bash
 
 set -e
 
@@ -40,36 +40,29 @@ cat > /tmp/emacs-daemon-startup.el << 'EOF'
 (emacs-lisply-start-server)
 (message "✓ Lisply HTTP server started on port 7080")
 
-;; Start TCP server for emacsclient (internal use only)
-(setq server-use-tcp t)
-(setq server-port 9999)
-(setq server-host "127.0.0.1")
-(setq server-auth-dir "/home/emacs-user/.emacs.d/server")
-(make-directory server-auth-dir t)
-(set-file-modes server-auth-dir #o700)
+;; Start default Emacs server (Unix socket)
 (server-start)
+(message "✓ Emacs server started (Unix socket)")
 
 (message "✓ Clean Emacs daemon ready!")
 (message "   - HTTP API: port 7080")
 (message "   - Projects mounted at: /projects")
+(message "   - emacsclient available via: emacsclient")
 EOF
 
 # Start Emacs daemon in background
-echo "Starting Emacs daemon..."
+echo "Starting Emacs daemon with HTTP server..."
 emacs --daemon --no-init-file --load /tmp/emacs-daemon-startup.el > /tmp/emacs-daemon.log 2>&1 &
 EMACS_PID=$!
-echo "Emacs daemon PID: $EMACS_PID"
 
 # Wait for daemon to start
 echo "Waiting for daemon to start..."
 for i in {1..30}; do
-    echo "Daemon check $i/30..."
-    if emacsclient --server-file=/home/emacs-user/.emacs.d/server/127.0.0.1:9999 --eval "t" > /dev/null 2>&1; then
-        echo "✓ Daemon responding after $i seconds"
+    if emacsclient --eval "t" > /dev/null 2>&1; then
+        echo "✓ Emacs daemon ready"
         break
     elif [ $i -eq 30 ]; then
-        echo "✗ Daemon failed to start after 30 seconds"
-        echo "=== Daemon startup log ==="
+        echo "✗ Daemon failed to start"
         cat /tmp/emacs-daemon.log
         exit 1
     else
@@ -77,42 +70,23 @@ for i in {1..30}; do
     fi
 done
 
-# Check if running interactively
-if [ -t 0 ]; then
-    echo "=== Emacs Lisp REPL ==="
-    echo "Projects directory: /projects"
-    echo "HTTP API: port 7080"
-    echo ""
-    echo "Enter Lisp expressions:"
-    echo "Example: (+ 1 2 3)"
-    echo "Type 'quit' to exit."
-    echo ""
-    
-    # Interactive REPL loop
-    while IFS= read -r line; do
-        if [[ -z "$line" ]]; then
-            continue
-        fi
-        
-        case "$line" in
-            "(quit)" | "(exit)" | "exit" | "quit")
-                echo "Goodbye!"
-                break
-                ;;
-            *)
-                result=$(emacsclient --server-file=/home/emacs-user/.emacs.d/server/127.0.0.1:9999 --eval "$line" 2>/dev/null)
-                echo "$result"
-                ;;
-        esac
-    done
-else
-    # Daemon mode - keep container alive
-    echo "Daemon mode - HTTP API available on port 7080"
-    while true; do
-        if ! emacsclient --server-file=/home/emacs-user/.emacs.d/server/127.0.0.1:9999 --eval "t" > /dev/null 2>&1; then
-            echo "✗ Daemon stopped"
-            exit 1
-        fi
-        sleep 60
-    done
-fi
+# Show status and start REPL
+echo ""
+echo "=== Skewed Emacs Container Ready ==="
+echo "✓ Emacs daemon running (PID: $EMACS_PID)"
+echo "✓ HTTP API available on port 7080"
+echo "✓ Projects directory: /projects"
+echo ""
+echo "Usage:"
+echo "  # Test HTTP API"
+echo "  curl http://localhost:7080/lisply/ping-lisp"
+echo ""
+echo "  # Use emacsclient"
+echo "  emacsclient --eval '(+ 1 2 3)'"
+echo ""
+echo "  # View daemon logs"
+echo "  cat /tmp/emacs-daemon.log"
+echo ""
+
+# Start the Emacs REPL as the main process
+exec /home/emacs-user/emacs-repl.sh

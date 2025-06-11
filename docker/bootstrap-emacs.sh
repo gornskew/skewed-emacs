@@ -47,9 +47,9 @@ cat > /tmp/bootstrap.el << 'EOF'
 (condition-case err
     (progn
       (require 'simple-httpd)
-      (message "Ã¢ simple-httpd loaded successfully"))
+      (message "simple-httpd loaded successfully"))
   (error 
-    (message "Ã¢ Ã¯Â¸  simple-httpd load failed: %s" err)))
+    (message "simple-httpd load failed: %s" err)))
 
 (message "Bootstrap completed successfully")
 (kill-emacs 0)
@@ -66,12 +66,12 @@ TERM=dumb timeout 300 emacs --batch --no-init-file --load /tmp/bootstrap.el 2>&1
     echo "- Timeout code would be 124"
     
     if [ $exit_code -eq 124 ]; then
-        echo "Ã¢ Bootstrap timed out after 5 minutes"
+        echo " Bootstrap timed out after 5 minutes"
         exit 1
     elif [ $exit_code -eq 0 ]; then
-        echo "Ã¢ Bootstrap completed successfully"
+        echo " Bootstrap completed successfully"
     else
-        echo "Ã¢ Ã¯Â¸  Bootstrap completed with warnings (exit code: $exit_code)"
+        echo "  Bootstrap completed with warnings (exit code: $exit_code)"
         echo "This is often normal for package installations"
         # Don't exit with error for minor issues during package installation
     fi

@@ -47,9 +47,10 @@ RUN ls -la /home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-bac
 COPY --chown=emacs-user:emacs-user docker/bootstrap-emacs.sh /tmp/bootstrap-emacs.sh
 RUN chmod +x /tmp/bootstrap-emacs.sh && /tmp/bootstrap-emacs.sh
 
-# Copy the startup script 
+# Copy the startup script and REPL script
 COPY --chown=emacs-user:emacs-user docker/startup.sh /home/emacs-user/startup.sh
-RUN chmod +x /home/emacs-user/startup.sh
+COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
+RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh
 
 # Set environment variables
 ENV TERM=xterm-256color
@@ -57,5 +58,5 @@ ENV TERM=xterm-256color
 # Expose port for Lisply HTTP API
 EXPOSE 7080
 
-# Use the startup script
-CMD ["/home/emacs-user/startup.sh"]
+# Use the startup script as entrypoint
+ENTRYPOINT ["/home/emacs-user/startup.sh"]
