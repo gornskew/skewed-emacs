@@ -1,0 +1,59 @@
+# Debug Dockerfile - minimal startup for testing
+FROM debian:testing-slim
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Install runtime dependencies
+RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
+    apt-get -y install \
+    emacs-nox \
+    curl \
+    wget \
+    git \
+    sudo \
+    iputils-ping \
+    telnet \
+    netcat-openbsd \
+    build-essential \
+    binutils \
+    binutils-dev \
+    gcc \
+    libc6-dev \
+    && rm -rf /var/cache/apt/* && apt-get clean
+
+# Create emacs-user
+RUN groupadd -g 1000 emacs-user && \
+    useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user && \
+    ln -s /home /Users
+
+# Create project directory
+RUN mkdir -p /home/emacs-user/projects && \
+    chown emacs-user:emacs-user /home/emacs-user/projects && \
+    ln -s /home/emacs-user/projects /projects
+
+# Copy skewed-emacs configuration 
+COPY --chown=emacs-user:emacs-user . /home/emacs-user/skewed-emacs/
+
+# Switch to emacs-user
+USER emacs-user
+WORKDIR /home/emacs-user
+
+# Run setup
+RUN cd skewed-emacs && ./setup
+
+# Copy bootstrap and run it
+COPY --chown=emacs-user:emacs-user docker/bootstrap-emacs.sh /tmp/bootstrap-emacs.sh
+RUN chmod +x /tmp/bootstrap-emacs.sh && /tmp/bootstrap-emacs.sh
+
+# Copy manual startup script
+COPY --chown=emacs-user:emacs-user docker/manual-startup.sh /home/emacs-user/manual-startup.sh
+RUN chmod +x /home/emacs-user/manual-startup.sh
+
+# Set environment
+ENV TERM=xterm-256color
+
+# Expose ports
+EXPOSE 7080 9999
+
+# Use manual startup
+CMD ["/home/emacs-user/manual-startup.sh"]

@@ -1,0 +1,85 @@
+#!/bin/bash
+# Build script for Skewed Emacs following Gendl Docker pattern
+
+set -e
+
+cd "$(dirname "$0")"
+
+echo "=== Building Skewed Emacs Docker Image ==="
+
+# Get branch name for tagging (similar to Gendl approach)
+if [ -z "${CI_COMMIT_REF_NAME}" ]; then
+    branch="dev"
+else
+    branch=${CI_COMMIT_REF_NAME//\/\//--}
+fi
+
+echo "Building with branch tag: ${branch}"
+
+# Build the image with BuildKit for better output
+export DOCKER_BUILDKIT=1
+docker build --progress=plain -t skewed-emacs:${branch} -f Dockerfile ..
+
+echo "=== Testing the build ==="
+
+# Use port 7081 for testing to avoid conflict with running lisply-backend on 7080
+TEST_PORT=7091
+
+# Start container in detached mode for testing
+echo "Starting test container..."
+CONTAINER_ID=$(docker run -d -p ${TEST_PORT}:7080 skewed-emacs:${branch})
+echo "Container ID: $CONTAINER_ID"
+
+# Wait for container to start
+sleep 5
+
+# Function to cleanup on exit
+cleanup() {
+    echo "Cleaning up test container..."
+    docker rm -f $CONTAINER_ID 2>/dev/null || true
+}
+trap cleanup EXIT
+
+# Test the ping endpoint
+echo "Testing ping endpoint on port ${TEST_PORT}..."
+for i in {1..10}; do
+    if curl -f -s http://localhost:${TEST_PORT}/lisply/ping-lisp | grep -q "pong"; then
+        echo "â Ping test successful"
+        break
+    elif [ $i -eq 10 ]; then
+        echo "â Ping test failed after 10 attempts"
+        echo "Container logs:"
+        docker logs $CONTAINER_ID
+        exit 1
+    else
+        echo "Attempt $i failed, retrying in 2 seconds..."
+        sleep 2
+    fi
+done
+
+# Test basic Lisp evaluation
+echo "Testing Lisp evaluation..."
+EVAL_RESULT=$(curl -s -H "Content-Type: application/json" \
+    -d '{"code": "(+ 1 2 3)"}' \
+    http://localhost:${TEST_PORT}/lisply/lisp-eval)
+
+if echo "$EVAL_RESULT" | grep -q '"success":true'; then
+    echo "â Lisp evaluation test successful"
+    echo "Result: $EVAL_RESULT"
+else
+    echo "â Lisp evaluation test failed"
+    echo "Result: $EVAL_RESULT"
+    exit 1
+fi
+
+echo "=== Build and tests successful! ==="
+echo ""
+echo "To run the container [avoiding port conflict]"
+echo "  ./run [--lisply-port 7071]"
+echo ""
+echo "Or with default port 7081 (if no local default one is expected):"
+echo "  ./run"
+echo ""
+echo "To test endpoints:"
+echo "  curl http://localhost:7081/lisply/ping-lisp"
+echo "  curl -H 'Content-Type: application/json' -d '{\"code\": \"(+ 1 2 3)\"}'  http://localhost:7081/lisply/lisp-eval"

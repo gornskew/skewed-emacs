@@ -1,0 +1,93 @@
+#!/bin/bash
+# Run script for Skewed Emacs Docker container (following Gendl pattern)
+
+# Default values - using 7081 to avoid conflict with existing lisply-backend on 7080
+IMAGE_TAG="dev"
+CONTAINER_NAME="skewed-emacs"
+LISPLY_HOST_PORT="7081"
+EMACS_HOST_PORT="9999"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -t|--tag)
+      IMAGE_TAG="$2"
+      shift 2
+      ;;
+    -n|--name)
+      CONTAINER_NAME="$2"
+      shift 2
+      ;;
+    -p|--lisply-port)
+      LISPLY_HOST_PORT="$2"
+      shift 2
+      ;;
+    -e|--emacs-port)
+      EMACS_HOST_PORT="$2"
+      shift 2
+      ;;
+    -h|--help)
+      echo "Usage: $0 [OPTIONS]"
+      echo "Options:"
+      echo "  -t, --tag TAG           Image tag to run (default: dev)"
+      echo "  -n, --name NAME         Container name (default: skewed-emacs)"
+      echo "  -p, --lisply-port PORT  Host port for Lisply API (default: 7081)"
+      echo "  -e, --emacs-port PORT   Host port for Emacs server (default: 9999)"
+      echo "  -h, --help              Show this help message"
+      echo ""
+      echo "Note: Default port is 7081 to avoid conflict with existing lisply-backend on 7080"
+      echo "      Use --lisply-port 7080 if you want to use the standard port"
+      exit 0
+      ;;
+    *)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+  esac
+done
+
+# Stop and remove existing container if it exists
+if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+    echo "Stopping and removing existing container: ${CONTAINER_NAME}"
+    docker stop ${CONTAINER_NAME} 2>/dev/null || true
+    docker rm ${CONTAINER_NAME} 2>/dev/null || true
+fi
+
+echo "Starting Skewed Emacs container..."
+echo "  Image: skewed-emacs:${IMAGE_TAG}"
+echo "  Container name: ${CONTAINER_NAME}"
+echo "  Lisply API: localhost:${LISPLY_HOST_PORT}"
+echo "  Emacs server: localhost:${EMACS_HOST_PORT}"
+
+# Run the container with both port mappings
+docker run -d \
+    --name ${CONTAINER_NAME} \
+    -p ${LISPLY_HOST_PORT}:7080 \
+    -p ${EMACS_HOST_PORT}:9999 \
+    skewed-emacs:${IMAGE_TAG}
+
+# Wait a moment for startup
+sleep 3
+
+# Test if the service is responding
+echo "Testing service availability..."
+if curl -f -s http://localhost:${LISPLY_HOST_PORT}/lisply/ping-lisp > /dev/null; then
+    echo "â Skewed Emacs service is running successfully!"
+    echo ""
+    echo "Container details:"
+    docker ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+    echo ""
+    echo "Lisply API endpoints:"
+    echo "  curl http://localhost:${LISPLY_HOST_PORT}/lisply/ping-lisp"
+    echo "  curl -H 'Content-Type: application/json' -d '{\"code\": \"(+ 1 2 3)\"}' http://localhost:${LISPLY_HOST_PORT}/lisply/lisp-eval"
+    echo ""
+    echo "Connect with emacsclient:"
+    echo "  emacsclient -t --server-file=localhost:${EMACS_HOST_PORT}"
+    echo ""
+    echo "View logs: docker logs ${CONTAINER_NAME}"
+    echo "Stop container: docker stop ${CONTAINER_NAME}"
+else
+    echo "â Service not responding. Check logs:"
+    docker logs ${CONTAINER_NAME}
+    exit 1
+fi

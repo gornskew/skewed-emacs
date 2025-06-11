@@ -1,0 +1,77 @@
+#!/bin/bash
+# Debug build script - using debug ports (9998 for Emacs, 7091 for HTTP)
+
+set -e
+
+cd "$(dirname "$0")"
+
+echo "=== Building Debug Emacs Image ==="
+
+export DOCKER_BUILDKIT=1
+docker build --progress=plain -t skewed-emacs:debug -f Dockerfile.debug ..
+
+echo "=== Starting Debug Container ==="
+
+# Debug/ephemeral ports to avoid conflicts
+HOST_EMACS_PORT=9998   # Container's 9999 -> Host 9998 (debug)
+HOST_HTTP_PORT=7091    # Container's 7080 -> Host 7091 (debug/build testing)
+
+# Stop any existing debug container
+docker rm -f skewed-emacs-debug 2>/dev/null || true
+
+# Start container with debug port mappings
+CONTAINER_ID=$(docker run -d --name skewed-emacs-debug \
+    -p ${HOST_EMACS_PORT}:9999 \
+    -p ${HOST_HTTP_PORT}:7080 \
+    skewed-emacs:debug)
+echo "Container ID: $CONTAINER_ID"
+
+# Wait for startup
+echo "Waiting for daemon startup..."
+sleep 5
+
+echo ""
+echo "=== Container Status ==="
+docker ps --filter name=skewed-emacs-debug
+
+echo ""
+echo "=== Container Logs ==="
+docker logs skewed-emacs-debug
+
+echo ""
+echo "=== Testing Host Connection ==="
+# Test from host using TCP connection on mapped port
+for i in {1..5}; do
+    if emacsclient -s localhost:${HOST_EMACS_PORT} --eval '(+ 1 2 3)' 2>/dev/null; then
+        echo "â Host emacsclient connection successful on attempt $i"
+        break
+    elif [ $i -eq 5 ]; then
+        echo "â Host emacsclient connection failed after 5 attempts"
+        echo "Try: emacsclient -s localhost:${HOST_EMACS_PORT} --eval '(+ 1 2 3)'"
+    else
+        echo "Attempt $i failed, retrying..."
+        sleep 2
+    fi
+done
+
+echo ""
+echo "=== Port Mappings (DEBUG) ==="
+echo "Container Emacs daemon (port 9999) -> Host port ${HOST_EMACS_PORT} (debug)"
+echo "Container HTTP server (port 7080) -> Host port ${HOST_HTTP_PORT} (debug/build testing)"
+echo ""
+echo "=== Ready for Testing ==="
+echo "From HOST, use: emacsclient -s localhost:${HOST_EMACS_PORT} --eval '<expression>'"
+echo "Interactive REPL: emacsclient -s localhost:${HOST_EMACS_PORT} -t"
+echo ""
+echo "Example commands to load HTTP components:"
+echo "  emacsclient -s localhost:${HOST_EMACS_PORT} --eval '(require \"simple-httpd\")'"
+echo "  emacsclient -s localhost:${HOST_EMACS_PORT} --eval '(load-file \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source/http-setup.el\")'"
+echo "  emacsclient -s localhost:${HOST_EMACS_PORT} --eval '(load-file \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source/endpoints.el\")'"
+echo "  emacsclient -s localhost:${HOST_EMACS_PORT} --eval '(load-file \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source/backend.el\")'"
+echo "  emacsclient -s localhost:${HOST_EMACS_PORT} --eval '(emacs-lisply-start-server)'"
+echo ""
+echo "Test HTTP server: curl http://localhost:${HOST_HTTP_PORT}/lisply/ping-lisp"
+echo ""
+echo "To stop: docker stop skewed-emacs-debug"
+echo ""
+echo "NOTE: For normal usage, use ./run which maps to port 7081 for HTTP"
