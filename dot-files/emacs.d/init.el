@@ -537,7 +537,8 @@ Make it tiled to the left."
 (when (not (display-graphic-p))
   (setenv "TERM" "xterm-256color")
   (require 'term)
-  (terminal-init-xterm))
+  ;;(terminal-init-xterm)
+  )
 
 (add-hook 'eshell-load-hook #'eat-eshell-mode)
 

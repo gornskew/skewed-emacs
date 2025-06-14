@@ -94,6 +94,7 @@ cat > /tmp/emacs-startup.el << EOF
 (when (string= "${START_HTTP}" "true")
   (when (fboundp 'emacs-lisply-start-server)
     (setq emacs-lisply-port ${HTTP_PORT})
+    (setq httpd-host "0.0.0.0")  ; Bind to all interfaces for Docker port forwarding
     (emacs-lisply-start-server)
     (message "â Lisply HTTP server started on port ${HTTP_PORT}")))
 
@@ -137,7 +138,7 @@ else
     unset EMACS_BATCH_MODE
     
     # Start daemon in background
-    emacs --daemon --load /tmp/emacs-startup.el > /tmp/emacs-daemon.log 2>&1 &
+    emacs --daemon --no-init-file --load /tmp/emacs-startup.el --load ${HOME}/.emacs.d/init.el > /tmp/emacs-daemon.log 2>&1 &
     EMACS_PID=$!
     
     # Wait for daemon to start
@@ -174,13 +175,18 @@ else
     echo "  # Quick evaluation"
     echo "  emacsclient --eval '(+ 1 2 3)'"
     echo ""
+
+
+    echo "simple bash for now for debugging"
+    echo " " 
+    /bin/bash 
     
     # Start the REPL as the main process (if it exists)
-    if [ -f /home/emacs-user/emacs-repl.sh ]; then
-        exec /home/emacs-user/emacs-repl.sh
-    else
-        # Fallback: keep container running
-        echo "Keeping container alive..."
-        tail -f /tmp/emacs-daemon.log
-    fi
+#    if [ -f /home/emacs-user/emacs-repl.sh ]; then
+#        exec /home/emacs-user/emacs-repl.sh
+#    else
+#        # Fallback: keep container running
+#        echo "Keeping container alive..."
+#        tail -f /tmp/emacs-daemon.log
+#    fi
 fi
