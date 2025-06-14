@@ -1,5 +1,17 @@
 *~
 *.log
+
+# Git directory (not needed in container)
+.git/
+
+# Image/media files (if not essential)
+img/
+*.png
+*.jpg
+*.gif
+*.svg
+
+# Emacs package directories
 dot-files/emacs.d/straight
 dot-files/emacs.d/transient
 dot-files/emacs.d/tramp
@@ -12,7 +24,26 @@ dot-files/emacs.d/org-clock-save.el
 dot-files/emacs.d/.chatgpt-shell.el
 dot-files/emacs.d/eln-cache/
 dot-files/emacs.d/elpa/
+dot-files/emacs.d/melpa/
+dot-files/emacs.d/quelpa/
+dot-files/emacs.d/.straight/
+dot-files/emacs.d/auto-save-list/
+dot-files/emacs.d/recentf
+dot-files/emacs.d/places
+dot-files/emacs.d/projectile-bookmarks.eld
+dot-files/emacs.d/var/
+dot-files/emacs.d/url/
 
+# Any large cache or log directories
+dot-files/emacs.d/request/
+dot-files/emacs.d/elpa-archives/
+dot-files/emacs.d/network-security.data
+dot-files/emacs.d/abbrev_defs
+dot-files/emacs.d/custom.el
+dot-files/emacs.d/.lsp-session*
+dot-files/emacs.d/.dap-breakpoints
+dot-files/emacs.d/workspace/
+dot-files/emacs.d/semanticdb/
 
 .cache
 node_modules/
@@ -22,8 +53,6 @@ __pycache__/
 .idea/
 tmp/
 temp/
-dot-files/emacs.d/url/
-dot-files/emacs.d/var/
 
 # Compiled files
 *.elc
@@ -43,4 +72,3 @@ history.*
 *.log*
 .tokens/
 *token*
-

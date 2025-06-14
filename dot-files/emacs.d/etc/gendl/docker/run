@@ -9,13 +9,39 @@
 
 CURRDIR=$(dirname "$0")
 
-if [[ "$*" == *"--sbcl"* ]]; then
-    impl="sbcl"
-    offset=2 # Add 2 offset for each HOST_PORT for sbcl
-else
-    impl="ccl"
-    offset=1 # Add 1 offset for each HOST_PORT for ccl
-fi
+# Parse command line arguments
+DOCKER_NETWORK=""
+impl="ccl"
+offset=1 # Add 1 offset for each HOST_PORT for ccl
+
+for arg in "$@"; do
+    case $arg in
+        --sbcl)
+            impl="sbcl"
+            offset=2 # Add 2 offset for each HOST_PORT for sbcl
+            ;;
+        --network)
+            DOCKER_NETWORK="emacs-gendl-network"
+            ;;
+        --network=*)
+            DOCKER_NETWORK="${arg#*=}"
+            ;;
+        --help|-h)
+            echo "Usage: $0 [OPTIONS]"
+            echo "Options:"
+            echo "  --sbcl              Use SBCL instead of CCL"
+            echo "  --network           Join emacs-gendl-network for container communication"
+            echo "  --network=NAME      Join specified Docker network"
+            echo "  -h, --help          Show this help message"
+            echo ""
+            echo "Network mode enables:"
+            echo "  - Communication with skewed-emacs container"
+            echo "  - SLIME connections from other containers"
+            echo "  - Container accessible as 'gendl-ccl' or 'gendl-sbcl'"
+            exit 0
+            ;;
+    esac
+done
 
 # GENDL_MODE: default: Lisp stdio, mcp: JSON MCP stdio
 export GENDL_MODE=${GENDL_MODE:-default}
@@ -108,6 +134,18 @@ echo "GENDL_MODE=${GENDL_MODE}"
 
 DOCKER_MOUNT_OPTIONS="--mount type=bind,src=${USER_PROJECTS},dst=/home/${gendl_user}/${PROJECTS_BASENAME}"
 
+# Set up network options
+DOCKER_NETWORK_OPTIONS=""
+if [ -n "$DOCKER_NETWORK" ]; then
+    echo "Docker network: ${DOCKER_NETWORK}"
+    # Create network if it doesn't exist
+    if ! docker network ls --format '{{.Name}}' | grep -q "^${DOCKER_NETWORK}$"; then
+        echo "Creating Docker network: ${DOCKER_NETWORK}"
+        docker network create ${DOCKER_NETWORK}
+    fi
+    DOCKER_NETWORK_OPTIONS="--network ${DOCKER_NETWORK}"
+fi
+
 DOCKER_GENDL_CID=$(docker run -id --rm -h gendl --name gendl-${impl} \
                           -p ${SWANK_HOST_PORT}:${SWANK_PORT} -p ${HTTP_HOST_PORT}:${HTTP_PORT} \
                           -p ${HTTPS_HOST_PORT}:${HTTPS_PORT} \
@@ -117,6 +155,7 @@ DOCKER_GENDL_CID=$(docker run -id --rm -h gendl --name gendl-${impl} \
                           -e START_HTTP -e START_HTTPS -e START_SWANK -e START_TELNET \
                           -e HOST_USER_UID -e GENDL_MODE \
                           ${DOCKER_MOUNT_OPTIONS} \
+                          ${DOCKER_NETWORK_OPTIONS} \
                           --add-host host.docker.internal:172.17.0.1 \
                           genworks/gendl:${branch}-${impl})
 
@@ -143,6 +182,12 @@ else
         echo "so you can connect from a SLIME-enabled Emacs with:"
         echo ""
         echo "M-x slime-connect RET localhost RET ${SWANK_HOST_PORT} RET"
+        echo ""
+        if [ -n "$DOCKER_NETWORK" ]; then
+            echo "Network mode enabled: Container accessible as 'gendl-${impl}' from other containers"
+            echo "From skewed-emacs container, connect with:"
+            echo "M-x slime-connect RET gendl-${impl} RET ${SWANK_PORT} RET"
+        fi
         echo ""
     fi
     echo "Container ID is: ${DOCKER_GENDL_CID}"

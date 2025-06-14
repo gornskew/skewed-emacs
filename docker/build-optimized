@@ -1,0 +1,42 @@
+#!/bin/bash
+# Quick size optimization test build
+
+set -e
+
+cd "$(dirname "$0")"
+
+echo "=== Building Size-Optimized Skewed Emacs ==="
+
+# Build with the multistage Dockerfile
+docker build --progress=plain -t genworks/skewed-emacs:optimized -f Dockerfile.multistage ..
+
+# Also tag for local testing
+docker tag genworks/skewed-emacs:optimized skewed-emacs:optimized
+
+echo ""
+echo "=== Size Comparison ==="
+echo "Original:"
+docker images | grep -E "genworks/skewed-emacs.*devo|skewed-emacs.*dev"
+echo "Optimized:"
+docker images | grep -E "genworks/skewed-emacs.*optimized|skewed-emacs.*optimized"
+
+echo ""
+echo "=== Quick Test ==="
+echo "Testing optimized container..."
+docker run --rm -p 7082:7080 genworks/skewed-emacs:optimized &
+CONTAINER_PID=$!
+sleep 10
+
+# Test ping
+if curl -s http://localhost:7082/lisply/ping-lisp; then
+    echo "â Optimized container is working!"
+else
+    echo "â Optimized container test failed"
+fi
+
+# Cleanup
+kill $CONTAINER_PID 2>/dev/null || true
+
+echo ""
+echo "To use optimized version, update your MCP config to use:"
+echo "  genworks/skewed-emacs:optimized"

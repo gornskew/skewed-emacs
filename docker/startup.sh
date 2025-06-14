@@ -1,10 +1,22 @@
 #!/bin/bash
-# Startup script - Start Emacs daemon with HTTP backend, then exec bash
+# Startup script - Compatible with lisply-mcp environment variables
 
 set -e
 
-# Create daemon configuration
-cat > /tmp/emacs-daemon-startup.el << 'EOF'
+# Default values matching lisply-mcp expectations
+HTTP_PORT=${HTTP_PORT:-7080}
+START_HTTP=${START_HTTP:-true}
+START_SWANK=${START_SWANK:-false}
+SWANK_PORT=${SWANK_PORT:-4200}
+
+echo "=== Skewed Emacs Container Startup ==="
+echo "HTTP_PORT: $HTTP_PORT"
+echo "START_HTTP: $START_HTTP"  
+echo "START_SWANK: $START_SWANK"
+echo "SWANK_PORT: $SWANK_PORT"
+
+# Create daemon configuration with configurable port
+cat > /tmp/emacs-daemon-startup.el << EOF
 ;; Clean daemon startup - loads lisply backend
 (setq debug-on-error t)
 
@@ -30,28 +42,32 @@ cat > /tmp/emacs-daemon-startup.el << 'EOF'
 ;; Set httpd-host to 0.0.0.0 for Docker port mapping
 (setq httpd-host "0.0.0.0")
 
+;; Set configurable port from environment  
+(setq emacs-lisply-port ${HTTP_PORT})
+
 ;; Load lisply backend components
 (let ((backend-dir "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source/"))
   (load-file (concat backend-dir "http-setup.el"))
   (load-file (concat backend-dir "endpoints.el"))
   (load-file (concat backend-dir "backend.el")))
 
-;; Start the HTTP server
-(emacs-lisply-start-server)
-(message "✓ Lisply HTTP server started on port 7080")
+;; Start the HTTP server if enabled
+(when (string= "${START_HTTP}" "true")
+  (emacs-lisply-start-server)
+  (message "✓ Lisply HTTP server started on port ${HTTP_PORT}"))
 
 ;; Start default Emacs server (Unix socket)
 (server-start)
 (message "✓ Emacs server started (Unix socket)")
 
 (message "✓ Clean Emacs daemon ready!")
-(message "   - HTTP API: port 7080")
+(message "   - HTTP API: port ${HTTP_PORT}")
 (message "   - Projects mounted at: /projects")
 (message "   - emacsclient available via: emacsclient")
 EOF
 
 # Start Emacs daemon in background
-echo "Starting Emacs daemon with HTTP server..."
+echo "Starting Emacs daemon with HTTP server on port $HTTP_PORT..."
 emacs --daemon --no-init-file --load /tmp/emacs-daemon-startup.el > /tmp/emacs-daemon.log 2>&1 &
 EMACS_PID=$!
 
@@ -74,12 +90,12 @@ done
 echo ""
 echo "=== Skewed Emacs Container Ready ==="
 echo "✓ Emacs daemon running (PID: $EMACS_PID)"
-echo "✓ HTTP API available on port 7080"
+echo "✓ HTTP API available on port $HTTP_PORT"
 echo "✓ Projects directory: /projects"
 echo ""
 echo "Usage:"
 echo "  # Test HTTP API"
-echo "  curl http://localhost:7080/lisply/ping-lisp"
+echo "  curl http://localhost:$HTTP_PORT/lisply/ping-lisp"
 echo ""
 echo "  # Use emacsclient"
 echo "  emacsclient --eval '(+ 1 2 3)'"

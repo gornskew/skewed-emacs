@@ -96,7 +96,10 @@ Use the `http_request` tool to test endpoints:
 
 ### Direct HTTP Access (Claude Code, curl, etc.)
 
-There is a Common Lisp service running on localhost that handles eval requests.
+There is sometimes a Common Lisp service running on localhost that
+handles eval requests. If that is not running, it can be started
+with gendl/docker/run (in gendl repository) or skewed-emacs/dot-files/emacs.d/etc/gendl/docker/run in the skewed-emacs repository.  You can check for it running with `docker ps` 
+
 
 #### Testing the Service
 

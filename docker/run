@@ -1,10 +1,34 @@
 #!/bin/bash
 # Consolidated run script for Skewed Emacs Docker container
+# Compatible with lisply-mcp port handling
 
-# Default values
-IMAGE_TAG="dev"
-CONTAINER_NAME="skewed-emacs"
-HTTP_PORT="7081"
+# Default values - avoid conflicts with host services
+# Get branch name for image tag (same logic as build script)
+if [ -z "${IMAGE_TAG}" ]; then
+    if [ -z "${CI_COMMIT_REF_NAME}" ]; then
+        # Try to get branch from git
+        if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+            IMAGE_TAG=$(git rev-parse --abbrev-ref HEAD)
+            # Replace forward slashes with double hyphens for docker tag compatibility
+            IMAGE_TAG=${IMAGE_TAG//\/\/\//--}
+        else
+            IMAGE_TAG="devo"
+        fi
+    else
+        IMAGE_TAG=${CI_COMMIT_REF_NAME//\/\/\//--}
+    fi
+fi
+CONTAINER_NAME="${CONTAINER_NAME:-skewed-emacs}"
+HTTP_PORT="${HTTP_PORT:-7080}"              # Internal container port
+# Compute default HTTP_HOST_PORT as HTTP_PORT + 1 if not set
+if [ -z "${HTTP_HOST_PORT}" ]; then
+    HTTP_HOST_PORT=$((HTTP_PORT + 1))         # External host port (offset to avoid conflicts)
+fi
+START_HTTP="${START_HTTP:-true}"
+START_SWANK="${START_SWANK:-false}"
+SWANK_PORT="${SWANK_PORT:-4200}"
+DOCKER_NETWORK=""
+RUN_MODE="interactive"
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -17,23 +41,55 @@ while [[ $# -gt 0 ]]; do
       CONTAINER_NAME="$2"
       shift 2
       ;;
-    -p|--port)
+    --http-port)
       HTTP_PORT="$2"
       shift 2
+      ;;
+    --http-host-port|-p|--port)
+      HTTP_HOST_PORT="$2"
+      shift 2
+      ;;
+    --network)
+      DOCKER_NETWORK="emacs-gendl-network"
+      RUN_MODE="detached"
+      shift
+      ;;
+    --network-name)
+      DOCKER_NETWORK="$2"
+      RUN_MODE="detached"
+      shift 2
+      ;;
+    -d|--detached)
+      RUN_MODE="detached"
+      shift
       ;;
     -h|--help)
       echo "Usage: $0 [OPTIONS]"
       echo "Options:"
-      echo "  -t, --tag TAG           Image tag to run (default: dev)"
-      echo "  -n, --name NAME         Container name (default: skewed-emacs)"
-      echo "  -p, --port PORT         Host port for HTTP API (default: 7081)"
-      echo "  -h, --help              Show this help message"
+      echo "  -t, --tag TAG               Image tag to run (default: dev)"
+      echo "  -n, --name NAME             Container name (default: skewed-emacs)"
+      echo "  --http-port PORT            Internal HTTP port (default: 7080)"
+      echo "  --http-host-port PORT       Host HTTP port (default: 7080)"
+      echo "  -p, --port PORT             Alias for --http-host-port"
+      echo "  --network                   Join emacs-gendl-network and run detached"
+      echo "  --network-name NAME         Join specified network and run detached"
+      echo "  -d, --detached              Run in detached mode"
+      echo "  -h, --help                  Show this help message"
+      echo ""
+      echo "Environment variables (override defaults):"
+      echo "  HTTP_PORT                   Internal container port (default: 7080)"
+      echo "  HTTP_HOST_PORT              External host port (default: HTTP_PORT + 1)"
+      echo "  START_HTTP                  Start HTTP service (default: true)"
+      echo "  START_SWANK                 Start SWANK service (default: false)"
+      echo "  IMAGE_TAG                   Docker image tag (default: auto-detected from git branch)"
       echo ""
       echo "The container will:"
-      echo "  - Mount ~/projects as /projects (read-only if ~/projects doesn't exist)"
-      echo "  - Present a clean Emacs Lisp REPL on stdin/stdout"
-      echo "  - Start HTTP API on specified port"
-      echo "  - Have no access to other host filesystem directories"
+      echo "  - Mount ~/projects as /projects (if available)"
+      echo "  - Present a clean Emacs Lisp REPL on stdin/stdout (interactive mode)"
+      echo "  - Start HTTP API on port ${HTTP_PORT} (internal) -> ${HTTP_HOST_PORT} (host)"
+      echo "  - Use HTTP_PORT + 1 as default host port to avoid conflicts"
+      echo "  - Compatible with lisply-mcp port handling"
+      echo ""
       exit 0
       ;;
     *)
@@ -51,9 +107,12 @@ if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
 fi
 
 echo "Starting Skewed Emacs container..."
-echo "  Image: skewed-emacs:${IMAGE_TAG}"
+echo "  Image: genworks/skewed-emacs:${IMAGE_TAG}"
 echo "  Container name: ${CONTAINER_NAME}"
-echo "  HTTP API: localhost:${HTTP_PORT}"
+echo "  HTTP API: localhost:${HTTP_HOST_PORT} -> container:${HTTP_PORT}"
+echo "  HTTP Service: ${START_HTTP}"
+echo "  SWANK Service: ${START_SWANK}"
+echo "  Run mode: ${RUN_MODE}"
 
 # Check if ~/projects exists and set up mount accordingly
 MOUNT_OPTIONS=""
@@ -64,11 +123,45 @@ else
     echo "  Projects mount: /projects (empty directory - ~/projects not found)"
 fi
 
-# Run the container with projects mount and interactive terminal
-docker run -it --rm \
-    --name ${CONTAINER_NAME} \
-    -p ${HTTP_PORT}:7080 \
-    ${MOUNT_OPTIONS} \
-    skewed-emacs:${IMAGE_TAG}
+# Set up network options
+NETWORK_OPTIONS=""
+if [ -n "$DOCKER_NETWORK" ]; then
+    echo "  Docker network: ${DOCKER_NETWORK}"
+    # Create network if it doesn't exist
+    if ! docker network ls --format '{{.Name}}' | grep -q "^${DOCKER_NETWORK}$"; then
+        echo "  Creating Docker network: ${DOCKER_NETWORK}"
+        docker network create ${DOCKER_NETWORK}
+    fi
+    NETWORK_OPTIONS="--network ${DOCKER_NETWORK}"
+fi
 
-echo "Container exited."
+# Set run mode options
+if [ "$RUN_MODE" = "detached" ]; then
+    RUN_OPTIONS="-d --rm"
+    echo "  Access with: docker exec -it ${CONTAINER_NAME} emacsclient -t"
+else
+    RUN_OPTIONS="-it --rm"
+fi
+
+# Build environment variables for container (consistent with lisply-mcp)
+ENV_OPTIONS="-e HTTP_PORT=${HTTP_PORT} -e HTTP_HOST_PORT=${HTTP_HOST_PORT} -e START_HTTP=${START_HTTP} -e START_SWANK=${START_SWANK} -e SWANK_PORT=${SWANK_PORT}"
+
+# Run the container with proper port mapping
+echo "  Command: docker run ${RUN_OPTIONS} --name ${CONTAINER_NAME} -p ${HTTP_HOST_PORT}:${HTTP_PORT} ${ENV_OPTIONS} ${NETWORK_OPTIONS} ${MOUNT_OPTIONS} genworks/skewed-emacs:${IMAGE_TAG}"
+echo ""
+
+docker run ${RUN_OPTIONS} \
+    --name ${CONTAINER_NAME} \
+    -p ${HTTP_HOST_PORT}:${HTTP_PORT} \
+    ${ENV_OPTIONS} \
+    ${NETWORK_OPTIONS} \
+    ${MOUNT_OPTIONS} \
+    genworks/skewed-emacs:${IMAGE_TAG}
+
+if [ "$RUN_MODE" = "detached" ]; then
+    echo "Container started successfully."
+    echo "HTTP API available at: http://localhost:${HTTP_HOST_PORT}/lisply/ping-lisp"
+    echo "Connect with: docker exec -it ${CONTAINER_NAME} emacsclient -t"
+else
+    echo "Container exited."
+fi

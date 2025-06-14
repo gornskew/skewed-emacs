@@ -1,27 +1,86 @@
 #!/bin/bash
-# Consolidated build script for Skewed Emacs
+# Build script for Skewed Emacs compatible with lisply-mcp
 
 set -e
 
 cd "$(dirname "$0")"
 
-echo "=== Building Skewed Emacs Docker Image ==="
+# Parse command line arguments
+PUSH_TO_HUB=true
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --no-push)
+      PUSH_TO_HUB=false
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: $0 [OPTIONS]"
+      echo "Options:"
+      echo "  --no-push    Skip pushing the built image to Docker Hub"
+      echo "  -h, --help   Show this help message"
+      echo ""
+      echo "By default, the script will build and push to Docker Hub."
+      echo "Use --no-push if you only want to build locally."
+      exit 0
+      ;;
+    *)
+      echo "Unknown option $1"
+      echo "Use --help for usage information"
+      exit 1
+      ;;
+  esac
+done
 
-# Get branch name for tagging
+echo "=== Building Skewed Emacs Docker Image for Lisply-MCP ==="
+
+# Get branch name for tagging (compatible with lisply-mcp expectations)
 if [ -z "${CI_COMMIT_REF_NAME}" ]; then
-    branch="dev"
+    # Try to get branch from git
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        branch=$(git rev-parse --abbrev-ref HEAD)
+        # Replace forward slashes with double hyphens for docker tag compatibility
+        branch=${branch//\/\/\/--}
+    else
+        branch="devo"
+    fi
 else
-    branch=${CI_COMMIT_REF_NAME//\/\//--}
+    branch=${CI_COMMIT_REF_NAME//\/\/\/--}
 fi
 
 echo "Building with branch tag: ${branch}"
 
-# Build the image
+# Build with the naming convention expected by lisply-mcp
 export DOCKER_BUILDKIT=1
-docker build --progress=plain -t skewed-emacs:${branch} -f Dockerfile ..
+docker build --progress=plain -t genworks/skewed-emacs:${branch} -f Dockerfile ..
+
+# Also tag with 'dev' for local development compatibility
+docker tag genworks/skewed-emacs:${branch} skewed-emacs:dev
 
 echo ""
 echo "=== Build Complete ==="
+echo "Image tagged as: genworks/skewed-emacs:${branch}"
+echo "Also tagged as: skewed-emacs:dev (for local compatibility)"
 echo ""
-echo "To run the container:"
-echo "  ./run"
+echo "To test the container:"
+echo "  ./run                                    # Uses default ports (host 7081 -> container 7080)"
+echo "  HTTP_HOST_PORT=7080 ./run                # Uses lisply-mcp compatible ports (host 7080 -> container 7080)"
+echo "  docker run -p 7081:7080 genworks/skewed-emacs:${branch}   # Manual run with default ports"
+echo ""
+
+# Push to Docker Hub if requested
+if [ "$PUSH_TO_HUB" = true ]; then
+    echo "=== Pushing to Docker Hub ==="
+    echo "Pushing genworks/skewed-emacs:${branch}..."
+    docker push genworks/skewed-emacs:${branch}
+    echo "✓ Successfully pushed to Docker Hub"
+    echo ""
+else
+    echo "Skipped push to Docker Hub (--no-push specified)"
+    echo "To push manually:"
+    echo "  docker push genworks/skewed-emacs:${branch}"
+fi
+
+echo ""
+echo "To use with lisply-mcp, update your MCP config to:"
+echo "  \"imageBaseName\": \"genworks/skewed-emacs\","
+echo "  \"imageBranch\": \"${branch}\""

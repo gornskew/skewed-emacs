@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Build and Run Commands
 - Start Docker container: `./docker/run`
-- Connect with SLIME: `M-x slime-connect RET localhost RET 5200 RET`
+- Connect with SLIME: `M-x slime-connect RET localhost RET 4201 RET`
 - Start Gendl services: `(gendl:start-gendl!)`
 - Access web interface: `http://localhost:9081/geysr`
 - Run regression tests: `(gdl-lift-utils:run-regression-tests-pass-fail)`
@@ -52,17 +52,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```lisp
 (define-object custom-object (base-object)
   :input-slots
-  (("Documentation string" required-param)
-   ("Documentation string" param-with-default default-value))
+  ("Documentation string" required-param
+   ("Documentation string" optional-param 42)
+   (width-input 8))
    
   :computed-slots
-  ((computed-value (* 2 (the param-with-default)))
-   (display-controls (list :color :blue :transparency 0.5)))
+  ((length (+ (the optional-param) (the width-input)))
+   
+   (display-controls (list :color :blue :transparency 0.5))
+
+   )
    
   :objects
   ((child-object :type 'box
-                 :length (the param-with-default)
-                 :width 10 
+                 :length 10
+                 :width (twice (the-child length))
                  :height 5)))
 ```
 
@@ -73,3 +77,5 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Examine object structure: `(the (message-list))`
 - View inputs only: `(the (message-list :category :inputs))`
 - For uncertain slots: `(defaulting (the slot-name) default-value)`
+
+also see in gendl codebase `documentation/historical/doc/usage.txt`
