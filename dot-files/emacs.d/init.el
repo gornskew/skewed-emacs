@@ -6,13 +6,13 @@
 
 ;; FIRST: Completely disable native compilation before anything else happens
 ;; This MUST be at the very top to prevent package installation errors
-(setq native-comp-jit-compilation nil
-      native-comp-deferred-compilation nil
-      native-comp-async-jobs-number 0
-      native-comp-speed -1
-      native-comp-debug 0)
-;; Also disable any compilation during package operations
-(setq package-native-compile nil)
+;;(setq native-comp-jit-compilation nil
+;;      native-comp-deferred-compilation nil
+;;      native-comp-async-jobs-number 0
+;;      native-comp-speed -1
+;;      native-comp-debug 0)
+;;;; Also disable any compilation during package operations
+;;(setq package-native-compile nil)
 
 
 ;; Disable native compilation in containers

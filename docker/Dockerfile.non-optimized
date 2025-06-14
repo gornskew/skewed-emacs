@@ -1,9 +1,9 @@
-# Optimized Skewed Emacs Dockerfile - Reduced bloat while keeping compiled elisp
+# Clean Skewed Emacs Dockerfile - Use startup.sh for both build and runtime
 FROM debian:testing-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install runtime dependencies with minimal build tools for native compilation
+# Install runtime dependencies
 RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     apt-get -y install \
     emacs-nox \
@@ -14,11 +14,14 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     iputils-ping \
     telnet \
     netcat-openbsd \
+    build-essential \
+    binutils \
+    binutils-dev \
     gcc \
     libc6-dev \
     ca-certificates \
     openssh-client \
-    && rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean
+    && rm -rf /var/cache/apt/* && apt-get clean
 
 # Create emacs-user with proper shell
 RUN groupadd -g 1000 emacs-user && \
@@ -54,14 +57,6 @@ RUN echo "=== Installing packages using startup.sh --batch ===" && \
     /home/emacs-user/startup.sh --batch && \
     echo "â Package installation completed via startup.sh"
 
-# BLOAT CLEANUP: Remove copilot cache but keep compiled elisp
-RUN echo "=== Cleaning up bloat while preserving compiled elisp ===" && \
-    rm -rf /home/emacs-user/.emacs.d/.cache/copilot/ && \
-    echo "â Removed copilot cache (saves ~368MB)" && \
-    du -sh /home/emacs-user/.emacs.d/ && \
-    echo "â Native compiled files preserved:" && \
-    find /home/emacs-user/.emacs.d/eln-cache/ -name '*.eln' | wc -l
-
 # Verify critical packages were installed
 RUN echo "Verifying package installation..." && \
     emacs --batch --eval " \
@@ -76,7 +71,7 @@ RUN echo "Verifying package installation..." && \
               (message \"Missing packages: %s\" missing) \
               (kill-emacs 1)) \
           (message \"â All critical packages verified\"))))" || \
-    echo "â   Package verification had issues, but proceeding..."
+    echo "â  Package verification had issues, but proceeding..."
 
 # Set environment variables for runtime
 ENV TERM=xterm-256color

@@ -176,17 +176,13 @@ else
     echo "  emacsclient --eval '(+ 1 2 3)'"
     echo ""
 
-
-    echo "simple bash for now for debugging"
-    echo " " 
-    /bin/bash 
     
     # Start the REPL as the main process (if it exists)
-#    if [ -f /home/emacs-user/emacs-repl.sh ]; then
-#        exec /home/emacs-user/emacs-repl.sh
-#    else
-#        # Fallback: keep container running
-#        echo "Keeping container alive..."
-#        tail -f /tmp/emacs-daemon.log
-#    fi
+    if [ -f /home/emacs-user/emacs-repl.sh ]; then
+        exec /home/emacs-user/emacs-repl.sh
+    else
+        # Fallback: keep container running
+        echo "Keeping container alive..."
+        tail -f /tmp/emacs-daemon.log
+    fi
 fi
