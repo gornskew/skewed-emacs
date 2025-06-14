@@ -4,6 +4,49 @@
 ;;; It is no longer based on Crafted Emacs.
 ;;; Code:
 
+;; FIRST: Completely disable native compilation before anything else happens
+;; This MUST be at the very top to prevent package installation errors
+(setq native-comp-jit-compilation nil
+      native-comp-deferred-compilation nil
+      native-comp-async-jobs-number 0
+      native-comp-speed -1
+      native-comp-debug 0)
+;; Also disable any compilation during package operations
+(setq package-native-compile nil)
+
+
+;; Disable native compilation in containers
+;; Fix environment for container (comprehensive)
+;; The container may start with corrupted PATH and shell environment
+(when (or (not (getenv "PATH"))
+          (string-match-p "not found" (or (getenv "PATH") "")))
+  ;; Set up proper PATH
+  (setenv "PATH" "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
+  (setenv "SHELL" "/bin/bash")
+  
+  ;; Update process-environment directly
+  (setq process-environment
+        (cons "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+              (cons "SHELL=/bin/bash"
+                    (seq-remove (lambda (env) 
+                                  (or (string-prefix-p "PATH=" env)
+                                      (string-prefix-p "SHELL=" env)))
+                                process-environment))))
+  
+  ;; Update exec-path to match
+  (setq exec-path '("/usr/local/sbin" "/usr/local/bin" "/usr/sbin" "/usr/bin" "/sbin" "/bin"))
+  
+  ;; Use bash instead of sh for shell commands
+  (setq shell-file-name "/bin/bash"))
+
+;; Ensure /usr/bin is in exec-path regardless
+(unless (member "/usr/bin" exec-path)
+  (add-to-list 'exec-path "/usr/bin"))
+(setenv "PATH" (concat "/usr/bin:" (getenv "PATH")))
+(setq native-comp-jit-compilation nil)
+(setq native-comp-deferred-compilation nil)
+(setq native-comp-async-jobs-number 0)
+
 (require 'cl-lib)
 (defvar too-old-p (< emacs-major-version 27))
 (defvar really-old-p (< emacs-major-version 24))

@@ -1,0 +1,62 @@
+# Consolidated Skewed Emacs Dockerfile
+FROM debian:testing-slim
+
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Install runtime dependencies
+RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
+    apt-get -y install \
+    emacs-nox \
+    curl \
+    wget \
+    git \
+    sudo \
+    iputils-ping \
+    telnet \
+    netcat-openbsd \
+    build-essential \
+    binutils \
+    binutils-dev \
+    gcc \
+    libc6-dev \
+    && rm -rf /var/cache/apt/* && apt-get clean
+
+# Create emacs-user
+RUN groupadd -g 1000 emacs-user && \
+    useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user
+
+# Create project directory structure (will be mounted from host)
+RUN mkdir -p /projects && \
+    chown emacs-user:emacs-user /projects
+
+# Copy skewed-emacs configuration 
+COPY --chown=emacs-user:emacs-user . /home/emacs-user/skewed-emacs/
+
+# Switch to emacs-user
+USER emacs-user
+WORKDIR /home/emacs-user
+
+# Run setup to install configuration
+RUN cd skewed-emacs && ./setup
+
+# Verify the lisply backend files are present
+RUN ls -la /home/emacs-user/.emacs.d/sideloaded/lisply-backend/source/ && \
+    echo "✓ Lisply backend files verified"
+
+# Bootstrap Emacs packages during build time
+COPY --chown=emacs-user:emacs-user docker/bootstrap-emacs.sh /tmp/bootstrap-emacs.sh
+RUN chmod +x /tmp/bootstrap-emacs.sh && /tmp/bootstrap-emacs.sh
+
+# Copy the startup script and REPL script
+COPY --chown=emacs-user:emacs-user docker/startup.sh /home/emacs-user/startup.sh
+COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
+RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh
+
+# Set environment variables
+ENV TERM=xterm-256color
+
+# Expose port for Lisply HTTP API
+EXPOSE 7080
+
+# Use the startup script as entrypoint
+ENTRYPOINT ["/home/emacs-user/startup.sh"]

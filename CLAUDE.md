@@ -10,6 +10,86 @@ This setup provides a complete Lisp development environment with:
 - **Network Integration**: Containers communicate via Docker network for SLIME connections
 - **Dual HTTP APIs**: Both containers expose lisply-backend APIs for external tool integration
 
+## â ï¸  TEMPORARY WORKAROUND - PATH/Environment Corruption Issue
+
+**STATUS**: Active workaround in place, root cause unresolved
+**DELETE THIS SECTION** once the underlying cause is fixed
+
+### Current Issue
+
+The container startup process corrupts the environment, causing:
+1. **PATH Duplication**: `/usr/bin` appears multiple times in PATH
+2. **Missing SHELL**: `SHELL` environment variable not set
+3. **Native Compilation Failures**: `as` assembler not found during .eln generation
+4. **Inconsistent `shell-file-name`**: Defaults to `/bin/sh` instead of `/bin/bash`
+
+### Root Cause Analysis
+
+**Architecture Issue**: The container startup script (`docker/startup.sh`) uses:
+```bash
+emacs --daemon --no-init-file --load /tmp/emacs-daemon-startup.el
+```
+
+This means:
+- `init.el` is **never loaded** in the daemon (bypassed with `--no-init-file`)
+- Environment fixes in `init.el` are **ineffective**
+- Custom daemon config in `/tmp/emacs-daemon-startup.el` handles environment
+- **True root cause**: Unknown upstream source of environment corruption
+
+### Current Workarounds (Applied)
+
+**1. Startup Script Fix** (`docker/startup.sh`):
+```elisp
+;; ENVIRONMENT FIX: Always ensure proper container environment
+(let ((path-corrupted (or (not (getenv "PATH"))
+                          (string-match-p "not found" (or (getenv "PATH") ""))))
+  ;; Fix PATH if corrupted + Always fix SHELL
+  (setenv "SHELL" "/bin/bash")
+  (setq shell-file-name "/bin/bash")
+  ;; ... process-environment updates ...)
+```
+
+**2. Init.el Defensive Fix** (`dot-files/emacs.d/init.el`):
+```elisp
+;; Aggressive native compilation disabling
+(setq native-comp-jit-compilation nil
+      package-native-compile nil
+      ;; ... environment PATH/SHELL fixes ...)
+```
+
+### Verification Commands
+
+Check if workarounds are active:
+```bash
+# Test current environment
+docker exec skewed-emacs emacsclient --eval '(list (getenv "SHELL") shell-file-name (getenv "PATH"))'
+
+# Test native compilation settings
+docker exec skewed-emacs emacsclient --eval 'native-comp-jit-compilation'
+
+# Test assembler accessibility
+docker exec skewed-emacs emacsclient --eval '(shell-command-to-string "which as")'
+```
+
+### Current State (After Restart)
+
+- â **Environment**: `SHELL=/bin/bash`, `shell-file-name=/bin/bash`
+- â **PATH**: Contains `/usr/bin` (with duplicates - harmless)
+- â **Native Compilation**: Properly disabled (`nil`/`-1`)
+- â **Toolchain**: `as` and `gcc` accessible
+- â **Package Installation**: Magit installs without compilation errors
+- â **Root Cause**: Still unknown - workarounds mask the issue
+
+### TODO: Find True Root Cause
+
+Investigation needed:
+1. **Docker Layer Analysis**: Check if base image `debian:testing-slim` has issues
+2. **Build Process**: Examine if `apt-get install` or user setup corrupts environment
+3. **Container Runtime**: Check if Docker/runtime environment affects startup
+4. **Emacs Bootstrap**: Investigate if `bootstrap-emacs.sh` side effects persist
+
+**Expected Fix**: Once root cause found, remove both workarounds and restart should work cleanly.
+
 ## Quick Start
 
 ### 1. Start the Environment
