@@ -368,6 +368,37 @@ THEME-NAME is a string, e.g., \='adwaita\='."
       (setup-graphical-keybindings-and-faces)
     (setup-terminal-keybindings-and-faces))
   (setup-other-keybindings-and-faces)
+
+  ;; Font rendering improvements for better PDF and general text display
+  (when (display-graphic-p)
+    ;; Better font rendering settings
+    (setq-default
+     font-use-system-font t
+     inhibit-compacting-font-caches t
+     line-spacing 0.1)
+    
+    ;; Install and configure pdf-tools for superior PDF rendering
+    (unless (package-installed-p 'pdf-tools)
+      (package-install 'pdf-tools))
+    
+    (with-eval-after-load 'pdf-tools
+      (pdf-tools-install)
+      (setq pdf-view-display-size 'fit-page
+            pdf-view-resize-factor 1.1
+            pdf-view-use-scaling t
+            pdf-view-use-imagemagick nil)) ; Use poppler for better quality
+    
+    ;; Improve doc-view as fallback for PDF rendering
+    (with-eval-after-load 'doc-view
+      (setq doc-view-resolution 200 ; Increase from default 100
+            doc-view-ghostscript-options
+            '("-dNOPAUSE" "-sDEVICE=png16m" "-dTextAlphaBits=4" 
+              "-dBATCH" "-dSAFER" "-dQUIET" "-dGraphicsAlphaBits=4")))
+    
+    ;; Smooth scrolling improvements
+    (setq scroll-step 1
+          scroll-conservatively 10000
+          scroll-preserve-screen-position 1))
   (prefer-coding-system 'utf-8)
   (set-default-coding-systems 'utf-8)
   (set-terminal-coding-system 'utf-8)

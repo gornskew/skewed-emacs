@@ -1,12 +1,15 @@
-# Optimized Skewed Emacs Dockerfile - Reduced bloat while keeping compiled elisp
+# Optimized Skewed Emacs Dockerfile -
+# Reduced bloat while keeping compiled elisp
 FROM debian:testing-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install runtime dependencies with minimal build tools for native compilation
+# Install runtime dependencies with minimal
+# build tools for native compilation
+
 RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     apt-get -y install \
-    emacs-nox \
+    emacs \
     curl \
     wget \
     git \
@@ -18,6 +21,9 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     libc6-dev \
     ca-certificates \
     openssh-client \
+    ghostscript \
+    poppler-utils \
+    imagemagick \
     && rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean
 
 # Create emacs-user with proper shell
@@ -41,7 +47,7 @@ RUN cd skewed-emacs && ./setup
 # Verify the configuration is installed
 RUN ls -la ~/.emacs.d/init.el && \
     ls -la ~/.emacs.d/sideloaded/lisply-backend/source/ && \
-    echo "â Configuration files verified"
+    echo "Ã¢ Configuration files verified"
 
 # Copy startup script (used for both build and runtime)
 COPY --chown=emacs-user:emacs-user docker/startup.sh /home/emacs-user/startup.sh
@@ -52,14 +58,14 @@ RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh
 # This loads init.el naturally and installs all packages, then exits
 RUN echo "=== Installing packages using startup.sh --batch ===" && \
     /home/emacs-user/startup.sh --batch && \
-    echo "â Package installation completed via startup.sh"
+    echo "Ã¢ Package installation completed via startup.sh"
 
 # BLOAT CLEANUP: Remove copilot cache but keep compiled elisp
 RUN echo "=== Cleaning up bloat while preserving compiled elisp ===" && \
     rm -rf /home/emacs-user/.emacs.d/.cache/copilot/ && \
-    echo "â Removed copilot cache (saves ~368MB)" && \
+    echo "Ã¢ Removed copilot cache (saves ~368MB)" && \
     du -sh /home/emacs-user/.emacs.d/ && \
-    echo "â Native compiled files preserved:" && \
+    echo "Ã¢ Native compiled files preserved:" && \
     find /home/emacs-user/.emacs.d/eln-cache/ -name '*.eln' | wc -l
 
 # Verify critical packages were installed
@@ -75,8 +81,8 @@ RUN echo "Verifying package installation..." && \
             (progn \
               (message \"Missing packages: %s\" missing) \
               (kill-emacs 1)) \
-          (message \"â All critical packages verified\"))))" || \
-    echo "â   Package verification had issues, but proceeding..."
+          (message \"Ã¢ All critical packages verified\"))))" || \
+    echo "Ã¢   Package verification had issues, but proceeding..."
 
 # Set environment variables for runtime
 ENV TERM=xterm-256color
