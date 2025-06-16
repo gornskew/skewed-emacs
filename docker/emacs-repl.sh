@@ -22,10 +22,17 @@ echo "  .bash               - Drop to bash shell"
 echo "  .quit or (quit)     - Exit"
 echo ""
 
+# CRITICAL FIX: This loop will properly exit when stdin is closed
 while true; do
     # Read input with prompt
     echo -n "emacs> "
-    read -r line
+    
+    # The key fix: check if read succeeds
+    if ! read -r line; then
+        echo ""
+        echo "stdin closed - shutting down container"
+        break
+    fi
     
     # Skip empty lines
     if [[ -z "$line" ]]; then
@@ -83,3 +90,8 @@ while true; do
         echo "Or:  .bash to debug manually"
     fi
 done
+
+# Clean shutdown
+echo "Shutting down Emacs daemon..."
+emacsclient --eval "(kill-emacs)" 2>/dev/null || true
+exit 0
