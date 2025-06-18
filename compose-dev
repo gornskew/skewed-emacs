@@ -1,0 +1,325 @@
+#!/bin/bash
+# Docker Compose Management Script for Skewed Emacs + Gendl Development Environment
+# Dr. Frankenstein'd together from existing run scripts with enhanced compose orchestration
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
+
+# Color output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Helper functions
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+# Check if docker compose is available
+check_docker_compose() {
+    if ! command -v docker &> /dev/null; then
+        log_error "Docker is not installed or not in PATH"
+        exit 1
+    fi
+    
+    if docker compose version &> /dev/null; then
+        COMPOSE_CMD="docker compose"
+    elif docker-compose version &> /dev/null; then
+        COMPOSE_CMD="docker-compose"
+    else
+        log_error "Neither 'docker compose' nor 'docker-compose' is available"
+        exit 1
+    fi
+    
+    log_info "Using: $COMPOSE_CMD"
+}
+
+# Initialize environment
+init_env() {
+    # Export environment variables for Docker Compose
+    export HOME="${HOME}"
+    export PROJECTS_DIR="${HOME}/projects"
+    
+    if [ ! -f "${SCRIPT_DIR}/.env" ] && [ -f "${SCRIPT_DIR}/.env.example" ]; then
+        log_info "Creating .env from .env.example"
+        cp "${SCRIPT_DIR}/.env.example" "${SCRIPT_DIR}/.env"
+        log_success "Created .env file - please customize as needed"
+    fi
+    
+    # Ensure projects directory exists
+    PROJECTS_DIR="${PROJECTS_DIR:-${HOME}/projects}"
+    if [ ! -d "$PROJECTS_DIR" ]; then
+        log_info "Creating projects directory: $PROJECTS_DIR"
+        mkdir -p "$PROJECTS_DIR"
+    fi
+}
+
+# Show usage
+show_help() {
+    cat << EOF
+Docker Compose Management for Skewed Emacs + Gendl Development Environment
+
+USAGE:
+    $0 <command> [options]
+
+COMMANDS:
+    up [service...]     Start services (default: all services)
+    down               Stop and remove all services  
+    restart [service]  Restart service(s)
+    stop [service]     Stop service(s) without removing
+    logs [service]     Show logs for service(s)
+    status             Show status of all services
+    ps                 Show running containers
+    shell <service>    Open shell in service container
+    emacs              Connect to Emacs via emacsclient
+    slime              Show SLIME connection info
+    test               Test HTTP APIs
+    pull               Pull latest images
+    clean              Remove containers, networks, and images
+    init               Initialize environment (.env setup)
+
+SERVICES:
+    emacs              Skewed Emacs container (HTTP API on port 7081)
+    gendl              Gendl container (HTTP API on port 9081, SWANK on port 4201)
+
+EXAMPLES:
+    $0 up                    # Start both Emacs and Gendl
+    $0 up emacs              # Start only Emacs
+    $0 logs gendl            # Show Gendl logs
+    $0 shell emacs           # Open shell in Emacs container
+    $0 emacs                 # Connect to Emacs interactively
+    $0 test                  # Test both HTTP APIs
+    $0 slime                 # Show SLIME connection instructions
+
+ENVIRONMENT:
+    Customize settings by editing .env file (created from .env.example)
+    
+    Key variables:
+        PROJECTS_DIR           Projects directory to mount (default: ~/projects)
+        EMACS_HTTP_HOST_PORT   Emacs API port (default: 7081)
+        GENDL_HTTP_HOST_PORT   Gendl API port (default: 9081)
+        GENDL_SWANK_HOST_PORT  Gendl SWANK port (default: 4201)
+
+NETWORK:
+    Services communicate via Docker network 'emacs-gendl-network'
+    - From host: localhost:<host-port>
+    - Inter-container: <service-hostname>:<container-port>
+    
+EOF
+}
+
+
+# Service management
+start_services() {
+    local services="$*"
+    init_env
+    
+    log_info "Starting services: ${services:-all}"
+    $COMPOSE_CMD -f "$COMPOSE_FILE" up -d $services
+    
+    # Show connection info after startup
+    if [ -z "$services" ] || [[ "$services" =~ "emacs" ]]; then
+        show_emacs_info
+    fi
+    if [ -z "$services" ] || [[ "$services" =~ "gendl" ]]; then
+        show_gendl_info
+    fi
+}
+
+stop_services() {
+    log_info "Stopping all services"
+    $COMPOSE_CMD -f "$COMPOSE_FILE" down
+}
+
+restart_services() {
+    local services="$*"
+    log_info "Restarting services: ${services:-all}"
+    $COMPOSE_CMD -f "$COMPOSE_FILE" restart $services
+}
+
+show_logs() {
+    local services="$*"
+    $COMPOSE_CMD -f "$COMPOSE_FILE" logs -f $services
+}
+
+show_status() {
+    log_info "Service status:"
+    $COMPOSE_CMD -f "$COMPOSE_FILE" ps
+}
+
+open_shell() {
+    local service="$1"
+    if [ -z "$service" ]; then
+        log_error "Please specify a service: emacs or gendl"
+        exit 1
+    fi
+    
+    log_info "Opening shell in $service container"
+    $COMPOSE_CMD -f "$COMPOSE_FILE" exec "$service" /bin/bash
+}
+
+connect_emacs() {
+    log_info "Connecting to Emacs via emacsclient"
+    $COMPOSE_CMD -f "$COMPOSE_FILE" exec emacs emacsclient -t
+}
+
+test_apis() {
+    log_info "Testing HTTP APIs..."
+    
+    # Test Emacs API
+    echo -n "Emacs API (port ${EMACS_HTTP_HOST_PORT:-7081}): "
+    if curl -s -f "http://localhost:${EMACS_HTTP_HOST_PORT:-7081}/lisply/ping-lisp" > /dev/null 2>&1; then
+        echo -e "${GREEN}OK${NC}"
+    else
+        echo -e "${RED}FAILED${NC}"
+    fi
+    
+    # Test Gendl API  
+    echo -n "Gendl API (port ${GENDL_HTTP_HOST_PORT:-9081}): "
+    if curl -s -f "http://localhost:${GENDL_HTTP_HOST_PORT:-9081}/lisply/ping-lisp" > /dev/null 2>&1; then
+        echo -e "${GREEN}OK${NC}"
+    else
+        echo -e "${RED}FAILED${NC}"
+    fi
+    
+    # Test SWANK
+    echo -n "Gendl SWANK (port ${GENDL_SWANK_HOST_PORT:-4201}): "
+    if timeout 2 bash -c "echo '' | nc localhost ${GENDL_SWANK_HOST_PORT:-4201}" > /dev/null 2>&1; then
+        echo -e "${GREEN}OK${NC}"
+    else
+        echo -e "${RED}FAILED${NC}"
+    fi
+}
+
+show_slime_info() {
+    cat << EOF
+
+${BLUE}SLIME Connection Information:${NC}
+
+${GREEN}From Host Emacs:${NC}
+    M-x slime-connect RET localhost RET ${GENDL_SWANK_HOST_PORT:-4201} RET
+
+${GREEN}From Emacs Container:${NC}
+    M-x slime-connect RET gendl-backend RET 4200 RET
+
+${GREEN}Connection Test:${NC}
+    $0 test
+
+${GREEN}Alternative Access:${NC}
+    # Direct container shell access
+    $0 shell gendl
+    
+    # Emacs interactive access  
+    $0 emacs
+
+EOF
+}
+
+show_emacs_info() {
+    cat << EOF
+
+${GREEN}Emacs Service Started:${NC}
+    HTTP API: http://localhost:${EMACS_HTTP_HOST_PORT:-7081}/lisply/ping-lisp
+    Connect:  $0 emacs
+    Shell:    $0 shell emacs
+
+EOF
+}
+
+show_gendl_info() {
+    cat << EOF
+
+${GREEN}Gendl Service Started:${NC}
+    HTTP API: http://localhost:${GENDL_HTTP_HOST_PORT:-9081}/lisply/ping-lisp
+    SWANK:    localhost:${GENDL_SWANK_HOST_PORT:-4201} (for SLIME)
+    Shell:    $0 shell gendl
+
+EOF
+}
+
+pull_images() {
+    log_info "Pulling latest images"
+    $COMPOSE_CMD -f "$COMPOSE_FILE" pull
+}
+
+clean_all() {
+    log_warning "This will remove containers, networks, and unused images"
+    read -p "Are you sure? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        log_info "Cleaning up..."
+        $COMPOSE_CMD -f "$COMPOSE_FILE" down --rmi local --volumes --remove-orphans
+        docker system prune -f
+        log_success "Cleanup complete"
+    else
+        log_info "Cleanup cancelled"
+    fi
+}
+
+# Main command dispatcher
+main() {
+    check_docker_compose
+    
+    case "${1:-help}" in
+        up)
+            shift
+            start_services "$@"
+            ;;
+        down)
+            stop_services
+            ;;
+        restart)
+            shift  
+            restart_services "$@"
+            ;;
+        stop)
+            shift
+            $COMPOSE_CMD -f "$COMPOSE_FILE" stop "$@"
+            ;;
+        logs)
+            shift
+            show_logs "$@"
+            ;;
+        status|ps)
+            show_status
+            ;;
+        shell)
+            open_shell "$2"
+            ;;
+        emacs)
+            connect_emacs
+            ;;
+        slime)
+            show_slime_info
+            ;;
+        test)
+            test_apis
+            ;;
+        pull)
+            pull_images
+            ;;
+        clean)
+            clean_all
+            ;;
+        init)
+            init_env
+            log_success "Environment initialized"
+            ;;
+        help|--help|-h)
+            show_help
+            ;;
+        *)
+            log_error "Unknown command: $1"
+            echo "Use '$0 help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function
+main "$@"

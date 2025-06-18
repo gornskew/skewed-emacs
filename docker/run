@@ -123,6 +123,22 @@ else
     echo "  Projects mount: /projects (empty directory - ~/projects not found)"
 fi
 
+# Mount Claude Code credentials if they exist
+CLAUDE_CREDS_FILE="$HOME/.claude/.credentials.js"
+CLAUDE_CONFIG_DIR="$HOME/.config/claude-code"
+if [ -f "$CLAUDE_CREDS_FILE" ]; then
+    echo "  Claude credentials: $CLAUDE_CREDS_FILE -> /home/emacs-user/.claude/.credentials.js"
+    MOUNT_OPTIONS="$MOUNT_OPTIONS -v $HOME/.claude:/home/emacs-user/.claude:ro"
+elif [ -d "$CLAUDE_CONFIG_DIR" ]; then
+    echo "  Claude Code config: $CLAUDE_CONFIG_DIR -> /home/emacs-user/.config/claude-code"
+    MOUNT_OPTIONS="$MOUNT_OPTIONS -v $CLAUDE_CONFIG_DIR:/home/emacs-user/.config/claude-code:ro"
+elif [ -f "$HOME/.claude-code" ]; then
+    echo "  Claude Code config: $HOME/.claude-code -> /home/emacs-user/.claude-code"
+    MOUNT_OPTIONS="$MOUNT_OPTIONS -v $HOME/.claude-code:/home/emacs-user/.claude-code:ro"
+else
+    echo "  Claude Code config: Not found (user will need to login in container)"
+fi
+
 # Set up network options
 NETWORK_OPTIONS=""
 if [ -n "$DOCKER_NETWORK" ]; then

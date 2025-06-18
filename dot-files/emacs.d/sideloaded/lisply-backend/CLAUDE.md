@@ -11,7 +11,7 @@ This Emacs Lisply Backend provides an HTTP API that allows Claude to interact wi
 
 ## Endpoint
 
-- **URL**: `http://localhost:7080/lisply/lisp-eval`
+- **URL**: `http://localhost:7081/lisply/lisp-eval` (when using MCP via lisply-mcp)
 - **Method**: POST
 - **Content-Type**: application/json
 - **Body**: `{"code": "<emacs-lisp-expression>"}`
@@ -41,10 +41,10 @@ On error:
 ### 1. Basic Emacs Lisp Evaluation
 
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(+ 1 2 3)"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(+ 1 2 3)"}'
 # Returns: {"success":true,"result":"6","stdout":""}
 
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(list 1 2 3)"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(list 1 2 3)"}'
 # Returns: {"success":true,"result":"(1 2 3)","stdout":""}
 ```
 
@@ -52,94 +52,94 @@ curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(list 1 2 3)"}
 
 **List all open buffers:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(mapcar (lambda (buf) (buffer-name buf)) (buffer-list))"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(mapcar (lambda (buf) (buffer-name buf)) (buffer-list))"}'
 ```
 
 **Get buffer contents:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(with-current-buffer \"*Messages*\" (buffer-string))"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(with-current-buffer \"*Messages*\" (buffer-string))"}'
 ```
 
 **Get current buffer name:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(buffer-name)"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(buffer-name)"}'
 ```
 
 **Switch to a buffer:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(switch-to-buffer \"buffer-name\")"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(switch-to-buffer \"buffer-name\")"}'
 ```
 
 ### 3. File Operations
 
 **Read file contents:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(with-temp-buffer (insert-file-contents \"/path/to/file\") (buffer-string))"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(with-temp-buffer (insert-file-contents \"/path/to/file\") (buffer-string))"}'
 ```
 
 **Write to file:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(with-temp-file \"/path/to/file\" (insert \"content to write\"))"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(with-temp-file \"/path/to/file\" (insert \"content to write\"))"}'
 ```
 
 **Check if file exists:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(file-exists-p \"/path/to/file\")"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(file-exists-p \"/path/to/file\")"}'
 ```
 
 ### 4. Directory Operations
 
 **List directory contents:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(directory-files \"/path/to/directory\")"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(directory-files \"/path/to/directory\")"}'
 ```
 
 **Get current directory:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(pwd)"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(pwd)"}'
 ```
 
 ### 5. Text Processing
 
 **Search and replace in buffer:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(with-current-buffer \"buffer-name\" (goto-char (point-min)) (while (search-forward \"old\" nil t) (replace-match \"new\")))"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(with-current-buffer \"buffer-name\" (goto-char (point-min)) (while (search-forward \"old\" nil t) (replace-match \"new\")))"}'
 ```
 
 **Count lines in buffer:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(with-current-buffer \"buffer-name\" (count-lines (point-min) (point-max)))"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(with-current-buffer \"buffer-name\" (count-lines (point-min) (point-max)))"}'
 ```
 
 ### 6. System Information
 
 **Get Emacs version:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "emacs-version"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "emacs-version"}'
 ```
 
 **Get loaded packages:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(mapcar (lambda (pkg) (symbol-name (car pkg))) package-alist)"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(mapcar (lambda (pkg) (symbol-name (car pkg))) package-alist)"}'
 ```
 
 ### 7. Interactive Commands
 
 **Execute Emacs commands:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(call-interactively (quote save-buffer))"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(call-interactively (quote save-buffer))"}'
 ```
 
 ### 8. Advanced Examples
 
 **Find all .el files in directory recursively:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(directory-files-recursively \"/path/to/search\" \"\\\\.el$\")"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(directory-files-recursively \"/path/to/search\" \"\\\\.el$\")"}'
 ```
 
 **Get all functions defined in current buffer:**
 ```bash
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(save-excursion (goto-char (point-min)) (let (functions) (while (re-search-forward \"^(defun \\\\([^[:space:]]+\\\\)\" nil t) (push (match-string 1) functions)) (nreverse functions)))"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(save-excursion (goto-char (point-min)) (let (functions) (while (re-search-forward \"^(defun \\\\([^[:space:]]+\\\\)\" nil t) (push (match-string 1) functions)) (nreverse functions)))"}'
 ```
 
 ## Important Notes
@@ -164,23 +164,187 @@ curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(save-excursio
 - Wrap file operations in appropriate error handling
 - Use `save-excursion` to preserve cursor position when navigating
 
+## File Editing Best Practices for AI Agents
+
+### Understanding Buffer Operations vs String Manipulation
+
+**The Right Way: Buffer-Based Editing (Recommended)**
+```elisp
+;; This is the efficient, Emacs-native approach
+(progn
+  (find-file "/path/to/file.js")
+  (with-current-buffer "file.js"
+    (goto-char (point-min))
+    (search-forward "old-code")
+    (replace-match "new-code")
+    (save-buffer)))
+```
+
+**The Inefficient Way: String Manipulation (Not Recommended)**
+```elisp
+;; This approach wastes memory and CPU by duplicating Emacs's work
+(let ((content (with-temp-buffer
+                 (insert-file-contents "/path/to/file.js")
+                 (buffer-string))))
+  (setq modified-content 
+        (replace-regexp-in-string "old-code" "new-code" content))
+  (with-temp-file "/path/to/file.js"
+    (insert modified-content)))
+```
+
+### Why Buffer Operations Are Superior
+
+1. **Memory Efficiency**: Emacs manages buffers in optimized C code, rather than creating large Lisp strings
+2. **Incremental Changes**: Make small, targeted edits instead of reprocessing entire files
+3. **Native Features**: Access syntax highlighting, indentation, auto-formatting, and language-specific features
+4. **Performance**: Buffer operations are optimized; string manipulation in Elisp is comparatively slow
+5. **Undo/Redo**: Built-in change tracking and history
+6. **Error Recovery**: Better error handling and state management
+
+### A Cautionary Tale
+
+*During development of this guide, there was a brief period where buffer editing seemed unreliable, leading to the mistaken conclusion that string manipulation was "more reliable for AI agents." This was actually due to improper buffer management - not using `with-current-buffer` correctly, editing the wrong buffers, or failing to call `save-buffer` properly. The lesson: when Emacs features seem broken, the problem is usually operator error, not fundamental limitations. Emacs has been optimized for text editing for decades - don't try to reinvent its buffer system with string operations!*
+
+### Proper Buffer Editing Workflow
+
+The key is following Emacs conventions properly:
+
+```elisp
+(defun edit-file-properly (filepath search-term replacement)
+  "Demonstrate correct buffer-based file editing"
+  (progn
+    ;; Open file in buffer (creates buffer if needed)
+    (find-file filepath)
+    ;; Ensure we're working in the file buffer
+    (with-current-buffer (file-name-nondirectory filepath)
+      ;; Make changes
+      (goto-char (point-min))
+      (while (search-forward search-term nil t)
+        (replace-match replacement))
+      ;; Verify buffer is marked as modified
+      (when (buffer-modified-p)
+        ;; Save changes to disk
+        (save-buffer)
+        ;; Confirm save completed
+        (not (buffer-modified-p))))))
+```
+
+### Buffer State Management
+
+Always verify your buffer state:
+
+```elisp
+;; Check current buffer status
+(list :current-buffer (buffer-name)
+      :file-name (buffer-file-name)
+      :modified (buffer-modified-p)
+      :size (buffer-size))
+
+;; List all buffers (helpful for debugging)
+(mapcar (lambda (buf) 
+          (with-current-buffer buf
+            (list :name (buffer-name)
+                  :file (buffer-file-name)
+                  :modified (buffer-modified-p))))
+        (buffer-list))
+```
+
+### Common Buffer Editing Patterns
+
+**Find and Replace All Occurrences:**
+```elisp
+(with-current-buffer "filename.ext"
+  (goto-char (point-min))
+  (while (search-forward "old-text" nil t)
+    (replace-match "new-text"))
+  (save-buffer))
+```
+
+**Insert at Specific Location:**
+```elisp
+(with-current-buffer "filename.ext"
+  (goto-char (point-min))
+  (search-forward "function execPromise")
+  (forward-line 1)
+  (insert "\n// New function here\n")
+  (save-buffer))
+```
+
+**Multi-Step Editing:**
+```elisp
+(with-current-buffer "filename.ext"
+  ;; Multiple operations in sequence
+  (goto-char (point-min))
+  (search-forward "old-function-name")
+  (replace-match "new-function-name")
+  (goto-char (point-min))
+  (search-forward "old-variable")
+  (replace-match "new-variable")
+  ;; Save all changes at once
+  (save-buffer))
+```
+
+### Debugging Buffer Operations
+
+When things go wrong:
+
+```elisp
+;; Verify you're in the right buffer
+(message "Current buffer: %s, File: %s" 
+         (buffer-name) (buffer-file-name))
+
+;; Check if buffer needs saving
+(if (buffer-modified-p)
+    (message "Buffer has unsaved changes")
+  (message "Buffer is clean"))
+
+;; Force save if needed
+(when (buffer-modified-p)
+  (save-buffer)
+  (message "Buffer saved"))
+```
+
+### Safe Editing with Backups
+
+For critical changes, create backups first:
+
+```elisp
+(defun safe-edit-file (filepath edit-function)
+  "Edit file with automatic backup"
+  (let ((backup-path (concat filepath ".backup")))
+    ;; Create backup
+    (copy-file filepath backup-path t)
+    ;; Make changes
+    (find-file filepath)
+    (with-current-buffer (file-name-nondirectory filepath)
+      (funcall edit-function)
+      (if (buffer-modified-p)
+          (progn
+            (save-buffer)
+            (delete-file backup-path)  ; Remove backup on success
+            t)
+        (progn
+          (delete-file backup-path)  ; No changes made
+          nil)))))
+```
+
 ## Testing the Connection
 
 ```bash
 # Simple test
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(message \"Hello from Emacs!\")"}'
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(message \"Hello from Emacs!\")"}'
 
 # Check server status  
 curl -s http://localhost:7080/lisply/ping-lisp
 # Should return: pong
 
 # Test basic arithmetic (confirmed working)
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(+ 1 2 3)"}' 2>&1 | cat
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(+ 1 2 3)"}' 2>&1 | cat
 # Returns: {"success":true,"result":"6","stdout":""}
 
 # Get current buffer and directory
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(buffer-name)"}' 2>&1 | cat
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(pwd)"}' 2>&1 | cat
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(buffer-name)"}' 2>&1 | cat
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(pwd)"}' 2>&1 | cat
 ```
 
 ### Combined Workflow with Gendl
@@ -189,7 +353,7 @@ curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(pwd)"}' 2>&1 
 curl -X POST http://127.0.0.1:9081/lisply/lisp-eval -d '{"code": "(ql:quickload :modern-site)"}' 2>&1 | cat
 
 # Edit Lisp files with Emacs (port 7080) for S-expression manipulation
-curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(find-file \"/path/to/file.lisp\")"}' 2>&1 | cat
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(find-file \"/path/to/file.lisp\")"}' 2>&1 | cat
 ```
 
 ## Real-World Example: Bulk Find and Replace
@@ -323,6 +487,37 @@ Use single Emacs Lisp expression:
 ```
 
 ## Integration with Other Tools
+
+
+### MCP Integration Notes
+
+When using this backend through the lisply-mcp wrapper:
+
+- **Container Names**: Recent updates provide meaningful container names (`lisply-emacs`, `lisply-gendl`) instead of timestamps
+- **Shared Networking**: Containers now share a Docker network (`lisply-mcp-network`) enabling inter-container communication
+- **Port Mapping**: The Emacs backend typically runs on port 7081 (host) â 7080 (container) when managed by lisply-mcp
+- **SLIME Integration**: The emacs container can connect to the gendl container via hostname `gendl-backend:4200` for SLIME/Swank connections
+
+### Container Access for Humans
+
+With meaningful container names, direct access becomes easy:
+
+```bash
+# Access the Emacs container directly
+docker exec -it lisply-emacs emacsclient -t
+
+# Access the Gendl container  
+docker exec -it lisply-gendl ccl
+```
+
+### Architecture Benefits
+
+The containerized approach provides:
+- **Isolation**: File operations are contained within the container
+- **Reproducibility**: Consistent environment across deployments  
+- **Security**: Limited access to host filesystem via mounted volumes only
+- **Scalability**: Multiple backend instances can run simultaneously
+
 
 This backend is designed to work with:
 - MCP (Model Context Protocol) clients

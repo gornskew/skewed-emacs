@@ -1,12 +1,11 @@
 # Optimized Skewed Emacs Dockerfile -
-# Reduced bloat while keeping compiled elisp
+# Using Debian base with GUI Emacs support
 FROM debian:testing-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Install runtime dependencies with minimal
-# build tools for native compilation
-
+# Install runtime dependencies including GUI Emacs
+# Note: emacs package includes X11 support for graphical emacsclient
 RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     apt-get -y install \
     emacs \
