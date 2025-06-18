@@ -552,6 +552,10 @@ Make it tiled to the left."
   (interactive)
   (unfill-region (point-min) (point-max)))
 
+(use-package yaml-mode
+  :ensure t
+  :mode "\\.yml\\'"
+  :hook (yaml-mode . (lambda () (add-hook 'before-save-hook #'yaml-format-buffer nil t))))
 
 (use-package eat
   :ensure t)

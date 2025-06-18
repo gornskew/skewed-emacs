@@ -12,6 +12,7 @@
 services:
   # Skewed Emacs Service
   emacs:
+    # FLAG - change dockerhub account to gornskew for this. 
     image: genworks/skewed-emacs:${EMACS_IMAGE_TAG:-devo}
     container_name: ${EMACS_CONTAINER_NAME:-skewed-emacs}
     hostname: emacs-backend
@@ -37,9 +38,9 @@ services:
         bind:
           create_host_path: true
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    
+
     networks:
-      - lisply-dev-network
+      - skewed-network
     
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${EMACS_HTTP_PORT:-7080}/lisply/ping-lisp"]
@@ -85,7 +86,7 @@ services:
           create_host_path: true
     
     networks:
-      - lisply-dev-network
+      - skewed-network
     
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${GENDL_HTTP_PORT:-9080}/lisply/ping-lisp"]
@@ -100,6 +101,7 @@ services:
 
   # Node.js Development Service
   node:
+   # FLAG change this  to be hosted under gornskew d.h. account
     image: genworks/skewed-node:${NODE_IMAGE_TAG:-devo}
     container_name: ${NODE_CONTAINER_NAME:-skewed-node}
     hostname: node-backend
@@ -121,15 +123,18 @@ services:
         target: /projects
         bind:
           create_host_path: true
-    
+      - type: bind
+        source: ${HOME}/.claude
+        target: /home/emacs-user/.claude
+
     networks:
-      - lisply-dev-network
-    
+      - skewed-network
+   
     working_dir: /projects
 
 networks:
-  lisply-dev-network:
-    name: ${DOCKER_NETWORK_NAME:-emacs-gendl-network}
+  skewed-network:
+    name: ${DOCKER_NETWORK_NAME:-skewed-emacs-network}
     driver: bridge
     
 volumes:
