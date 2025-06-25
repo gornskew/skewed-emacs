@@ -13,8 +13,8 @@ services:
   # Skewed Emacs Service
   emacs:
     # FLAG - change dockerhub account to gornskew for this. 
-    image: genworks/skewed-emacs:${EMACS_IMAGE_TAG:-devo}
-    container_name: ${EMACS_CONTAINER_NAME:-skewed-emacs}
+    image: gornskew/skewed-emacs:${EMACS_IMAGE_TAG:-devo}
+    container_name: ${EMACS_CONTAINER_NAME:-lisply-emacs}
     hostname: emacs-backend
     restart: unless-stopped
     stdin_open: true
@@ -57,7 +57,7 @@ services:
   # Gendl Service  
   gendl:
     image: genworks/gendl:${GENDL_IMAGE_TAG:-devo-ccl}
-    container_name: ${GENDL_CONTAINER_NAME:-gendl-ccl}
+    container_name: ${GENDL_CONTAINER_NAME:-lisply-gendl}
     hostname: gendl-backend
     restart: unless-stopped
     stdin_open: true
@@ -112,8 +112,8 @@ services:
   # Node.js Development Service
   node:
    # FLAG change this  to be hosted under gornskew d.h. account
-    image: genworks/skewed-node:${NODE_IMAGE_TAG:-devo}
-    container_name: ${NODE_CONTAINER_NAME:-skewed-node}
+    image: gornskew/lisply-mcp:${NODE_IMAGE_TAG:-devo}
+    container_name: ${NODE_CONTAINER_NAME:-lisply-mcp}
     hostname: node-backend
     restart: unless-stopped
     stdin_open: true
@@ -149,6 +149,7 @@ services:
 
 networks:
   skewed-network:
+    external: true
     name: ${DOCKER_NETWORK_NAME:-skewed-emacs-network}
     driver: bridge
     
