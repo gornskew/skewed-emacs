@@ -38,6 +38,11 @@ services:
         bind:
           create_host_path: true
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    
+    # Add docker group for Docker socket access
+    group_add:
+      - "${DOCKER_GROUP_ID:-999}"
 
     networks:
       - skewed-network
@@ -84,7 +89,12 @@ services:
         target: /home/gendl-user/projects
         bind:
           create_host_path: true
+      - /var/run/docker.sock:/var/run/docker.sock
     
+    # Add docker group for Docker socket access
+    group_add:
+      - "${DOCKER_GROUP_ID:-999}"
+
     networks:
       - skewed-network
     
@@ -126,6 +136,11 @@ services:
       - type: bind
         source: ${HOME}/.claude
         target: /home/emacs-user/.claude
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    # Add docker group for Docker socket access
+    group_add:
+      - "${DOCKER_GROUP_ID:-999}"
 
     networks:
       - skewed-network
