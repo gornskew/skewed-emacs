@@ -41,7 +41,7 @@ if [ -z "${CI_COMMIT_REF_NAME}" ]; then
         # Replace forward slashes with double hyphens for docker tag compatibility
         branch=${branch//\/\/\/--}
     else
-        branch="devo"
+        branch="dev"
     fi
 else
     branch=${CI_COMMIT_REF_NAME//\/\/\/--}
@@ -51,36 +51,36 @@ echo "Building with branch tag: ${branch}"
 
 # Build with the naming convention expected by lisply-mcp
 export DOCKER_BUILDKIT=1
-docker build --progress=plain -t genworks/skewed-emacs:${branch} -f Dockerfile ..
+docker build --progress=plain -t gornskew/skewed-emacs:${branch} -f Dockerfile ..
 
 # Also tag with 'dev' for local development compatibility
-docker tag genworks/skewed-emacs:${branch} skewed-emacs:dev
+docker tag gornskew/skewed-emacs:${branch} gornskew/skewed-emacs:latest
 
 echo ""
 echo "=== Build Complete ==="
-echo "Image tagged as: genworks/skewed-emacs:${branch}"
-echo "Also tagged as: skewed-emacs:dev (for local compatibility)"
+echo "Image tagged as: gornskew/skewed-emacs:${branch}"
+echo "Also tagged as: gornskew/skewed-emacs:latest"
 echo ""
 echo "To test the container:"
 echo "  ./run                                    # Uses default ports (host 7081 -> container 7080)"
 echo "  HTTP_HOST_PORT=7080 ./run                # Uses lisply-mcp compatible ports (host 7080 -> container 7080)"
-echo "  docker run -p 7081:7080 genworks/skewed-emacs:${branch}   # Manual run with default ports"
+echo "  docker run -p 7081:7080 gornskew/skewed-emacs:${branch}   # Manual run with default ports"
 echo ""
 
 # Push to Docker Hub if requested
 if [ "$PUSH_TO_HUB" = true ]; then
     echo "=== Pushing to Docker Hub ==="
-    echo "Pushing genworks/skewed-emacs:${branch}..."
-    docker push genworks/skewed-emacs:${branch}
+    echo "Pushing gornskew/skewed-emacs:${branch}..."
+    docker push gornskew/skewed-emacs:${branch}
     echo "✓ Successfully pushed to Docker Hub"
     echo ""
 else
     echo "Skipped push to Docker Hub (--no-push specified)"
     echo "To push manually:"
-    echo "  docker push genworks/skewed-emacs:${branch}"
+    echo "  docker push gornskew/skewed-emacs:${branch}"
 fi
 
 echo ""
 echo "To use with lisply-mcp, update your MCP config to:"
-echo "  \"imageBaseName\": \"genworks/skewed-emacs\","
+echo "  \"imageBaseName\": \"gornskew/skewed-emacs\","
 echo "  \"imageBranch\": \"${branch}\""

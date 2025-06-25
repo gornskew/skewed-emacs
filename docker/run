@@ -12,7 +12,7 @@ if [ -z "${IMAGE_TAG}" ]; then
             # Replace forward slashes with double hyphens for docker tag compatibility
             IMAGE_TAG=${IMAGE_TAG//\/\/\//--}
         else
-            IMAGE_TAG="devo"
+            IMAGE_TAG="latest"
         fi
     else
         IMAGE_TAG=${CI_COMMIT_REF_NAME//\/\/\//--}
