@@ -526,3 +526,83 @@ This backend is designed to work with:
 - CI/CD pipelines
 
 The HTTP interface makes it easy to integrate with any programming language or tool that can make HTTP requests.
+
+
+## Avoiding Interactive Prompts in Automated Operations
+
+When using this backend programmatically (especially via Claude or other AI agents), it's crucial to avoid operations that trigger interactive prompts, since there may not be a human user available to respond.
+
+### Common Interactive Prompt Scenarios
+
+1. **File modification conflicts**: When a file is open in a buffer and has been modified on disk
+2. **Overwrite confirmations**: When saving would overwrite existing files
+3. **Buffer revert prompts**: When Emacs detects external file changes
+
+### Safe File Editing Pattern for AI Agents
+
+Instead of basic `find-file` + edit + `save-buffer`, use this pattern:
+
+```elisp
+(defun safe-edit-file-automated (filepath edit-function)
+  "Edit file safely for automated operations, avoiding interactive prompts"
+  (let ((original-revert-without-query revert-without-query))
+    (unwind-protect
+        (progn
+          ;; Add this file to revert-without-query to avoid prompts
+          (add-to-list 'revert-without-query (file-name-nondirectory filepath))
+          ;; Check if buffer exists and revert if needed
+          (let ((buf (get-file-buffer filepath)))
+            (when buf
+              (with-current-buffer buf
+                (revert-buffer t t t)))) ; ignore-auto, noconfirm, preserve-modes
+          ;; Now do the edit
+          (find-file filepath)
+          (with-current-buffer (file-name-nondirectory filepath)
+            (funcall edit-function)
+            (save-buffer)
+            t))
+      ;; Cleanup: restore original revert-without-query
+      (setq revert-without-query original-revert-without-query))))
+```
+
+**Usage example:**
+```elisp
+(safe-edit-file-automated 
+  "/path/to/file.txt"
+  (lambda ()
+    (goto-char (point-min))
+    (search-forward "old-text")
+    (replace-match "new-text")
+    (insert "\n;; Additional content")))
+```
+
+### Alternative: String-Based File Operations
+
+For simple text replacements, string manipulation avoids buffer conflicts entirely:
+
+```elisp
+(let ((content (with-temp-buffer 
+                 (insert-file-contents "/path/to/file.txt")
+                 (buffer-string))))
+  (setq modified-content 
+        (replace-regexp-in-string "old-text" "new-text" content))
+  (with-temp-file "/path/to/file.txt"
+    (insert modified-content)))
+```
+
+### Key Principles for AI Agents
+
+1. **Always handle file conflicts gracefully** - Use `revert-without-query` or string manipulation
+2. **Prefer deterministic operations** - Avoid functions that might prompt for user input
+3. **Use `unwind-protect`** - Ensure cleanup happens even if operations fail
+4. **Test buffer state** - Check if files are already open before operations
+5. **Wrap complex operations** - Use helper functions like `safe-edit-file-automated`
+
+### What NOT to do in Automated Contexts
+
+- Direct `find-file` + `save-buffer` on files that might be open elsewhere
+- Operations that call `yes-or-no-p` or `y-or-n-p`
+- Functions with `interactive` forms that expect user input
+- File operations without checking `buffer-modified-p` status
+
+By following these patterns, AI agents can perform file operations reliably without getting stuck on interactive prompts.

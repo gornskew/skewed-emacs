@@ -553,10 +553,10 @@ Make it tiled to the left."
   (unfill-region (point-min) (point-max)))
 
 
-(use-package yaml-mode
-  :ensure t
-  :mode "\\.yml\\'"
-  )
+;;(use-package yaml-mode
+;;  :ensure t
+;;  :mode "\\.yml\\'"
+;;  )
 
 
 (use-package eat
