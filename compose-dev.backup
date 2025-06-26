@@ -45,15 +45,6 @@ init_env() {
     export HOME="${HOME}"
     export PROJECTS_DIR="${HOME}/projects"
     
-    # Dynamically detect Docker group ID
-    if [ -S "/var/run/docker.sock" ]; then
-        export DOCKER_GROUP_ID=$(stat -c '%g' /var/run/docker.sock)
-        log_info "Detected Docker group ID: $DOCKER_GROUP_ID"
-    else
-        export DOCKER_GROUP_ID=999
-        log_warning "Docker socket not found, using default group ID: $DOCKER_GROUP_ID"
-    fi
-    
     if [ ! -f "${SCRIPT_DIR}/.env" ] && [ -f "${SCRIPT_DIR}/.env.example" ]; then
         log_info "Creating .env from .env.example"
         cp "${SCRIPT_DIR}/.env.example" "${SCRIPT_DIR}/.env"

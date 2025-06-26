@@ -25,6 +25,10 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     imagemagick \
     && rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean
 
+RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz | tar xz --strip-components=1 -C /usr/local/bin docker/docker \
+    && chmod +x /usr/local/bin/docker
+
+
 # Create emacs-user with proper shell
 RUN groupadd -g 1000 emacs-user && \
     useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user
