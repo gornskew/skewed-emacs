@@ -9,10 +9,9 @@
 #   docker compose exec emacs emacsclient -t    # Connect to Emacs
 #
 
-
 services:
   # Skewed Emacs Service
-  emacs: 
+  emacs:
     # FLAG - change dockerhub account to gornskew for this. 
     image: gornskew/skewed-emacs:${EMACS_IMAGE_TAG:-devo}
     container_name: ${EMACS_CONTAINER_NAME:-lisply-emacs}
@@ -136,7 +135,7 @@ services:
           create_host_path: true
       - type: bind
         source: ${HOME}/.claude
-        target: /home/node/.claude
+        target: /home/emacs-user/.claude
       - /var/run/docker.sock:/var/run/docker.sock
 
     # Add docker group for Docker socket access
