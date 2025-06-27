@@ -4,6 +4,24 @@
 
 set -e
 
+cd "$(dirname "$0")"
+
+# Get branch name for tagging (compatible with lisply-mcp expectations)
+if [ -z "${CI_COMMIT_REF_NAME}" ]; then
+    # Try to get branch from git
+    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+        branch=$(git rev-parse --abbrev-ref HEAD)
+        # Replace forward slashes with double hyphens for docker tag compatibility
+        branch=${branch//\/\/\/--}
+    else
+        branch="master"
+    fi
+else
+    branch=${CI_COMMIT_REF_NAME//\/\/\/--}
+fi
+
+export BRANCH=${branch}
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
 

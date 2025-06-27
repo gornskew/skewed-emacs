@@ -12,11 +12,11 @@
 
 services:
   # Skewed Emacs Service
-  emacs: 
+  skewed-emacs: 
     # FLAG - change dockerhub account to gornskew for this. 
-    image: gornskew/skewed-emacs:${EMACS_IMAGE_TAG:-devo}
-    container_name: ${EMACS_CONTAINER_NAME:-lisply-emacs}
-    hostname: emacs-backend
+    image: gornskew/${EMACS_CONTAINER_NAME:-skewed-emacs}:${EMACS_IMAGE_TAG:-devo}
+    container_name: ${EMACS_CONTAINER_NAME:-skewed-emacs}
+    hostname: ${EMACS_CONTAINER_NAME:-skewed-emacs}
     restart: unless-stopped
     stdin_open: true
     tty: true
@@ -58,7 +58,7 @@ services:
   # Gendl Service  
   gendl:
     image: genworks/gendl:${GENDL_IMAGE_TAG:-devo-ccl}
-    container_name: ${GENDL_CONTAINER_NAME:-lisply-gendl}
+    container_name: ${GENDL_CONTAINER_NAME:-gendl}
     hostname: gendl-backend
     restart: unless-stopped
     stdin_open: true
@@ -107,15 +107,15 @@ services:
       start_period: 15s
     
     depends_on:
-      emacs:
+      skewed-emacs:
         condition: service_healthy
 
   # Node.js Development Service
-  node:
+  lisply-mcp:
    # FLAG change this  to be hosted under gornskew d.h. account
     image: gornskew/lisply-mcp:${NODE_IMAGE_TAG:-devo}
     container_name: ${NODE_CONTAINER_NAME:-lisply-mcp}
-    hostname: node-backend
+    hostname: lisply-mcp
     restart: unless-stopped
     stdin_open: true
     tty: true
