@@ -126,7 +126,6 @@ services:
       - "${NODE_ALT_HOST_PORT:-9001}:${NODE_ALT_PORT:-9000}"
     
     environment:
-      - COPILOT_LANGUAGE_SERVER_PORT=${COPILOT_LANGUAGE_SERVER_PORT:-3030}
     
     volumes:
       - type: bind
