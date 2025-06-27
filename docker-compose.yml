@@ -125,8 +125,6 @@ services:
       - "${NODE_API_HOST_PORT:-8081}:${NODE_API_PORT:-8080}"
       - "${NODE_ALT_HOST_PORT:-9001}:${NODE_ALT_PORT:-9000}"
     
-    environment:
-    
     volumes:
       - type: bind
         source: ${PROJECTS_DIR:-${HOME}/projects}
@@ -136,7 +134,7 @@ services:
       - type: bind
         source: ${HOME}/.claude
         target: /home/node/.claude
-      - type:bind
+      - type: bind
         source: ${HOME}/.config/github-copilot
         target: /home/node/.config/github-copilot
       - /var/run/docker.sock:/var/run/docker.sock

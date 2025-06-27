@@ -168,6 +168,13 @@ function e
     emacsclient -nw ${file}
 }
 
+function eskew
+{
+    file=${1:-"."};
+    docker exec -it skewed-emacs emacsclient -t /projects
+}
+
+
 
 function gendl-run-container {
     local impl="ccl"
