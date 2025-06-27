@@ -132,9 +132,6 @@ services:
         bind:
           create_host_path: true
       - type: bind
-        source: ${HOME}/.claude
-        target: /home/node/.claude
-      - type: bind
         source: ${HOME}/.config/github-copilot
         target: /home/node/.config/github-copilot
       - /var/run/docker.sock:/var/run/docker.sock

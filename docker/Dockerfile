@@ -9,6 +9,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     apt-get -y install \
     emacs \
+    ncurses-term \
     curl \
     wget \
     git \

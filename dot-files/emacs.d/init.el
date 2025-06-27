@@ -18,6 +18,9 @@
 ;; Disable native compilation in containers
 ;; Fix environment for container (comprehensive)
 ;; The container may start with corrupted PATH and shell environment
+
+(menu-bar-mode 0)
+
 (when (or (not (getenv "PATH"))
           (string-match-p "not found" (or (getenv "PATH") "")))
   ;; Set up proper PATH
@@ -761,3 +764,4 @@ Make it tiled to the left."
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
  )
+

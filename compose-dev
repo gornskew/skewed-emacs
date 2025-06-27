@@ -127,7 +127,7 @@ EOF
 start_services() {
     local services="$*"
     init_env
-    
+    pull_images
     log_info "Starting services: ${services:-all}"
     $COMPOSE_CMD -f "$COMPOSE_FILE" up -d $services
     

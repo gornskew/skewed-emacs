@@ -113,22 +113,22 @@ if [ "$BATCH_MODE" = "true" ]; then
     echo "Installing packages defined in ~/.emacs.d/init.el..."
     echo "This may take several minutes..."
     
-    # Set environment flag for Emacs to detect batch mode
+    # Set environment flag for Emacs to detect btach mode
     export EMACS_BATCH_MODE=true
     
     # Run emacs in batch mode with timeout
     TERM=dumb timeout 600 emacs --batch --load /tmp/emacs-startup.el || {
         exit_code=$?
         if [ $exit_code -eq 124 ]; then
-            echo "â Package installation timed out after 10 minutes"
+            echo " Package installation timed out after 10 minutes"
             exit 1
         elif [ $exit_code -ne 0 ]; then
-            echo "â Package installation failed with exit code: $exit_code"
+            echo " Package installation failed with exit code: $exit_code"
             exit 1
         fi
     }
     
-    echo "â Build-time package installation completed"
+    echo " Build-time package installation completed"
     
 else
     # Runtime execution: start daemon for interactive use
