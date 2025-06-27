@@ -171,7 +171,13 @@ function e
 function eskew
 {
     file=${1:-"."};
-    docker exec -it skewed-emacs emacsclient -t /projects
+    docker exec -it --detach-keys "ctrl-@" skewed-emacs emacsclient -t /projects
+}
+
+function claudly
+{
+    file=${1:-"."};
+    docker exec -it --detach-keys "ctrl-@" lisply-mcp claude
 }
 
 
