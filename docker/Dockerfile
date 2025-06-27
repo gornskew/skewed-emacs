@@ -23,6 +23,7 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     ghostscript \
     poppler-utils \
     imagemagick \
+    socat \
     && rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean
 
 RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz | tar xz --strip-components=1 -C /usr/local/bin docker/docker \
@@ -66,9 +67,9 @@ RUN echo "=== Installing packages using startup.sh --batch ===" && \
 # BLOAT CLEANUP: Remove copilot cache but keep compiled elisp
 RUN echo "=== Cleaning up bloat while preserving compiled elisp ===" && \
     rm -rf /home/emacs-user/.emacs.d/.cache/copilot/ && \
-    echo "Ã¢ Removed copilot cache (saves ~368MB)" && \
+    echo "- Removed copilot cache (saves ~368MB)" && \
     du -sh /home/emacs-user/.emacs.d/ && \
-    echo "Ã¢ Native compiled files preserved:" && \
+    echo "- Native compiled files preserved:" && \
     find /home/emacs-user/.emacs.d/eln-cache/ -name '*.eln' | wc -l
 
 # Verify critical packages were installed
@@ -86,6 +87,7 @@ RUN echo "Verifying package installation..." && \
               (kill-emacs 1)) \
           (message \"Ã¢ All critical packages verified\"))))" || \
     echo "Ã¢   Package verification had issues, but proceeding..."
+
 
 # Set environment variables for runtime
 ENV TERM=xterm-256color
