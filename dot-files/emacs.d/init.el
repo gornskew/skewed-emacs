@@ -569,16 +569,17 @@ Make it tiled to the left."
 ;;;  (setq eat-term-name "xterm-truecolor")
   ;; Optional: Ensure true color is recognized
   ;; NOTE - eat currently doesn't support xterm-truecolor,
-  ;; we need to hold it back to xterm-256color.
-(add-hook 'eat-mode-hook
-          (lambda ()
-            (setenv "TERM" "xterm-256color")))
+;; we need to hold it back to xterm-256color.
 
-(when (not (display-graphic-p))
-  (setenv "TERM" "xterm-256color")
-  (require 'term)
+;;(add-hook 'eat-mode-hook
+;;          (lambda ()
+;;            (setenv "TERM" "xterm-256color")))
+
+;;(when (not (display-graphic-p))
+;;  (setenv "TERM" "xterm-256color")
+;;  (require 'term)
   ;;(terminal-init-xterm)
-  )
+;;  )
 
 (add-hook 'eshell-load-hook #'eat-eshell-mode)
 

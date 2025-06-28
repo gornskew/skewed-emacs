@@ -4,6 +4,7 @@
 
 set -e
 
+
 # Check for batch mode (build time)
 BATCH_MODE=false
 if [ "$1" = "--batch" ]; then
@@ -67,6 +68,8 @@ cat > /tmp/emacs-startup.el << EOF
 
 (message "Environment status:")
 (message "  SHELL: %s" (getenv "SHELL"))
+(message "  TERM: %s" (getenv "TERM"))
+(message "  COLORTERM: %s" (getenv "COLORTERM"))
 (message "  Git available: %s" (executable-find "git"))
 (message "  init.el exists: %s" (file-exists-p "~/.emacs.d/init.el"))
 
@@ -75,8 +78,8 @@ cat > /tmp/emacs-startup.el << EOF
     (progn
       (load-file "~/.emacs.d/init.el")
       (if (getenv "EMACS_BATCH_MODE")
-          (message "â Build: init.el loaded, packages installed")
-        (message "â Runtime: init.el loaded with pre-installed packages")))
+          (message " Build: init.el loaded, packages installed")
+        (message " Runtime: init.el loaded with pre-installed packages")))
   (error 
     (message "Error loading init.el: %s" err)
     (if (getenv "EMACS_BATCH_MODE")
@@ -87,7 +90,7 @@ cat > /tmp/emacs-startup.el << EOF
 
 ;; Batch mode: just exit after loading init.el
 (when (getenv "EMACS_BATCH_MODE")
-  (message "â Package installation complete - exiting")
+  (message " Package installation complete - exiting")
   (kill-emacs 0))
 
 ;; Runtime mode: start services
@@ -96,13 +99,14 @@ cat > /tmp/emacs-startup.el << EOF
     (setq emacs-lisply-port ${HTTP_PORT})
     (setq httpd-host "0.0.0.0")  ; Bind to all interfaces for Docker port forwarding
     (emacs-lisply-start-server)
-    (message "â Lisply HTTP server started on port ${HTTP_PORT}")))
+    (message " Lisply HTTP server started on port ${HTTP_PORT}")))
+
 
 ;; Start default Emacs server (Unix socket) for emacsclient
 (server-start)
-(message "â Emacs server started (Unix socket)")
+(message " Emacs server started (Unix socket)")
 
-(message "â Emacs daemon ready with full IDE configuration!")
+(message " Emacs daemon ready with full IDE configuration!")
 (message "   - HTTP API: port ${HTTP_PORT}")
 (message "   - Terminal IDE: emacsclient -t")
 (message "   - Projects: /projects")
@@ -138,7 +142,7 @@ else
     unset EMACS_BATCH_MODE
     
     # Start daemon in background
-    TERM=${TERM} emacs --daemon --no-init-file --load /tmp/emacs-startup.el --load ${HOME}/.emacs.d/init.el > /tmp/emacs-daemon.log 2>&1 &
+    TERM=${TERM} COLORTERM=${COLORTERM} emacs --daemon --no-init-file --load /tmp/emacs-startup.el --load ${HOME}/.emacs.d/init.el > /tmp/emacs-daemon.log 2>&1 &
     EMACS_PID=$!
     
     # Wait for daemon to start

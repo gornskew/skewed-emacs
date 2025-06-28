@@ -63,7 +63,7 @@ RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh
 # This loads init.el naturally and installs all packages, then exits
 RUN echo "=== Installing packages using startup.sh --batch ===" && \
     /home/emacs-user/startup.sh --batch && \
-    echo "Ã¢ Package installation completed via startup.sh"
+    echo " Package installation completed via startup.sh"
 
 # BLOAT CLEANUP: Remove copilot cache but keep compiled elisp
 RUN echo "=== Cleaning up bloat while preserving compiled elisp ===" && \
@@ -92,6 +92,7 @@ RUN echo "Verifying package installation..." && \
 
 # Set environment variables for runtime
 ENV TERM=xterm-256color
+ENV COLORTERM=truecolor
 
 # Expose port for Lisply HTTP API
 EXPOSE 7080
