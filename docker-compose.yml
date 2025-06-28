@@ -31,6 +31,8 @@ services:
       - START_SWANK=${EMACS_START_SWANK:-false}
       - SWANK_PORT=${EMACS_SWANK_PORT:-4200}
       - DISPLAY=${DISPLAY:-:0}
+      - TERM=${TERM}
+      - COLORTERM=${COLORTERM}
     
     volumes:
       - type: bind
