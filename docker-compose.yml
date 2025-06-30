@@ -10,6 +10,12 @@
 #
 
 
+networks:
+  skewed-network:
+    name: ${DOCKER_NETWORK_NAME:-skewed-emacs-network}
+    driver: bridge
+
+
 services:
   # Skewed Emacs Service
   skewed-emacs: 
@@ -147,11 +153,6 @@ services:
    
     working_dir: /projects
 
-networks:
-  skewed-network:
-    external: true
-    name: ${DOCKER_NETWORK_NAME:-skewed-emacs-network}
-    driver: bridge
     
 volumes:
   emacs-cache:
