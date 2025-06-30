@@ -6,6 +6,27 @@ set -e
 
 cd "$(dirname "$0")"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
+
+# Color output
+RED=''
+GREEN=''
+YELLOW=''
+BLUE=''
+NC='' # No Color
+
+# Helper functions
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+
+
+
+cd $(dirname "$0")
+
 # Get branch name for tagging (compatible with lisply-mcp expectations)
 if [ -z "${CI_COMMIT_REF_NAME}" ]; then
     # Try to get branch from git
@@ -22,21 +43,7 @@ fi
 
 export BRANCH=${branch}
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
 
-# Color output
-RED=''
-GREEN=''
-YELLOW=''
-BLUE=''
-NC='' # No Color
-
-# Helper functions
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Check if docker compose is available
 check_docker_compose() {
