@@ -188,7 +188,7 @@ function egskew
 function claudly
 {
     file=${1:-"."};
-    docker exec -it --detach-keys "ctrl-@" lisply-mcp claude
+    docker exec -it --detach-keys "ctrl-@" lisply-mcp claude --mcp-config /app/docker/mcp-config.json
 }
 
 
