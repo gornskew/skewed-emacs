@@ -90,21 +90,18 @@ RUN echo "Verifying package installation..." && \
     echo "Ã¢   Package verification had issues, but proceeding..."
 
 
-COPY <<EOF /home/emacs-user/.bashrc
+RUN cat << EOF >> /home/emacs-user/.bashrc
 
 export DOT_BASHRC_LOADED=1
 export DOT_PROFILE_LOADED=1
 
-if [ -n "$BASH_VERSION" ]; then
-
-    if [ -z "$DOT_BASH_PROFILE_LOADED" ]; then
-	. "$HOME/.bash_profile"
-	export DOT_BASH_PROFILE_LOADED=1
-    fi
+if [ -z "$DOT_BASH_PROFILE_LOADED" ]; then
+  . "$HOME/.bash_profile"
+  export DOT_BASH_PROFILE_LOADED=1
 fi
 
 echo 
-echo "use \"claudly\" to launch Claude Code with MCP support."
+echo "Please use \"claudly\" to launch Claude Code with MCP support."
 echo 
 EOF
 
