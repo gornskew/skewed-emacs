@@ -5,90 +5,59 @@ This file provides guidance to Claude Code (claude.ai/code) when working with th
 ## Overview
 
 This setup provides a complete Lisp development environment with:
-- **Skewed Emacs Container**: Custom Emacs configuration with HTTP API on port 7081
-- **Gendl Container**: 3D CAD/modeling system with Common Lisp REPL and HTTP API on port 9081
+- **Skewed Emacs Container**: Custom Emacs configuration with MCP integration
+- **Gendl Container**: 3D CAD/modeling system with Common Lisp REPL and MCP integration
 - **Network Integration**: Containers communicate via Docker network for SLIME connections
-- **Dual HTTP APIs**: Both containers expose lisply-backend APIs for external tool integration
+- **MCP Services**: Both containers expose services via Model Context Protocol for external tool integration
 
-## â ï¸  TEMPORARY WORKAROUND - PATH/Environment Corruption Issue
+## MCP Integration
 
-**STATUS**: Active workaround in place, root cause unresolved
-**DELETE THIS SECTION** once the underlying cause is fixed
+The containers are now wrapped as MCP (Model Context Protocol) services, providing seamless integration with Claude Code and other MCP-enabled tools.
 
-### Current Issue
+### Available MCP Services
 
-The container startup process corrupts the environment, causing:
-1. **PATH Duplication**: `/usr/bin` appears multiple times in PATH
-2. **Missing SHELL**: `SHELL` environment variable not set
-3. **Native Compilation Failures**: `as` assembler not found during .eln generation
-4. **Inconsistent `shell-file-name`**: Defaults to `/bin/sh` instead of `/bin/bash`
+**Emacs Lisp Evaluation Service:**
+- **Service Name**: `mcp__skewed-emacs__skewed-emacs__lisp_eval`
+- **Purpose**: Evaluate Emacs Lisp code remotely
+- **Usage**: `mcp__skewed-emacs__skewed-emacs__lisp_eval(code="(+ 1 2 3)")`
 
-### Root Cause Analysis
+**Gendl Lisp Evaluation Service:**
+- **Service Name**: `mcp__gendl__gendl__lisp_eval`  
+- **Purpose**: Evaluate Common Lisp code in Gendl environment
+- **Usage**: `mcp__gendl__gendl__lisp_eval(code="(+ 1 2 3)")`
 
-**Architecture Issue**: The container startup script (`docker/startup.sh`) uses:
+**Ping Services:**
+- `mcp__skewed-emacs__skewed-emacs__ping_lisp` - Check Emacs service availability
+- `mcp__gendl__gendl__ping_lisp` - Check Gendl service availability
+
+### MCP vs Raw HTTP
+
+**Previous Approach (Deprecated):**
 ```bash
-emacs --daemon --no-init-file --load /tmp/emacs-daemon-startup.el
+# Raw HTTP calls (no longer recommended)
+curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(+ 1 2 3)"}'
 ```
 
-This means:
-- `init.el` is **never loaded** in the daemon (bypassed with `--no-init-file`)
-- Environment fixes in `init.el` are **ineffective**
-- Custom daemon config in `/tmp/emacs-daemon-startup.el` handles environment
-- **True root cause**: Unknown upstream source of environment corruption
-
-### Current Workarounds (Applied)
-
-**1. Startup Script Fix** (`docker/startup.sh`):
-```elisp
-;; ENVIRONMENT FIX: Always ensure proper container environment
-(let ((path-corrupted (or (not (getenv "PATH"))
-                          (string-match-p "not found" (or (getenv "PATH") ""))))
-  ;; Fix PATH if corrupted + Always fix SHELL
-  (setenv "SHELL" "/bin/bash")
-  (setq shell-file-name "/bin/bash")
-  ;; ... process-environment updates ...)
+**Current Approach (Recommended):**
+```python
+# Through MCP services (seamless with Claude Code)
+mcp__skewed_emacs__skewed_emacs__lisp_eval(code="(+ 1 2 3)")
 ```
 
-**2. Init.el Defensive Fix** (`dot-files/emacs.d/init.el`):
-```elisp
-;; Aggressive native compilation disabling
-(setq native-comp-jit-compilation nil
-      package-native-compile nil
-      ;; ... environment PATH/SHELL fixes ...)
-```
 
 ### Verification Commands
 
 Check if workarounds are active:
 ```bash
-# Test current environment
-docker exec skewed-emacs emacsclient --eval '(list (getenv "SHELL") shell-file-name (getenv "PATH"))'
+# Test current environment via MCP
+mcp__skewed_emacs__skewed_emacs__lisp_eval(code='(list (getenv "SHELL") shell-file-name (getenv "PATH"))')
 
 # Test native compilation settings
-docker exec skewed-emacs emacsclient --eval 'native-comp-jit-compilation'
+mcp__skewed_emacs__skewed_emacs__lisp_eval(code='native-comp-jit-compilation')
 
 # Test assembler accessibility
-docker exec skewed-emacs emacsclient --eval '(shell-command-to-string "which as")'
+mcp__skewed_emacs__skewed_emacs__lisp_eval(code='(shell-command-to-string "which as")')
 ```
-
-### Current State (After Restart)
-
-- â **Environment**: `SHELL=/bin/bash`, `shell-file-name=/bin/bash`
-- â **PATH**: Contains `/usr/bin` (with duplicates - harmless)
-- â **Native Compilation**: Properly disabled (`nil`/`-1`)
-- â **Toolchain**: `as` and `gcc` accessible
-- â **Package Installation**: Magit installs without compilation errors
-- â **Root Cause**: Still unknown - workarounds mask the issue
-
-### TODO: Find True Root Cause
-
-Investigation needed:
-1. **Docker Layer Analysis**: Check if base image `debian:testing-slim` has issues
-2. **Build Process**: Examine if `apt-get install` or user setup corrupts environment
-3. **Container Runtime**: Check if Docker/runtime environment affects startup
-4. **Emacs Bootstrap**: Investigate if `bootstrap-emacs.sh` side effects persist
-
-**Expected Fix**: Once root cause found, remove both workarounds and restart should work cleanly.
 
 ## Quick Start
 
@@ -107,9 +76,9 @@ cd dot-files/emacs.d/etc/gendl/docker && ./run --network
 # Start Skewed Emacs container  
 cd ~/projects/skewed-emacs/docker && ./run --network
 
-# Verify both services are running
-curl -s http://localhost:7081/lisply/ping-lisp  # Should return "pong"
-curl -s http://localhost:9081/lisply/ping-lisp  # Should return "pong"
+# Verify both services are running via MCP
+mcp__skewed_emacs__skewed_emacs__ping_lisp()  # Should return "pong"
+mcp__gendl__gendl__ping_lisp()                # Should return "pong"
 ```
 
 ### 2. Connect to Development Environment
@@ -128,8 +97,8 @@ docker exec -it skewed-emacs emacsclient -t
 - **Base**: Custom Emacs configuration
 - **Network Name**: `skewed-emacs` (accessible as `skewed-emacs:7080` from other containers)
 - **Host Ports**: 
-  - `7081` → `7080` (HTTP API)
-- **HTTP API**: `http://localhost:7081/lisply/lisp-eval`
+  - `7081` → `7080` (HTTP API - deprecated in favor of MCP)
+- **MCP Service**: Available via `mcp__skewed-emacs__*` functions
 - **Mount**: `/home/dcooper8/projects` → `/projects`
 
 ### Gendl Container (`gendl-ccl`)  
@@ -137,8 +106,8 @@ docker exec -it skewed-emacs emacsclient -t
 - **Network Name**: `gendl-ccl` (accessible as `gendl-ccl:4200` and `gendl-ccl:9080` from other containers)
 - **Host Ports**:
   - `4201` → `4200` (Swank/SLIME)
-  - `9081` → `9080` (HTTP API)
-- **HTTP API**: `http://localhost:9081/lisply/lisp-eval`
+  - `9081` → `9080` (HTTP API - deprecated in favor of MCP)
+- **MCP Service**: Available via `mcp__gendl__*` functions
 - **Mount**: `/home/dcooper8/projects` → `/home/gendl-user/projects`
 
 ### Docker Network
@@ -165,20 +134,21 @@ docker exec -it skewed-emacs emacsclient -t
 (ql:quickload :bus)
 ```
 
-### 2. HTTP API Development  
-```bash
-# Test Gendl HTTP API from host
-curl -X POST http://127.0.0.1:9081/lisply/lisp-eval -d '{"code": "(+ 1 2 3)"}' 2>&1 | cat
+### 2. MCP API Development  
+```python
+# Test Gendl MCP service
+result = mcp__gendl__gendl__lisp_eval(code="(+ 1 2 3)")
 
-# Test Emacs HTTP API from host
-curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(+ 1 2 3)"}' 2>&1 | cat
+# Test Emacs MCP service
+result = mcp__skewed_emacs__skewed_emacs__lisp_eval(code="(+ 1 2 3)")
 
-# Test inter-container communication
-docker exec skewed-emacs curl -s http://gendl-ccl:9080/lisply/ping-lisp
+# Test connectivity
+gendl_status = mcp__gendl__gendl__ping_lisp()
+emacs_status = mcp__skewed_emacs__skewed_emacs__ping_lisp()
 ```
 
 ### 3. Monitoring Claude Code Activity
-With both HTTP APIs running, you can monitor what Claude Code or other agents are doing:
+With MCP services running, you can monitor what Claude Code or other agents are doing:
 
 ```bash
 # Watch Emacs activities
@@ -190,13 +160,199 @@ docker logs -f gendl-ccl
 # Or from within Emacs, watch the *Messages* buffer for API calls
 ```
 
+## File Editing with MCP Services
+
+### Key Capabilities via MCP
+
+**1. Basic Emacs Lisp Evaluation:**
+```python
+# Simple arithmetic
+mcp__skewed_emacs__skewed_emacs__lisp_eval(code="(+ 1 2 3)")
+# Returns: {"Result": "6", "Stdout": ""}
+
+# List operations
+mcp__skewed_emacs__skewed_emacs__lisp_eval(code="(list 1 2 3)")
+# Returns: {"Result": "(1 2 3)", "Stdout": ""}
+```
+
+**2. Buffer Operations:**
+```python
+# List all open buffers
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='(mapcar (lambda (buf) (buffer-name buf)) (buffer-list))'
+)
+
+# Get buffer contents
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='(with-current-buffer "*Messages*" (buffer-string))'
+)
+
+# Switch to a buffer
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='(switch-to-buffer "buffer-name")'
+)
+```
+
+**3. File Operations:**
+```python
+# Read file contents
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='(with-temp-buffer (insert-file-contents "/path/to/file") (buffer-string))'
+)
+
+# Write to file
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='(with-temp-file "/path/to/file" (insert "content to write"))'
+)
+
+# Check if file exists
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='(file-exists-p "/path/to/file")'
+)
+```
+
+**4. Directory Operations:**
+```python
+# List directory contents
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='(directory-files "/path/to/directory")'
+)
+
+# Get current directory
+mcp__skewed_emacs__skewed_emacs__lisp_eval(code='(pwd)')
+```
+
+**5. Text Processing:**
+```python
+# Search and replace in buffer
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(with-current-buffer "buffer-name" 
+               (goto-char (point-min)) 
+               (while (search-forward "old" nil t) 
+                 (replace-match "new")))'''
+)
+
+# Count lines in buffer
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='(with-current-buffer "buffer-name" (count-lines (point-min) (point-max)))'
+)
+```
+
+## File Editing Best Practices for AI Agents
+
+### Understanding Buffer Operations vs String Manipulation
+
+**The Right Way: Buffer-Based Editing (Recommended)**
+```python
+# This is the efficient, Emacs-native approach
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(progn
+               (find-file "/path/to/file.js")
+               (with-current-buffer "file.js"
+                 (goto-char (point-min))
+                 (search-forward "old-code")
+                 (replace-match "new-code")
+                 (save-buffer)))'''
+)
+```
+
+**The Inefficient Way: String Manipulation (Not Recommended)**
+```python
+# This approach wastes memory and CPU by duplicating Emacs's work
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(let ((content (with-temp-buffer
+                             (insert-file-contents "/path/to/file.js")
+                             (buffer-string))))
+               (setq modified-content 
+                     (replace-regexp-in-string "old-code" "new-code" content))
+               (with-temp-file "/path/to/file.js"
+                 (insert modified-content)))'''
+)
+```
+
+### Why Buffer Operations Are Superior
+
+1. **Memory Efficiency**: Emacs manages buffers in optimized C code, rather than creating large Lisp strings
+2. **Incremental Changes**: Make small, targeted edits instead of reprocessing entire files
+3. **Native Features**: Access syntax highlighting, indentation, auto-formatting, and language-specific features
+4. **Performance**: Buffer operations are optimized; string manipulation in Elisp is comparatively slow
+5. **Undo/Redo**: Built-in change tracking and history
+6. **Error Recovery**: Better error handling and state management
+
+### Proper Buffer Editing Workflow
+
+The key is following Emacs conventions properly:
+
+```python
+# Demonstrate correct buffer-based file editing via MCP
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(defun edit-file-properly (filepath search-term replacement)
+               "Demonstrate correct buffer-based file editing"
+               (progn
+                 ;; Open file in buffer (creates buffer if needed)
+                 (find-file filepath)
+                 ;; Ensure we're working in the file buffer
+                 (with-current-buffer (file-name-nondirectory filepath)
+                   ;; Make changes
+                   (goto-char (point-min))
+                   (while (search-forward search-term nil t)
+                     (replace-match replacement))
+                   ;; Verify buffer is marked as modified
+                   (when (buffer-modified-p)
+                     ;; Save changes to disk
+                     (save-buffer)
+                     ;; Confirm save completed
+                     (not (buffer-modified-p))))))'''
+)
+```
+
+### Avoiding Interactive Prompts in Automated Operations
+
+When using MCP services programmatically (especially via Claude or other AI agents), it's crucial to avoid operations that trigger interactive prompts.
+
+**Safe File Editing Pattern for AI Agents:**
+```python
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(defun safe-edit-file-automated (filepath edit-function)
+               "Edit file safely for automated operations, avoiding interactive prompts"
+               (let ((original-revert-without-query revert-without-query))
+                 (unwind-protect
+                     (progn
+                       ;; Add this file to revert-without-query to avoid prompts
+                       (add-to-list 'revert-without-query (file-name-nondirectory filepath))
+                       ;; Check if buffer exists and revert if needed
+                       (let ((buf (get-file-buffer filepath)))
+                         (when buf
+                           (with-current-buffer buf
+                             (revert-buffer t t t)))) ; ignore-auto, noconfirm, preserve-modes
+                       ;; Now do the edit
+                       (find-file filepath)
+                       (with-current-buffer (file-name-nondirectory filepath)
+                         (funcall edit-function)
+                         (save-buffer)
+                         t))
+                   ;; Cleanup: restore original revert-without-query
+                   (setq revert-without-query original-revert-without-query))))'''
+)
+```
+
+### Key Principles for AI Agents
+
+1. **Always handle file conflicts gracefully** - Use `revert-without-query` or string manipulation
+2. **Prefer deterministic operations** - Avoid functions that might prompt for user input
+3. **Use `unwind-protect`** - Ensure cleanup happens even if operations fail
+4. **Test buffer state** - Check if files are already open before operations
+5. **Wrap complex operations** - Use helper functions like `safe-edit-file-automated`
+
 ## Network Architecture
 
 ```
 Host Machine
-├── Port 7081 → skewed-emacs:7080 (Emacs HTTP API)
-├── Port 9081 → gendl-ccl:9080 (Gendl HTTP API)  
-└── Port 4201 → gendl-ccl:4200 (Gendl Swank)
+├── MCP Services (via lisply-mcp wrapper)
+│   ├── mcp__skewed-emacs__* → skewed-emacs:7080
+│   └── mcp__gendl__* → gendl-ccl:9080
+├── Port 4201 → gendl-ccl:4200 (Gendl Swank)
+└── [Legacy HTTP ports available but deprecated]
 
 Docker Network: emacs-gendl-network
 ├── skewed-emacs container
@@ -243,31 +399,32 @@ docker logs gendl-ccl
 ```
 
 ### Testing Connectivity
-```bash
-# Test HTTP APIs
-curl -s http://localhost:7081/lisply/ping-lisp
-curl -s http://localhost:9081/lisply/ping-lisp
+```python
+# Test MCP services
+emacs_status = mcp__skewed_emacs__skewed_emacs__ping_lisp()
+gendl_status = mcp__gendl__gendl__ping_lisp()
 
-# Test inter-container communication
-docker exec skewed-emacs curl -s http://gendl-ccl:9080/lisply/ping-lisp
-docker exec skewed-emacs telnet gendl-ccl 4200 <<< "quit"
+# Test basic operations
+emacs_result = mcp__skewed_emacs__skewed_emacs__lisp_eval(code="(+ 1 2 3)")
+gendl_result = mcp__gendl__gendl__lisp_eval(code="(+ 1 2 3)")
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Containers not communicating**:
+1. **MCP services not responding**:
+   - Check if containers are running: `docker ps`
+   - Verify MCP wrapper is configured correctly
+   - Check container logs: `docker logs <container-name>`
+
+2. **Containers not communicating**:
    - Ensure both containers are on the same network: `docker network ls`
    - Check container names: `docker ps --format "table {{.Names}}\t{{.Networks}}"`
 
-2. **SLIME connection fails**:
+3. **SLIME connection fails**:
    - Verify Swank is running: `docker exec gendl-ccl netstat -an | grep 4200`
    - Check network connectivity: `docker exec skewed-emacs telnet gendl-ccl 4200`
-
-3. **HTTP APIs not responding**:
-   - Check container logs: `docker logs <container-name>`
-   - Verify port forwarding: `docker port <container-name>`
 
 4. **Mount issues**:
    - Ensure `/home/dcooper8/projects` exists on host
@@ -289,29 +446,45 @@ docker network create emacs-gendl-network
 
 This environment is designed to work seamlessly with Claude Code:
 
-1. **HTTP API Access**: Claude Code can make HTTP calls to both Emacs and Gendl APIs
+1. **MCP Service Access**: Claude Code can use MCP services directly without HTTP calls
 2. **File System Access**: Both containers mount `/home/dcooper8/projects` for shared file access
 3. **Real-time Monitoring**: Use `docker exec` to connect to Emacs and watch Claude's activities
 4. **Development Feedback Loop**: Edit files, test with Claude, see results in real-time
 
 ### Example Claude Code Workflow
-```bash
-# Claude makes changes via HTTP API
-curl -X POST http://localhost:9081/lisply/lisp-eval -d '{"code": "(ql:quickload :my-project)"}'
+```python
+# Claude makes changes via MCP services
+result = mcp__gendl__gendl__lisp_eval(code='(ql:quickload :my-project)')
 
 # You can see the results in your SLIME session
 # And use Update! links in Gendl web interface for live reloading
 ```
 
+## Important Notes
+
+### Security Considerations
+- MCP services allow arbitrary Lisp evaluation
+- Only use in trusted, containerized environments
+- Do not expose services to untrusted networks
+
+### Data Types
+- All results are returned as strings (using `format "%s"`)
+- Complex Lisp data structures maintain their textual representation
+- Boolean values: `t` for true, `nil` for false
+
+### Error Handling
+- Syntax errors and runtime errors are caught and returned in result
+- MCP services provide consistent error reporting
+
 ## Related Documentation
 
 - **Gendl Development Guide**: `dot-files/emacs.d/etc/gendl/CLAUDE.md`
-- **Gendl Lisply Backend**: `dot-files/emacs.d/etc/gendl/lisply-backend/CLAUDE.md`  
-- **Emacs Lisply Backend**: `dot-files/emacs.d/sideloaded/lisply-backend/CLAUDE.md`
+- **Main Gendl Guide**: `/projects/CLAUDE.md` (top-level project documentation)
 
 ## Version History
 
 - **Initial Setup**: Basic container configuration
 - **Network Integration**: Added Docker network for container communication
 - **SLIME Integration**: Enabled seamless Emacs-to-Gendl SLIME connections
-- **Dual API Setup**: Both containers expose HTTP APIs for external tool integration
+- **HTTP API Setup**: Both containers expose HTTP APIs for external tool integration
+- **MCP Migration**: Transitioned from raw HTTP to MCP services for better integration

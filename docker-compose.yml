@@ -127,6 +127,7 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
+    user: "1000:1000"
     
     ports:
       - "${NODE_DEV_HOST_PORT:-3001}:${NODE_DEV_PORT:-3000}"
@@ -140,11 +141,11 @@ services:
         bind:
           create_host_path: true
       - type: bind
-        source: ${HOME}/.config/github-copilot
-        target: /home/node/.config/github-copilot
-      - /var/run/docker.sock:/var/run/docker.sock
-
-    # Add docker group for Docker socket access
+        source: ${HOME}/.config
+        target: /home/node/.config
+        bind:
+          create_host_path: true
+          
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
 
