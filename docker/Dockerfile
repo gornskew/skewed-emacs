@@ -42,6 +42,8 @@ RUN mkdir -p /projects && \
 # Copy skewed-emacs configuration 
 COPY --chown=emacs-user:emacs-user . /home/emacs-user/skewed-emacs/
 
+COPY docker/copilot-language-server /usr/local/bin/copilot-language-server
+
 # Switch to emacs-user for all subsequent operations
 USER emacs-user
 WORKDIR /home/emacs-user
