@@ -11,16 +11,6 @@
 (use-package copilot
   :straight (:host github :repo "zerolfx/copilot.el" :files ("dist" "*.el")) :ensure t)
 
-(defvar copilot-local-server? nil)
-
-(setq copilot-local-server? (ignore-errors (copilot-install-server)))
-(if copilot-local-server?
-    (message "Copilot server installed successfully.")
-  (progn
-    (warn "Copilot server did not install - Falling back to lisply-mcp container.")
-    (setq copilot-server-executable
-	"/home/emacs-user/skewed-emacs/docker/copilot-docker.sh")))
-
 ;;(add-hook 'prog-mode-hook 'copilot-mode)
 
 

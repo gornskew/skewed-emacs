@@ -459,7 +459,7 @@ THEME-NAME is a string, e.g., \='adwaita\='."
                 (load-file file-path)
               (message "Warning: MCP service file %s not found" file-path))))))
 
-
+   (setq httpd-host "0.0.0.0")
    (emacs-lisply-start-server))
 
 

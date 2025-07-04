@@ -1,3 +1,4 @@
+# IMPORTANT: Run ./generate-env.sh first to create your .env file
 # Docker Compose for Skewed Emacs + Gendl Development Environment
 # Dr. Frankenstein'd together from existing run scripts
 #
@@ -42,7 +43,7 @@ services:
     
     volumes:
       - type: bind
-        source: ${PROJECTS_DIR:-${HOME}/projects}
+        source: ${PROJECTS_DIR}
         target: /projects
         bind:
           create_host_path: true
@@ -94,7 +95,7 @@ services:
     
     volumes:
       - type: bind
-        source: ${PROJECTS_DIR:-${HOME}/projects}
+        source: ${PROJECTS_DIR}
         target: /home/gendl-user/projects
         bind:
           create_host_path: true
@@ -103,6 +104,10 @@ services:
     # Add docker group for Docker socket access
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
+
+    # Add controlled access to host Emacs service only
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     networks:
       - skewed-network
@@ -127,7 +132,6 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
-    user: "1000:1000"
     
     ports:
       - "${NODE_DEV_HOST_PORT:-3001}:${NODE_DEV_PORT:-3000}"
@@ -136,18 +140,20 @@ services:
     
     volumes:
       - type: bind
-        source: ${PROJECTS_DIR:-${HOME}/projects}
+        source: ${PROJECTS_DIR}
         target: /projects
         bind:
           create_host_path: true
-      - type: bind
-        source: ${HOME}/.config
-        target: /home/node/.config
-        bind:
-          create_host_path: true
+      - ${USER_CONFIG_DIR}:/home/node/.config
+    
+    environment:
+      - HOST_EMACS_URL=http://host.docker.internal:7080
           
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
     networks:
       - skewed-network

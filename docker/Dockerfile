@@ -105,6 +105,7 @@ echo "Please use \"claudly\" to launch Claude Code with MCP support."
 echo 
 EOF
 
+RUN rm -rf /home/node/.config/
 
 # Set environment variables for runtime
 ENV TERM=xterm-256color
