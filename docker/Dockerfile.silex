@@ -1,28 +1,17 @@
 # Optimized Skewed Emacs Dockerfile -
 # Using Debian base with GUI Emacs support
-FROM debian:testing-slim
+FROM silex/emacs:29-ci
 
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Install runtime dependencies including GUI Emacs
 # Note: emacs package includes X11 support for graphical emacsclient
-RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
-    apt-get -y install \
-    emacs \
-    ncurses-term \
-    curl \
-    wget \
-    git \
-    gcc \
-    libc6-dev \
-    ca-certificates \
-    openssh-client \
-    ghostscript \
-    poppler-utils \
-    imagemagick \
-    && rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean \
-    && curl -fsSL \
-    https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz \
+
+RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove \
+  && rm -rf /var/cache/apt/* /var/lib/apt/lists/* \
+  && apt-get clean \
+  && curl -fsSL \
+     https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz \
     | tar xz --strip-components=1 -C /usr/local/bin \
     docker/docker \
     && chmod +x /usr/local/bin/docker \
@@ -33,6 +22,7 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     && ln -s \
     /home/emacs-user/skewed-emacs/docker/copilot-language-server \
     /usr/local/bin/copilot-language-server
+
 
 # Copy skewed-emacs configuration 
 COPY --chown=emacs-user:emacs-user . \

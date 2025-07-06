@@ -51,7 +51,15 @@ echo "Building with branch tag: ${branch}"
 
 # Build with the naming convention expected by lisply-mcp
 export DOCKER_BUILDKIT=1
-docker build --progress=plain -t gornskew/skewed-emacs:${branch} -f Dockerfile ..
+
+# Build the full version for X11 support and emacs 30.1 native
+# compilation. Silex version to save around 0.5 GB image size.
+
+# Silex version, around 1.05 GB
+docker build --progress=plain -t gornskew/skewed-emacs:${branch} -f Dockerfile.silex ..
+
+# Full version, around 1.52 GB
+# docker build --progress=plain -t gornskew/skewed-emacs:${branch} -f Dockerfile ..
 
 # Also tag with 'dev' for local development compatibility
 docker tag gornskew/skewed-emacs:${branch} gornskew/skewed-emacs:latest
