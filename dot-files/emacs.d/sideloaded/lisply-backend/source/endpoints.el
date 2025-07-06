@@ -153,6 +153,37 @@
 }
 " local-endpoint))))
 
+;; Documentation endpoints
+
+(defservlet* lisply/docs/list application/json ()
+  "Handle docs/list endpoint for Lisply."
+  (emacs-lisply-log "Handling docs/list request")
+  (let ((docs-list 
+         `(("docs" . [
+            (("id" . "claude-md")
+             ("description" . "Skewed Emacs backend API and HTTP service documentation")
+             ("path" . "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/CLAUDE.md"))
+            (("id" . "main-claude-md")
+             ("description" . "Main Skewed Emacs development environment guide")
+             ("path" . "/home/emacs-user/skewed-emacs/CLAUDE.md"))]))))
+    (emacs-lisply-send-response docs-list)))
+
+(defservlet* lisply/docs/claude-md text/markdown ()
+  "Handle claude-md documentation endpoint."
+  (emacs-lisply-log "Handling claude-md docs request")
+  (let ((doc-path "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/CLAUDE.md"))
+    (if (file-exists-p doc-path)
+        (insert-file-contents doc-path)
+      (insert "Documentation file not found: " doc-path))))
+
+(defservlet* lisply/docs/main-claude-md text/markdown ()
+  "Handle main-claude-md documentation endpoint."
+  (emacs-lisply-log "Handling main-claude-md docs request")
+  (let ((doc-path "/home/emacs-user/skewed-emacs/CLAUDE.md"))
+    (if (file-exists-p doc-path)
+        (insert-file-contents doc-path)
+      (insert "Documentation file not found: " doc-path))))
+
 
 ;; Initialize endpoints
 (defun initialize-lisply-endpoints ()
