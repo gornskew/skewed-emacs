@@ -1,11 +1,14 @@
 # Docker Compose for Skewed Emacs + Gendl Development Environment
 
-This Docker Compose setup provides a standardized way to manage both the Skewed Emacs and Gendl lisply-backend containers, Dr. Frankenstein'd together from the existing hodgepodge of run scripts.
+This Docker Compose setup provides a standardized way to manage both
+the Skewed Emacs and Gendl lisply-backend containers,
+Dr. Frankenstein'd together from the existing hodgepodge of run
+scripts.
 
 ## Quick Start
 
 ```bash
-# Initialize environment and start both services
+# Initialize environment and start services
 ./compose-dev up
 
 # Start only specific services
@@ -27,7 +30,49 @@ This Docker Compose setup provides a standardized way to manage both the Skewed 
 ./compose-dev down
 ```
 
-## Files Created
+## Sample Run-through
+
+2. Use eskew to jump into an emacsclient session
+```bash
+# Use the eskew function (from bash_profile) to connect to Emacs
+source dot-files/bash_profile  # if not already sourced
+eskew
+```
+
+3. Use Slime/Swank from emacs to connect your emacs to the Gendl session:
+```emacs
+;; Connect to Gendl (Common Lisp-based) swank service:
+M-x slime-connect RET gendl RET 4200 RET
+;; Test with a simple object
+(theo (make-object 'box :width 10 :height 5 :length 3) volume)
+```
+
+4. Make an `*eat*` terminal in emacs
+
+```emacs
+M-x eat
+```
+
+5.  Run Claude Code in it:
+```bash
+claudly
+```
+
+
+### Container Management
+
+```bash
+# Service management
+./compose-dev up              # Start all services
+./compose-dev down            # Stop all services  
+./compose-dev restart gendl   # Restart specific service
+./compose-dev logs emacs      # View service logs
+./compose-dev status          # Show container status
+```
+
+
+
+## Files
 
 ### `docker-compose.yml`
 The main compose configuration that defines both services with:
@@ -37,33 +82,31 @@ The main compose configuration that defines both services with:
 - Shared network for inter-container communication
 - Volume mounts for project directories
 
-### `.env.example`
-Template for environment customization. Copy to `.env` and modify as needed:
+### `generate-env.sh`
+Template for environment customization. Edit this as neededbefore running `./compose-dev`:
 ```bash
 cp .env.example .env
 ```
 
-### `compose-dev` (Executable)
-Management script with commands for service lifecycle, interactive access, testing and monitoring.
 
-## Architecture
+### Network Setup (default ports shown)
 
-### Emacs Service: `localhost:7081` â `container:7080`
-### Gendl Service: `localhost:9081` â `container:9080` (HTTP), `localhost:4201` â `container:4200` (SWANK)
-### Network: `emacs-gendl-network` for inter-container communication
-
-## Usage
-
-```bash
-# Start everything
-./compose-dev up
-
-# Test APIs  
-curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(+ 1 2 3)"}'
-curl -X POST http://localhost:9081/lisply/lisp-eval -d '{"code": "(+ 1 2 3)"}'
-
-# SLIME from host: M-x slime-connect RET localhost RET 4201 RET
-# SLIME from container: M-x slime-connect RET gendl-backend RET 4200 RET
+```
+Docker Host Machine
+├── Port 7081 → skewed-emacs:7080 (Emacs HTTP API)
+├── Port 9081 → gendl:9080 (Gendl HTTP API)
+└── Port 4201 → gendl:4200 (Gendl SWANK for SLIME)
 ```
 
-See the full README artifacts above for complete documentation.
+## 🔗 Alternative Approach: MCP Client Integration
+
+If you prefer to integrate with MCP clients (like Claude Desktop)
+without managing containers at the command-line, use the **Second
+Way** approach:
+
+1. Clone the [lisply-mcp
+   repository](https://github.com/gornskew/lisply-mcp) instead
+2. Configure your MCP client with the `mcp-exec` script as described in the [README](https://github.com/gornskew/lisply-mcp/README.md)
+3. Containers will be started automatically when needed
+
+

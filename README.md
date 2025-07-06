@@ -4,49 +4,62 @@
 
 This is a comprehensive, opinionated configuration for Emacs and
 Linux/Unix bash environments, optimized for Terminal-mode Emacs-based
-Slime Common Lisp and Gendl development. Skewed-emacs ships with a
-built-in [Lisply
+Slime Common Lisp and Gendl development. Skewed-emacs is available in
+a containerized form which avoids the need to touch your own config
+files. Skewed-emacs also ships with a built-in [Lisply
 backend](./dot-files/emacs.d/sideloaded/lisply-backend/README.md) for
-exposing your emacs to an AI Agent as an MCP server (currently
-work-in-progress).
+exposing your emacs to an AI Agent as an MCP server.
 
 ## Features
 
 - **Emacs Configuration:**
-  - Automatically downloads and installs useful emacs packages 
+  - Ships with common useful packages pre-installed 
   - Includes [Slime](https://en.wikipedia.org/wiki/SLIME) setup for
     Common Lisp and Gendl development, with extensive customizations
   - AI client integration (Copilot, GPT, Ellama, etc)
-  - Built-in MCP (Model Context Protocol) server for driving your
-    emacs from AI agents (work-in-progress)
-  - Org-mode configuration
-  - Magit for Git integration
-  - Various quality-of-life improvements and custom keybindings
-  - Extensive color theme installations and convenience theme
-    switching and loading functions
+  - MCP (Model Context Protocol) server backend for allowing AI agents
+    to drive your emacs from AI agents
+  - Org-mode, Magit, Doom color themes, theme functions
 
-- **Terminal/Shell Integration:**
-  - Custom bash profile with useful functions and aliases for Emacs
-    and Gendl
-  - Gendl integration via the `gswank` and `rgc` functions to start
-    Lisp-based container images
-  - tmux configuration
-  - gotty for serving terminal through web browser
-  - Shell script utilities
-  - Cross-platform support (including WSL)
-
-- **Windows Integration:**
-  - [Windows keybindings](windows-keybindings/README.md) for
-    CapsLock-to-Control
-  - AutoHotkey configuration for Emacs-style keybindings across
+- **Skewed Windows:**
+  - For using Emacs with modern keyboards, it is recommended to [map
+    CapsLock to Control](windows-keybindings/README.md).
+  - AutoHotkey (.ahk) configuration for Emacs-style keybindings across
     Microsoft Edge, Chroms, Claude, and other applications as per your
-    specification.
+    specification. Just double click the file in File Explorer.
 
 - **Docker Integration:**
-  - Helper functions for running containerized environments
-  - Development container setup
+  - Docker Compose for running skewed-emacs with other helpful
+    containers. 
+  - `docker/Dockerfile` and `docker./build` script for building and
+    pushing the skewed-emacs container. Note the comment in `build`
+    about whether to use `silex/emacs` or install our own emacs (our
+    own emacs supports X11 but is 0.5GB larger).
 
-## Installation
+## Containerized Runnings (recommended)
+
+1. Clone this repo anywhere on your filesystem:
+   ```bash
+   git clone <repository-url> skewed-emacs
+   cd skewed-emacs
+   ./compose-dev up 
+   ```
+
+This starts three containers:
+- **skewed-emacs**: Emacs with AI integrations (HTTP API on port 7081)  
+- **gendl**: Common Lisp/Gendl system (HTTP API on port 9081, SWANK on port 4201)
+- **lisply-mcp**: Node.js environment for Claude Code (MCP tools auto-configured)
+
+
+2. See [the directions](./README-compose.md) for further details.
+
+
+## Local Installation
+
+This section is for setting up the .emacs.d and other so-called "dot
+files" in your home directory. It does not download or install or run
+any of the systems discussed in the Containerized Runnings section
+above.
 
 1. Clone this repo anywhere on your filesystem:
    ```bash
@@ -158,8 +171,10 @@ at the end of the Emacs initialization process.
 ## Installation Options and Rationale
 
 Skewed Emacs is not currently designed to blend automatically with
-your existing configuration. You have two installation approaches to
-choose from:
+your existing configuration; it's optimized more for fresh or
+containerixed setups. If you want to merge this with your
+already-existing configuration, you have two installation approaches
+to choose from:
 
 ### 1. Regular Installation (Default)
 
@@ -202,32 +217,14 @@ Or you could edit your existing `~/.bash_profile` and/or
 point in their execution.
 
 
-## MCP Server for AI Assistants
+## MCP Server Backend 
 
-
-This configuration includes a work-in-progress back-end MCP (Model
-Context Protocol) server that is meant to allow AI "agentic clients"
-such as Claude to interface with a running Emacs instance. With this
-MCP backend, AI assistants can send Lisp expressions, which can effect
-operations such as:
-
-- Evaluating arbitrary Emacs Lisp code
-- Navigating and managing files
-- Accessing buffers and perform editing operations on them
-- Potentially assisting with more complex development tasks
-
-The MCP backend is meant for use with the
-[lisply-mcp](https://github.com/gornskew/lisply-mcp.git) middleware,
-and the emacs-lisp backend implementation is
+This repository also includes a backend for the Lisply-MCP (Model
+Context Protocol) [middleware](github.com/gornskew/lisply-mcp).  The
+backend implementation is
 [here](./dot-files/emacs.d/sideloaded/lisply-backend).
 
 
-**NOTE:** [This generic MCP nodejs
-wrapper](https://github.com/gendl/lisply-mcp.git) is what you
-need to configure in e.g. your `claude_desktop_config.json`. See the [Lisply
-Backend
-README](/projects/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/README.md)
-for details.
 
 ## License
 

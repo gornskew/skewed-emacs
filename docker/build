@@ -56,10 +56,10 @@ export DOCKER_BUILDKIT=1
 # compilation. Silex version to save around 0.5 GB image size.
 
 # Silex version, around 1.05 GB
-docker build --progress=plain -t gornskew/skewed-emacs:${branch} -f Dockerfile.silex ..
+# docker build --progress=plain -t gornskew/skewed-emacs:${branch} -f Dockerfile.silex ..
 
 # Full version, around 1.52 GB
-# docker build --progress=plain -t gornskew/skewed-emacs:${branch} -f Dockerfile ..
+docker build --progress=plain -t gornskew/skewed-emacs:${branch} -f Dockerfile ..
 
 # Also tag with 'dev' for local development compatibility
 docker tag gornskew/skewed-emacs:${branch} gornskew/skewed-emacs:latest
