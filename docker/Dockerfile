@@ -56,7 +56,7 @@ RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh \
   &&  /home/emacs-user/startup.sh --batch \
   && echo "=== Done. ===" \
   && echo "=== Cleaning up bloat  ===" \
-  && rm -rf /home/emacs-user/.emacs.d/.cache/copilot/ \
+  && rm -rf /home/emacs-user/.emacs.d/.cache/copilot/ 
 
 RUN cat << EOF >> /home/emacs-user/.bashrc
 
@@ -72,8 +72,6 @@ echo
 echo "Please use \"claudly\" to launch Claude Code with MCP support."
 echo 
 EOF
-
-RUN rm -rf /home/node/.config/
 
 # Set environment variables for runtime
 ENV TERM=xterm-256color
