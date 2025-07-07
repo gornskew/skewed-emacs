@@ -19,6 +19,19 @@
 ;; Fix environment for container (comprehensive)
 ;; The container may start with corrupted PATH and shell environment
 
+;; Ensure use-package is installed
+(unless (package-installed-p 'use-package)
+  (package-refresh-contents)
+  (package-install 'use-package))
+
+(eval-when-compile
+  (require 'use-package))
+
+;; Configure package archives
+(setq package-archives
+      '(("gnu" . "https://elpa.gnu.org/packages/")
+        ("melpa" . "https://melpa.org/packages/")))
+
 (menu-bar-mode 0)
 
 (when (or (not (getenv "PATH"))
@@ -91,10 +104,6 @@
   (let ((fonts '("all-the-icons" "file-icons" "github-octicons" "Weather Icons")))
     (cl-every (lambda (font) (member font (font-family-list))) fonts)))
 
-(defun my-install-all-the-icons-fonts ()
-  "Install all-the-icons fonts if they are not already installed."
-  (unless (my-all-the-icons-fonts-installed-p)
-    (all-the-icons-install-fonts t)))
 
 ;;(use-package vterm
 ;;  :ensure t
@@ -112,6 +121,28 @@
       (or (getenv "OPENAI_API_KEY") 
           (plist-get (car (auth-source-search :host "llm.openai")) :secret)
           "your-api-key-here")))))
+
+
+;; Install and configure all-the-icons
+(use-package all-the-icons
+  :ensure t
+  :init
+  ;; Install fonts if not already installed
+  (unless (find-font (font-spec :name "all-the-icons"))
+    (all-the-icons-install-fonts t)))
+
+;; Install and configure doom-modeline
+(use-package doom-modeline
+  :ensure t
+  :after all-the-icons
+  :init
+  (doom-modeline-mode 1)
+  :config
+  ;; Customize doom-modeline (optional)
+  (setq doom-modeline-height 25
+        doom-modeline-bar-width 3
+        doom-modeline-icon t
+        doom-modeline-major-mode-icon t))
 
 
 (defun main-setup ()
@@ -237,6 +268,9 @@ FLAG: make sure these don't clobber graphical mode bindings,
 
 (defun setup-graphical-keybindings-and-faces ()
   "Set up keybindings and faces for graphical mode."
+
+  (doom-modeline-mode 1)
+  
   (let ((scale-factor (if (> (x-display-pixel-width) 1920) 1.5 1.0)))
     
     (set-face-attribute 'default nil
@@ -419,8 +453,6 @@ THEME-NAME is a string, e.g., \='adwaita\='."
   (setup-input-methods)
   (setq confirm-kill-processes nil)
 
-  ;;(my-install-all-the-icons-fonts)
-
 
   ;; Treemacs setup
 ;;  (use-package treemacs
@@ -502,7 +534,6 @@ Make it tiled to the left."
   (select-frame frame)
   (setup-themes)
   (when (display-graphic-p frame)
-    ;;(my-install-all-the-icons-fonts)
     (setup-graphical-keybindings-and-faces)
     (set-frame-size-and-position frame)))
 

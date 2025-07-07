@@ -230,3 +230,7 @@ backend implementation is
 
 This package is licensed under the GNU Affero General Public License
 v3.0 (AGPL-3.0) which presumably is compatible with Gnu Emacs's GPL.
+
+## MCP Server Registries
+
+- [MCPHub](https://mcphub.com/mcp-servers/gornskew/skewed-emacs)
