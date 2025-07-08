@@ -4,6 +4,11 @@
 (let ((default-directory (concat emacs-config-directory "sideloaded/slime-v2.28/")))
   (load-file "slime.el"))
 
+(setq slime-lisp-host "gendl")
+(setq slime-connect-host-history '("gendl"))
+(setq slime-port 4200)
+(setq slime-connect-port-history '("4200"))
+
 (eval-after-load "slime"
   '(progn
      (dolist (extension (list "\\.cl\\'"  "\\.gdl\\'" "\\.gendl\\'"
@@ -109,6 +114,5 @@
 (load-file (concat emacs-config-directory "etc/slime/configure-glime.el"))
 
 (load-file (concat emacs-config-directory "etc/tramp/configure-tramp.el"))
-
 
 

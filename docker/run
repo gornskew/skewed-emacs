@@ -107,7 +107,7 @@ if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
 fi
 
 echo "Starting Skewed Emacs container..."
-echo "  Image: genworks/skewed-emacs:${IMAGE_TAG}"
+echo "  Image: gornskew/skewed-emacs:${IMAGE_TAG}"
 echo "  Container name: ${CONTAINER_NAME}"
 echo "  HTTP API: localhost:${HTTP_HOST_PORT} -> container:${HTTP_PORT}"
 echo "  HTTP Service: ${START_HTTP}"
@@ -163,7 +163,7 @@ fi
 ENV_OPTIONS="-e HTTP_PORT=${HTTP_PORT} -e HTTP_HOST_PORT=${HTTP_HOST_PORT} -e START_HTTP=${START_HTTP} -e START_SWANK=${START_SWANK} -e SWANK_PORT=${SWANK_PORT}"
 
 # Run the container with proper port mapping
-echo "  Command: docker run ${RUN_OPTIONS} --name ${CONTAINER_NAME} -p ${HTTP_HOST_PORT}:${HTTP_PORT} ${ENV_OPTIONS} ${NETWORK_OPTIONS} ${MOUNT_OPTIONS} genworks/skewed-emacs:${IMAGE_TAG}"
+echo "  Command: docker run ${RUN_OPTIONS} --name ${CONTAINER_NAME} -p ${HTTP_HOST_PORT}:${HTTP_PORT} ${ENV_OPTIONS} ${NETWORK_OPTIONS} ${MOUNT_OPTIONS} gornskew/skewed-emacs:${IMAGE_TAG}"
 echo ""
 
 docker run ${RUN_OPTIONS} \
@@ -174,7 +174,7 @@ docker run ${RUN_OPTIONS} \
     ${MOUNT_OPTIONS} \
     -e DISPLAY=$DISPLAY \
     -v /tmp/.X11-unix:/tmp/.X11-unix \
-    genworks/skewed-emacs:${IMAGE_TAG}
+    gornskew/skewed-emacs:${IMAGE_TAG}
 
 if [ "$RUN_MODE" = "detached" ]; then
     echo "Container started successfully."

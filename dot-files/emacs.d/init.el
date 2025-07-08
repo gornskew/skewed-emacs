@@ -4,15 +4,6 @@
 ;;; It is no longer based on Crafted Emacs.
 ;;; Code:
 
-;; FIRST: Completely disable native compilation before anything else happens
-;; This MUST be at the very top to prevent package installation errors
-;;(setq native-comp-jit-compilation nil
-;;      native-comp-deferred-compilation nil
-;;      native-comp-async-jobs-number 0
-;;      native-comp-speed -1
-;;      native-comp-debug 0)
-;;;; Also disable any compilation during package operations
-;;(setq package-native-compile nil)
 
 
 ;; Disable native compilation in containers
@@ -29,8 +20,10 @@
 
 ;; Configure package archives
 (setq package-archives
-      '(("gnu" . "https://elpa.gnu.org/packages/")
-        ("melpa" . "https://melpa.org/packages/")))
+      '(;;("gnu" . "http://elpa.gnu.org/packages/")
+	("gnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
+        ;;("melpa" . "https://melpa.org/packages/")
+	("melpa" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")))
 
 (menu-bar-mode 0)
 
@@ -59,9 +52,9 @@
 (unless (member "/usr/bin" exec-path)
   (add-to-list 'exec-path "/usr/bin"))
 (setenv "PATH" (concat "/usr/bin:" (getenv "PATH")))
-(setq native-comp-jit-compilation nil)
-(setq native-comp-deferred-compilation nil)
-(setq native-comp-async-jobs-number 0)
+;;(setq native-comp-jit-compilation nil)
+;;(setq native-comp-deferred-compilation nil)
+;;(setq native-comp-async-jobs-number 0)
 
 (require 'cl-lib)
 (defvar too-old-p (< emacs-major-version 27))
@@ -70,6 +63,7 @@
 (defvar emacs-config-directory (file-name-directory (file-truename load-file-name)))
 (defvar my-files-to-load nil)
 (defvar load-lisply? t)
+;;(defvar load-lisply? nil)
 
 (defun ensure-package-installed (pkg)
   "Ensure PKG is installed.  If not, install it."
@@ -99,10 +93,10 @@
       (if (file-exists-p full-path) (load-file full-path)
         (warn "%s seems to be missing, cannot load-file on it." full-path)))))
 
-(defun my-all-the-icons-fonts-installed-p ()
-  "Check if all-the-icons fonts are installed."
-  (let ((fonts '("all-the-icons" "file-icons" "github-octicons" "Weather Icons")))
-    (cl-every (lambda (font) (member font (font-family-list))) fonts)))
+;;(defun my-all-the-icons-fonts-installed-p ()
+;;  "Check if all-the-icons fonts are installed."
+;;  (let ((fonts '("all-the-icons" "file-icons" "github-octicons" "Weather Icons")))
+;;    (cl-every (lambda (font) (member font (font-family-list))) fonts)))
 
 
 ;;(use-package vterm
@@ -124,55 +118,54 @@
 
 
 ;; Install and configure all-the-icons
-(use-package all-the-icons
-  :ensure t
-  :init
+;;(use-package all-the-icons
+;;  :ensure t
+;;  :init
   ;; Install fonts if not already installed
-  (unless (find-font (font-spec :name "all-the-icons"))
-    (all-the-icons-install-fonts t)))
+;;  (unless (find-font (font-spec :name "all-the-icons"))
+;;    (all-the-icons-install-fonts t)))
 
 ;; Install and configure doom-modeline
-(use-package doom-modeline
-  :ensure t
-  :after all-the-icons
-  :init
-  (doom-modeline-mode 1)
-  :config
+;;(use-package doom-modeline
+;;  :ensure t
+;;  :after all-the-icons
+;;  :config
   ;; Customize doom-modeline (optional)
-  (setq doom-modeline-height 25
-        doom-modeline-bar-width 3
-        doom-modeline-icon t
-        doom-modeline-major-mode-icon t))
+;;  (setq doom-modeline-height 25
+;;        doom-modeline-bar-width 3
+;;        doom-modeline-icon t
+;;        doom-modeline-major-mode-icon t))
 
 
 (defun main-setup ()
   "Set up the main configuration."
 
   (require 'package)
-  (add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
+  ;;(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
   (package-initialize)
 
   (let ((packages-to-install
-	 '(flycheck company
-		    simple-httpd
-		    ;;undo-tree
-		    ;;vscode-dark-plus-theme
-		    ;;all-the-icons
-		    ;;neotree
-		    ;;treemacs
-		    ;; vterm
-		    ;; dashboard
-		    ;;minimap
-		    ;;lsp-mode
-		    ;;lsp-ui
-		    ;;lsp-treemacs
-		    ;;treemacs-all-the-icons
-		    ;;lsp-ivy
-		    doom-themes
-		    zenburn-theme
-		    use-package
-		    ellama
-		    ))
+	 '(flycheck
+	   company
+	   simple-httpd
+	   ;;undo-tree
+	   ;;vscode-dark-plus-theme
+	   ;;all-the-icons
+	   ;;neotree
+	   ;;treemacs
+	   ;; vterm
+	   ;; dashboard
+	   ;;minimap
+	   ;;lsp-mode
+	   ;;lsp-ui
+	   ;;lsp-treemacs
+	   ;;treemacs-all-the-icons
+	   ;;lsp-ivy
+	   doom-themes
+	   zenburn-theme
+	   use-package
+	   ellama
+	   ))
 	(need-package-refresh-contents? nil))
 
     (dolist (pack packages-to-install)
@@ -185,7 +178,11 @@
     (setq my-files-to-load
 	  `(,@(unless really-old-p '("slime"))
             ,@(unless too-old-p
-		'("org" "magit" "straight" "copilot" "impatient-markdown"
+		'("org" "magit"
+		  "straight"
+		  "eat"
+		  ;;"copilot"
+		  ;;"impatient-markdown"
 		  ;;"dashboard"
 		  ))))
 
@@ -193,26 +190,14 @@
       (if (listp filespec)
 	  (load-one-config (car filespec) (cadr filespec)) ;; car and cadr - really??
 	(load-one-config filespec nil)))
+
+    (message "about to load standard packages %s" packages-to-install)
+    
     (dolist (pack packages-to-install)
       (ensure-package-installed pack))
 
-    ;;(install-chatgpt) ;; needs some troubleshooting
+    (message "done with main-setup..")
     
-    (require 'flycheck)(global-flycheck-mode)
-    (require 'company)
-    (require 'doom-themes)(require 'zenburn-theme)
-    (dolist (hook '(c-mode-hook c++-mode-hook python-mode-hook
-				emacs-lisp-mode-hook lisp-mode-hook))
-      (add-hook hook 'enable-company-mode))
-    (dolist (hook '(slime-repl-mode-hook dired-mode-hook treemacs-mode-hook))
-      (add-hook hook 'disable-company-mode))
-
-    (dolist (hook '(slime-repl-mode-hook
-		    markdown-mode-hook
-		    lisp-mode-hook elisp-mode-hook
-		    dired-mode-hook treemacs-mode-hook))
-      (add-hook hook 'disable-line-number-mode))
-
     ))
 
 (defun server-shutdown ()
@@ -454,35 +439,12 @@ THEME-NAME is a string, e.g., \='adwaita\='."
   (setq confirm-kill-processes nil)
 
 
-  ;; Treemacs setup
-;;  (use-package treemacs
-;;    :ensure t
-;;    :defer t
-;;    :config
-;;    (setq treemacs-width 30)
-;;    :bind
-;;    (:map global-map
-;;          ("M-0" . treemacs-select-window)
-;;          ("C-x t 1" . treemacs-delete-other-windows)
-;;          ("C-x t t" . treemacs)))
-  
-;;  (use-package treemacs-all-the-icons
-;;    :ensure t
-;;    :config (treemacs-load-theme "all-the-icons"))
-  
-  ;; Minimap setup
-;;  (use-package minimap
-;;    :ensure t
-;;    :config
-;;    (setq minimap-width-fraction 0.1)
-    ;;(add-hook 'prog-mode-hook 'minimap-mode)
-;;    )
 
   ;; Load Lisply MCP service if enabled still using manual load, this
   ;; is not quite packaged yet as a proper emacs package,
   ;; it's just built-in to skewed-emacs's config thusly:
   (when load-lisply?
-   (let ((lisply-dir (concat emacs-config-directory "/sideloaded/lisply-backend/source/")))
+    (let ((lisply-dir (concat emacs-config-directory "/sideloaded/lisply-backend/source/")))
       (when (file-exists-p lisply-dir)
         (message "Loading Lisply service from %s" lisply-dir)
         (dolist (file '("http-setup.el" "endpoints.el" "backend.el"))
@@ -498,15 +460,7 @@ THEME-NAME is a string, e.g., \='adwaita\='."
   ;; Load local customizations if they exist
   (when (file-exists-p "~/.emacs-local")
     (load-file "~/.emacs-local"))
-
   )
-
-;;(defun my/vscode-layout ()
-;;  "Setup the layout to mimic VS Code."
-;;  (interactive)
-;;  (treemacs)
-;;  (minimap-mode 1)
-;;  (eshell))
 
 
 
@@ -532,12 +486,11 @@ Make it tiled to the left."
 (defun on-after-make-frame (frame)
   "Configure settings for new FRAME."
   (select-frame frame)
-  (setup-themes)
+  ;;(setup-themes)
   (when (display-graphic-p frame)
     (setup-graphical-keybindings-and-faces)
     (set-frame-size-and-position frame)))
 
-(defvar neo-smart-open nil)
 
 (defun setup-themes ()
   "Set up my preferred default themes."
@@ -561,9 +514,12 @@ Make it tiled to the left."
 ;;(add-hook 'emacs-startup-hook 'my/vscode-layout)
 
 (main-setup)
+(message "At 1")
 (set-default-settings)
+(message "At 2")
 ;;(load-gdl)
-(setup-themes)
+;;(setup-themes)
+(message "At 3")
 
 
 (defun unfill-paragraph ()
@@ -592,25 +548,7 @@ Make it tiled to the left."
 ;;  :mode "\\.yml\\'"
 ;;  )
 
-
-(use-package eat
-  :ensure t)
-  ;; :config
-  ;; Set TERM to a true color-capable value inside eat
-;;;  (setq eat-term-name "xterm-truecolor")
-  ;; Optional: Ensure true color is recognized
-  ;; NOTE - eat currently doesn't support xterm-truecolor,
-;; we need to hold it back to xterm-256color.
-
-;;(add-hook 'eat-mode-hook
-;;          (lambda ()
-;;            (setenv "TERM" "xterm-256color")))
-
-;;(when (not (display-graphic-p))
-;;  (setenv "TERM" "xterm-256color")
-;;  (require 'term)
-  ;;(terminal-init-xterm)
-;;  )
+;;(use-package eat :ensure t)
 
 (add-hook 'eshell-load-hook #'eat-eshell-mode)
 
@@ -625,6 +563,7 @@ Make it tiled to the left."
                          (plist-get (car (auth-source-search :host "llm.openai")) :secret)
                          "<YOUR-OPENAI-KEY-HERE>"))
 
+(message "At 4")
 
 (straight-use-package '(gptel :type git
 			      :host github
@@ -791,7 +730,8 @@ Make it tiled to the left."
      "e8bd9bbf6506afca133125b0be48b1f033b1c8647c628652ab7a2fe065c10ef0"
      "4594d6b9753691142f02e67b8eb0fda7d12f6cc9f1299a49b819312d6addad1d"
      "ffafb0e9f63935183713b204c11d22225008559fa62133a69848835f4f4a758c"
-     default)))
+     default))
+ '(package-selected-packages nil))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
