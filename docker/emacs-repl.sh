@@ -4,6 +4,15 @@
 # Don't exit on errors - we want to handle them gracefully
 set +e
 
+cleanup() {
+    echo "Shutting down Emacs daemon..."
+    emacsclient --eval "(kill-emacs)" 2>/dev/null || true
+    exit 0
+}
+
+trap cleanup SIGTERM
+
+
 # Use default emacsclient (Unix socket)
 
 echo "=== Emacs Lisp REPL ==="
@@ -91,7 +100,4 @@ while true; do
     fi
 done
 
-# Clean shutdown
-echo "Shutting down Emacs daemon..."
-emacsclient --eval "(kill-emacs)" 2>/dev/null || true
-exit 0
+

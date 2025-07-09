@@ -72,3 +72,4 @@ history.*
 *.log*
 .tokens/
 *token*
+.env
