@@ -1,4 +1,4 @@
-;;; init.el -- Emacs configuration -*- lexical-binding: nil -*-
+
 ;;; Commentary:
 ;;; This is my personal Emacs configuration.
 ;;; It is no longer based on Crafted Emacs.
@@ -93,10 +93,11 @@
       (if (file-exists-p full-path) (load-file full-path)
         (warn "%s seems to be missing, cannot load-file on it." full-path)))))
 
-;;(defun my-all-the-icons-fonts-installed-p ()
-;;  "Check if all-the-icons fonts are installed."
-;;  (let ((fonts '("all-the-icons" "file-icons" "github-octicons" "Weather Icons")))
-;;    (cl-every (lambda (font) (member font (font-family-list))) fonts)))
+(defun my-all-the-icons-fonts-installed-p ()
+ "Check if all-the-icons fonts are installed."
+ (let ((fonts '("all-the-icons" "file-icons"
+		"github-octicons" "Weather Icons")))
+   (cl-every (lambda (font) (member font (font-family-list))) fonts)))
 
 
 ;;(use-package vterm
@@ -118,23 +119,23 @@
 
 
 ;; Install and configure all-the-icons
-;;(use-package all-the-icons
-;;  :ensure t
-;;  :init
+(use-package all-the-icons
+  :ensure t
+  :init
   ;; Install fonts if not already installed
-;;  (unless (find-font (font-spec :name "all-the-icons"))
-;;    (all-the-icons-install-fonts t)))
+  (unless (find-font (font-spec :name "all-the-icons"))
+    (all-the-icons-install-fonts t)))
 
 ;; Install and configure doom-modeline
-;;(use-package doom-modeline
-;;  :ensure t
-;;  :after all-the-icons
-;;  :config
+(use-package doom-modeline
+  :ensure t
+  :after all-the-icons
+  :config
   ;; Customize doom-modeline (optional)
-;;  (setq doom-modeline-height 25
-;;        doom-modeline-bar-width 3
-;;        doom-modeline-icon t
-;;        doom-modeline-major-mode-icon t))
+  (setq doom-modeline-height 25
+        doom-modeline-bar-width 3
+        doom-modeline-icon t
+        doom-modeline-major-mode-icon t))
 
 
 (defun main-setup ()
@@ -175,17 +176,17 @@
       (package-refresh-contents) (package-initialize)
       )
 
-    (setq my-files-to-load
-	  `(,@(unless really-old-p '("slime"))
-            ,@(unless too-old-p
-		'("org" "magit"
-		  "straight"
-		  "eat"
-		  "copilot"
-		  ;;"impatient-markdown"
-		  ;;"dashboard"
-		  ))))
 
+    (setq my-files-to-load `("slime"
+			     "org"
+			     "magit"
+			     "straight"
+			     "eat"
+			     "copilot"
+			     ;;"impatient-markdown"
+     			     ;;"dashboard"
+			     ))
+     
     (dolist (filespec my-files-to-load)
       (if (listp filespec)
 	  (load-one-config (car filespec) (cadr filespec)) ;; car and cadr - really??
@@ -515,8 +516,11 @@ Make it tiled to the left."
 
 (main-setup)
 (message "At 1")
+
 (set-default-settings)
+
 (message "At 2")
+
 ;;(load-gdl)
 ;;(setup-themes)
 (message "At 3")
@@ -565,177 +569,7 @@ Make it tiled to the left."
 
 (message "At 4")
 
-(straight-use-package '(gptel :type git
-			      :host github
-			      :repo "karthink/gptel"
-			      :branch "feature-tool-use"))
-(require 'gptel)
-(setq gptel-api-key *openai-key*)
-(gptel-make-anthropic "Claude" :stream t :key *anthropic-key*)
 
 
-(require 'llm)
-(require 'llm-openai)
-(require 'llm-claude)
-(require 'llm-ollama)
-(require 'llm-deepseek)
 
-;; Claude Models
-(defvar *claude-sonnet*
-  (make-llm-claude :default-chat-temperature 0.3
-                   :default-chat-max-tokens 64000
-                   :chat-model "claude-3-7-sonnet-20250219"
-                   :key *anthropic-key*))
-
-(defvar *claude-haiku*
-  (make-llm-claude :default-chat-temperature 0.3
-                   :default-chat-max-tokens 1000000
-                   :chat-model "claude-3-5-haiku-20241022"
-                   :key *anthropic-key*))
-
-(defvar *claude-opus*
-  (make-llm-claude :default-chat-temperature 0.3
-                   :default-chat-max-tokens 1000000
-                   :chat-model "claude-3-opus-20240229"
-                   :key *anthropic-key*))
-
-;; OpenAI Model
-(defvar *openai-gpt-4o-mini*
-  (make-llm-openai :default-chat-temperature 0.3
-                   :default-chat-max-tokens 1000000
-                   :chat-model "gpt-4o-mini"
-                   :key *openai-key*))
-
-;; Ollama Models (running on localhost)
-(defvar *ollama-codellama*
-  (make-llm-ollama :host "localhost"
-                   :port 11434
-                   :chat-model "codellama:latest"
-                   :embedding-model "codellama:latest"
-                   :default-chat-temperature 0.3))
-
-(defvar *ollama-phi3*
-  (make-llm-ollama :host "localhost"
-                   :port 11434
-                   :chat-model "phi3:latest"
-                   :embedding-model "phi3:latest"
-                   :default-chat-temperature 0.3))
-
-(defvar *ollama-mistral*
-  (make-llm-ollama :host "localhost"
-                   :port 11434
-                   :chat-model "mistral:latest"
-                   :embedding-model "mistral:latest"
-                   :default-chat-temperature 0.3))
-
-(defvar *ollama-llama2*
-  (make-llm-ollama :host "localhost"
-                   :port 11434
-                   :chat-model "llama2:latest"
-                   :embedding-model "llama2:latest"
-                   :default-chat-temperature 0.3))
-
-(defvar *ollama-codellama-13b-instruct-q4*
-  (make-llm-ollama :host "localhost"
-                   :port 11434
-                   :chat-model "codellama:13b-instruct-q4_0"
-                   :embedding-model "codellama:13b-instruct-q4_0"
-                   :default-chat-temperature 0.3))
-
-(defvar *ollama-qwen2.5-14b-instruct-q4*
-  (make-llm-ollama :host "localhost"
-                   :port 11434
-                   :chat-model "qwen2.5:14b-instruct-q4_0"
-                   :embedding-model "qwen2.5:14b-instruct-q4_0"
-                   :default-chat-temperature 0.3))
-
-(defvar *ollama-qwen2.5-7b-instruct*
-  (make-llm-ollama :host "localhost"
-                   :port 11434
-                   :chat-model "qwen2.5:7b-instruct"
-                   :embedding-model "qwen2.5:7b-instruct"
-                   :default-chat-temperature 0.3))
-
-(defvar *ollama-deepseek-coder-6.7b-instruct-q8*
-  (make-llm-ollama :host "localhost"
-                   :port 11434
-                   :chat-model "deepseek-coder:6.7b-instruct-q8_0"
-                   :embedding-model "deepseek-coder:6.7b-instruct-q8_0"
-                   :default-chat-temperature 0.3))
-
-(defvar *ollama-deepseek-coder*
-  (make-llm-ollama :host "localhost"
-                   :port 11434
-                   :chat-model "deepseek-coder:latest"
-                   :embedding-model "deepseek-coder:latest"
-                   :default-chat-temperature 0.3))
-
-;; Ellama Setup
-(use-package ellama
-  :ensure t
-  :init
-  (setopt ellama-provider *claude-sonnet*) ;; Default provider
-  (defun switch-ellama-provider (provider)
-    "Switch the ellama provider to PROVIDER."
-    (interactive
-     (list (completing-read "Select provider: "
-                            '(("Claude Sonnet" . *claude-sonnet*)
-                              ("Claude Haiku" . *claude-haiku*)
-                              ("Claude Opus" . *claude-opus*)
-                              ("GPT-4o Mini" . *openai-gpt-4o-mini*)
-                              ("Ollama CodeLLaMA" . *ollama-codellama*)
-                              ("Ollama Phi3" . *ollama-phi3*)
-                              ("Ollama Mistral" . *ollama-mistral*)
-                              ("Ollama LLaMA2" . *ollama-llama2*)
-                              ("Ollama CodeLLaMA 13B Instruct Q4" . *ollama-codellama-13b-instruct-q4*)
-                              ("Ollama Qwen2.5 14B Instruct Q4" . *ollama-qwen2.5-14b-instruct-q4*)
-                              ("Ollama Qwen2.5 7B Instruct" . *ollama-qwen2.5-7b-instruct*)
-                              ("Ollama DeepSeek Coder 6.7B Instruct Q8" . *ollama-deepseek-coder-6.7b-instruct-q8*)
-                              ("Ollama DeepSeek Coder" . *ollama-deepseek-coder*))
-                            nil t)))
-    (let ((provider-map '(("Claude Sonnet" . *claude-sonnet*)
-                          ("Claude Haiku" . *claude-haiku*)
-                          ("Claude Opus" . *claude-opus*)
-                          ("GPT-4o Mini" . *openai-gpt-4o-mini*)
-                          ("Ollama CodeLLaMA" . *ollama-codellama*)
-                          ("Ollama Phi3" . *ollama-phi3*)
-                          ("Ollama Mistral" . *ollama-mistral*)
-                          ("Ollama LLaMA2" . *ollama-llama2*)
-                          ("Ollama CodeLLaMA 13B Instruct Q4" . *ollama-codellama-13b-instruct-q4*)
-                          ("Ollama Qwen2.5 14B Instruct Q4" . *ollama-qwen2.5-14b-instruct-q4*)
-                          ("Ollama Qwen2.5 7B Instruct" . *ollama-qwen2.5-7b-instruct*)
-                          ("Ollama DeepSeek Coder 6.7B Instruct Q8" . *ollama-deepseek-coder-6.7b-instruct-q8*)
-                          ("Ollama DeepSeek Coder" . *ollama-deepseek-coder*))))
-      (setopt ellama-provider (cdr (assoc provider provider-map)))
-      (message "Ellama provider switched to %s" provider)))
-  :bind
-  (("C-c e" . ellama-chat)
-   ("C-c s" . switch-ellama-provider)))
-
-(provide 'init)
-;;; init.el ends here
-
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(custom-safe-themes
-   '("0325a6b5eea7e5febae709dab35ec8648908af12cf2d2b569bedc8da0a3a81c1"
-     "452068f2985179294c73c5964c730a10e62164deed004a8ab68a5d778a2581da"
-     "0c83e0b50946e39e237769ad368a08f2cd1c854ccbcd1a01d39fdce4d6f86478"
-     "113a135eb7a2ace6d9801469324f9f7624f8c696b72e3709feb7368b06ddaccc"
-     "691d671429fa6c6d73098fc6ff05d4a14a323ea0a18787daeb93fde0e48ab18b"
-     "56044c5a9cc45b6ec45c0eb28df100d3f0a576f18eef33ff8ff5d32bac2d9700"
-     "e8bd9bbf6506afca133125b0be48b1f033b1c8647c628652ab7a2fe065c10ef0"
-     "4594d6b9753691142f02e67b8eb0fda7d12f6cc9f1299a49b819312d6addad1d"
-     "ffafb0e9f63935183713b204c11d22225008559fa62133a69848835f4f4a758c"
-     default))
- '(package-selected-packages nil))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
 

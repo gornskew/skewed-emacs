@@ -82,3 +82,4 @@ EXPOSE 7080
 
 # Use the same startup.sh as entrypoint (will run in daemon mode)
 ENTRYPOINT ["/home/emacs-user/startup.sh"]
+#ENTRYPOINT ["/bin/bash"]

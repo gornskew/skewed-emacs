@@ -53,11 +53,10 @@ NODE_ALT_HOST_PORT=9001
 NODE_ALT_PORT=9000
 EOF
 
-echo "Created .env file with the following settings:"
+echo ".env file has the following settings:"
 echo "HOME: $USER_HOME"
 echo "PROJECTS: $USER_HOME/projects"
 echo "CONFIG: $USER_HOME/.config"
 echo "UID: $(id -u)"
 echo "Docker GID: $(getent group docker | cut -d: -f3 || echo 999)"
 echo ""
-echo "You can now run: docker compose up"

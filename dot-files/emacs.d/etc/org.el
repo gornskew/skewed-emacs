@@ -3,7 +3,12 @@
 ;;; Org Mode customizations.
 ;;;
 ;;; Code:
-(require 'org)
+;;
+
+;; (require 'org)
+
+(ensure-package-installed 'org)
+
 ;;
 ;; Standard key bindings
 (global-set-key "\C-cl" 'org-store-link)

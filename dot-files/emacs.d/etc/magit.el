@@ -1,5 +1,5 @@
 
-(package-install 'magit)
+(ensure-package-installed 'magit)
 
 (setq magit-git-executable (locate-file "git" exec-path))
 

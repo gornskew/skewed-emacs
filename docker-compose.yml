@@ -57,13 +57,13 @@ services:
     networks:
       - skewed-network
     
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${EMACS_HTTP_PORT:-7080}/lisply/ping-lisp"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
+     healthcheck:
+       test: ["CMD", "curl", "-f", "http://localhost:${EMACS_HTTP_PORT:-7080}/lisply/ping-lisp"]
+       interval: 30s
+       timeout: 10s
+       retries: 3
+       start_period: 10s
+        
   # Gendl Service  
   gendl:
     image: genworks/gendl:${GENDL_IMAGE_TAG:-devo-ccl}
@@ -119,9 +119,9 @@ services:
       retries: 3
       start_period: 15s
     
-    depends_on:
-      skewed-emacs:
-        condition: service_healthy
+  depends_on:
+     skewed-emacs:
+       condition: service_healthy
 
   # Node.js Development Service
   lisply-mcp:
