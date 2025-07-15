@@ -181,7 +181,7 @@
 		'("org" "magit"
 		  "straight"
 		  "eat"
-		  ;;"copilot"
+		  "copilot"
 		  ;;"impatient-markdown"
 		  ;;"dashboard"
 		  ))))

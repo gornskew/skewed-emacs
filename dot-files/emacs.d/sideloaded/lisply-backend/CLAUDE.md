@@ -328,6 +328,253 @@ For critical changes, create backups first:
           nil)))))
 ```
 
+## Safe Lisp Code Editing for AI Agents
+
+Working with Lisp code requires special attention to maintaining balanced parentheses and leveraging Emacs's structural editing capabilities. This section provides patterns and techniques for safely editing Lisp code programmatically.
+
+### Leveraging Buffer Modes and Structural Editing
+
+When editing Lisp files, the buffer's active modes can provide valuable functionality:
+
+**Check active modes in a buffer:**
+```elisp
+(with-current-buffer "file.lisp"
+  (list :major-mode major-mode
+        :minor-modes (seq-filter (lambda (mode) (and (boundp mode) (symbol-value mode)))
+                                 (mapcar #'car minor-mode-alist))
+        :paredit-mode (bound-and-true-p paredit-mode)
+        :slime-mode (bound-and-true-p slime-mode)))
+```
+
+### Essential Functions for Safe Lisp Editing
+
+**Always verify parentheses balance:**
+```elisp
+(with-current-buffer "file.lisp"
+  (condition-case err
+      (progn 
+        (check-parens)
+        "Parentheses are balanced")
+    (error (format "Parentheses error: %s" err))))
+```
+
+**Use structural navigation instead of text search:**
+```elisp
+;; Move by complete expressions
+(forward-sexp)    ; Move forward one s-expression
+(backward-sexp)   ; Move backward one s-expression
+(up-list)         ; Move up one level of parentheses
+(down-list)       ; Move down one level of parentheses
+
+;; Get complete expressions safely
+(thing-at-point 'sexp)    ; Get the s-expression at point
+(bounds-of-thing-at-point 'sexp)  ; Get start/end positions
+```
+
+**Function-level navigation:**
+```elisp
+(beginning-of-defun)  ; Go to start of current function
+(end-of-defun)        ; Go to end of current function
+(mark-defun)          ; Select entire function
+```
+
+### Safer Editing Patterns
+
+**Pattern 1: Small, Targeted S-Expression Edits**
+```elisp
+(defun safe-replace-sexp (filepath target-sexp replacement-sexp)
+  "Safely replace one s-expression with another"
+  (with-current-buffer (find-file filepath)
+    (save-excursion
+      (goto-char (point-min))
+      (when (search-forward target-sexp nil t)
+        (backward-sexp)
+        (mark-sexp)
+        (delete-region (point) (mark))
+        (insert replacement-sexp)
+        (check-parens)  ; Verify balance
+        (save-buffer)))))
+```
+
+**Pattern 2: Add New Function Definition**
+```elisp
+(defun safe-add-function (filepath new-function-code)
+  "Add a new function to a Lisp file"
+  (with-current-buffer (find-file filepath)
+    (save-excursion
+      (goto-char (point-max))
+      (unless (bolp) (insert "\n"))
+      (insert "\n" new-function-code "\n")
+      (check-parens)
+      (when (buffer-modified-p)
+        (save-buffer)))))
+```
+
+**Pattern 3: Modify Function Body**
+```elisp
+(defun safe-modify-function-body (filepath function-name new-body)
+  "Replace the body of a specific function"
+  (with-current-buffer (find-file filepath)
+    (save-excursion
+      (goto-char (point-min))
+      (when (search-forward (format "(defun %s" function-name) nil t)
+        (beginning-of-defun)
+        (forward-sexp 3)  ; Move past defun, name, and parameter list
+        (let ((body-start (point)))
+          (end-of-defun)
+          (backward-char)  ; Move inside closing paren
+          (delete-region body-start (point))
+          (insert new-body)
+          (check-parens)
+          (save-buffer))))))
+```
+
+### Leveraging Paredit (When Available)
+
+If paredit-mode is available, use its functions for guaranteed balanced edits:
+
+```elisp
+;; Check if paredit is available
+(when (fboundp 'paredit-mode)
+  ;; Enable paredit temporarily for safe editing
+  (paredit-mode 1)
+  
+  ;; Use paredit functions:
+  (paredit-wrap-round)        ; Wrap selection in parentheses
+  (paredit-splice-sexp)       ; Remove surrounding parentheses
+  (paredit-forward-slurp-sexp) ; Include next expression
+  (paredit-forward-barf-sexp)  ; Exclude last expression
+  (paredit-kill)              ; Delete to end of expression safely
+  
+  ;; Disable paredit when done
+  (paredit-mode -1))
+```
+
+### Common Pitfalls and How to Avoid Them
+
+**Problem: Unbalanced parentheses from string operations**
+```elisp
+;; BAD: String replacement can break balance
+(replace-regexp-in-string "(old-function" "(new-function" code)
+
+;; GOOD: Use structural editing
+(goto-char (point-min))
+(search-forward "(old-function")
+(backward-sexp)
+(forward-char)
+(kill-word 1)
+(insert "new-function")
+```
+
+**Problem: Editing inside strings or comments**
+```elisp
+;; Use syntax-aware functions
+(defun in-string-or-comment-p ()
+  "Check if point is inside a string or comment"
+  (let ((state (syntax-ppss)))
+    (or (nth 3 state)    ; Inside string
+        (nth 4 state))))  ; Inside comment
+
+;; Only edit if not in string/comment
+(unless (in-string-or-comment-p)
+  (perform-edit))
+```
+
+**Problem: Large block replacements breaking structure**
+```elisp
+;; BAD: Replace large blocks of code
+(delete-region start end)
+(insert new-code)
+
+;; GOOD: Use multiple small, targeted edits
+(save-excursion
+  (goto-char start)
+  (while (< (point) end)
+    (when (looking-at target-pattern)
+      (replace-match replacement))
+    (forward-sexp)))
+```
+
+### Debugging and Recovery
+
+**Validate edits incrementally:**
+```elisp
+(defun safe-edit-with-validation (filepath edit-function)
+  "Edit file with automatic validation"
+  (with-current-buffer (find-file filepath)
+    (let ((original-content (buffer-string)))
+      (condition-case err
+          (progn
+            (funcall edit-function)
+            (check-parens)
+            (save-buffer))
+        (error
+         ;; Restore original content on error
+         (delete-region (point-min) (point-max))
+         (insert original-content)
+         (signal (car err) (cdr err)))))))
+```
+
+**Check syntax before saving:**
+```elisp
+(defun validate-lisp-syntax ()
+  "Check if buffer contains valid Lisp syntax"
+  (condition-case nil
+      (progn
+        (check-parens)
+        (save-excursion
+          (goto-char (point-min))
+          (while (not (eobp))
+            (read (current-buffer))))
+        t)
+    (error nil)))
+```
+
+### Best Practices Summary
+
+1. **Always call `check-parens` after edits** - Catch balance errors immediately
+2. **Use `save-excursion` for temporary navigation** - Preserve cursor position
+3. **Prefer `forward-sexp`/`backward-sexp` over string search** - Respect structure
+4. **Make small, targeted changes** - Easier to debug and validate
+5. **Test with `thing-at-point 'sexp`** - Verify you're editing complete expressions
+6. **Use paredit functions when available** - Guaranteed balanced operations
+7. **Validate syntax before saving** - Catch errors early
+8. **Keep backups for complex operations** - Enable recovery from mistakes
+
+### Example: Safe Refactoring Workflow
+
+```elisp
+(defun safe-rename-function (filepath old-name new-name)
+  "Safely rename a function throughout a file"
+  (with-current-buffer (find-file filepath)
+    (save-excursion
+      ;; Step 1: Rename function definition
+      (goto-char (point-min))
+      (when (search-forward (format "(defun %s" old-name) nil t)
+        (backward-word)
+        (kill-word 1)
+        (insert new-name)
+        (check-parens))
+      
+      ;; Step 2: Rename function calls
+      (goto-char (point-min))
+      (while (search-forward (format "(%s" old-name) nil t)
+        (backward-word)
+        (when (looking-at (regexp-quote old-name))
+          (kill-word 1)
+          (insert new-name)
+          (check-parens)))
+      
+      ;; Step 3: Final validation and save
+      (when (validate-lisp-syntax)
+        (save-buffer)
+        (message "Function renamed successfully"))
+      (unless (validate-lisp-syntax)
+        (error "Syntax error after renaming - check manually")))))
+```
+
+This approach ensures that Lisp code modifications maintain structural integrity while leveraging Emacs's powerful editing capabilities.
+
 ## Testing the Connection
 
 ```bash
