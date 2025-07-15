@@ -105,7 +105,7 @@ theme() {
             ;;
     esac
     if [ "$quiet" -eq 0 ]; then
-        echo "Switched to $theme theme."
+        echo "Switched to $theme theme. Use theme_help for more options."
     fi
 }
 
@@ -129,9 +129,19 @@ if [[ $- == *i* && -z "$DOT_BASH_PROFILE_WELCOME" ]]; then
     # Show welcome message
     echo ""
     echo "Welcome to the 🦖 Skewed Emacs 🦖  Bash Profile"
-    echo "Type 'e' to get a terminal-mode emacsclient on current directory."
-    echo "Terminal Color Tip: Use 'theme dark|light|solarized|custom' to change terminal colors."
-    echo "Run 'theme_help' for more info."
+
+
+#     echo "Type 'e' to get a terminal-mode emacsclient on current directory."
+
+
+    if [ -z "$INSIDE_EMACS" ]; then
+	echo "Type 'e' to get a terminal-mode emacsclient on current directory."
+    else
+	echo "You appear to be inside emacs shell (${INSIDE_EMACS})."
+    fi
+    
+    echo "Terminal Color Tip: 'theme dark|light|solarized|custom'"
+    echo "Emacs Color Tip: M-x dark-theme, M-x light-theme, or M-x load-theme..."
     echo ""
     export DOT_BASH_PROFILE_WELCOME=1
 fi
