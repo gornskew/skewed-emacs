@@ -123,7 +123,6 @@ These endpoint paths are configurable via variables in the backend implementatio
 
 ### Project Structure
 
-- `source/backend.el` - Main entry point
 - `source/http-setup.el` - HTTP server configuration
 - `source/endpoints.el` - MCP endpoint definitions
 

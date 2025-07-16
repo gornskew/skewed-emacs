@@ -1,0 +1,6 @@
+.cache
+eln-cache
+*.elc
+elpa
+straight
+

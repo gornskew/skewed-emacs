@@ -42,6 +42,7 @@ COPY --chown=emacs-user:emacs-user . \
 USER emacs-user
 WORKDIR /home/emacs-user
 
+
 # Run setup to install configuration (links ~/.emacs.d to ~/skewed-emacs/dot-files/emacs.d/)
 RUN cd skewed-emacs && ./setup \
     && ls -la ~/.emacs.d/init.el \
@@ -57,18 +58,8 @@ RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh
 
 # Install packages and precompile .eln files
 RUN echo "=== Installing packages and precompiling .eln files ===" \
-    && /home/emacs-user/startup.sh --batch \
-    && echo "=== Precompiling all .el files in ~/.emacs.d ===" \
-    && emacs --batch \
-       -q \
-       --eval "(setq native-comp-jit-compilation nil)" \
-       --eval "(setq native-comp-deferred-compilation nil)" \
-       --eval "(setq native-comp-async-jobs-number 5)" \
-       --eval "(require 'package)" \
-       --eval "(add-to-list 'package-archives '(\"gnu\" . \"https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/\"))" \
-       --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/\"))" \
-       --eval "(package-initialize)" \
-       --eval "(native-compile-async (list (locate-user-emacs-file \"elpa\") \"~/.emacs.d/sideloaded\" \"~/.emacs.d/etc\") t)" \
+    && emacs --batch -q \
+       --eval "(load \"~/.emacs.d/etc/load-and-compile.el\")" \
     && echo "=== Native compilation completed ==="
 
 RUN cat << EOF >> /home/emacs-user/.bashrc

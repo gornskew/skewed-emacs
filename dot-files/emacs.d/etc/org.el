@@ -5,9 +5,7 @@
 ;;; Code:
 ;;
 
-;; (require 'org)
-
-(ensure-package-installed 'org)
+(require 'org)
 
 ;;
 ;; Standard key bindings

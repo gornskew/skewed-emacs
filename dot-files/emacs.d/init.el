@@ -1,46 +1,165 @@
-
+;;; package --- Summary: init.el 
 ;;; Commentary:
 ;;; This is my personal Emacs configuration.
 ;;; It was inspired by but is no longer based on Crafted Emacs.
 ;;;
 ;;; Code:
 
-;; Ensure use-package is installed
-(unless (package-installed-p 'use-package)
-  (package-refresh-contents)
-  (package-install 'use-package))
-
-(eval-when-compile (require 'use-package))
-
-;; FLAG -- make fallbacks Configure package archives
-(setq package-archives
-      '(("gnu" . "http://elpa.gnu.org/packages/")
-	("nongnu" . "https://elpa.nongnu.org/nongnu/")
-	;;("gnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
-        ("melpa" . "https://melpa.org/packages/")
-	;;("melpa" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")
-	))
-
-
-
-
-(setq native-comp-jit-compilation nil)
-(setq native-comp-deferred-compilation nil)
-(setq native-comp-async-jobs-number 0)
-
 (require 'cl-lib)
-(defvar too-old-p (< emacs-major-version 27))
-(defvar really-old-p (< emacs-major-version 24))
-(defvar inhibit-gendl-splash-p t)
+
 (defvar emacs-config-directory (file-name-directory (file-truename load-file-name)))
-(defvar my-files-to-load nil)
+(unless (and (getenv "SKEWED_EMACS_CONTAINER") (not (getenv "EMACS_BATCH_MODE")))
+  (load (concat emacs-config-directory "etc/load-and-compile.el")))
+;;
+;; FLAG -- Now make sure all background compilings have been forced and completed
+;;         at this juncture.
+;;
+
+
 (defvar load-lisply? t)
 
+(defvar light-theme-options
+  '(("adwaita" . adwaita)
+    ("tsdh-light" . tsdh-light)
+    ("light-blue" . light-blue)
+    ("doom-one-light" . doom-one-light)
+    ("doom-feather-light" . doom-feather-light)
+    ("doom-light" . doom-gruvbox-light))
+  "List of light themes for `light-theme' function.")
 
-(defun ensure-package-installed (pkg)
-  "Ensure PKG is installed.  If not, install it."
-  (unless (package-installed-p pkg)
-    (package-install pkg)))
+(defvar dark-theme-options
+  '(("doom-tokyo-night" . doom-tokyo-night)
+    ("doom-one" . doom-one)
+    ("doom-pine" . doom-pine)
+    ("doom-purple" . doom-shades-of-purple)
+    ("doom-gruvbox" . doom-gruvbox)
+    ("modus-vivendi" . modus-vivendi-deuteranopia)
+    ("zenburn" . zenburn))
+  "List of dark themes for `dark-theme' function.")
+
+(defvar my-files-to-load `("slime"
+			   "org"
+			   "magit"
+			   "copilot"
+			   ;;"yaml-mode" ;; caused lisp_eval crashes
+			   ;;"impatient-markdown"
+     			   ;;"dashboard"
+			   ))
+
+
+(defun load-one-config (file directory)
+  "Load a single configuration file FILE from DIRECTORY."
+  (let ((pwd (or directory (concat emacs-config-directory "/etc/"))))
+    (let ((full-path (concat pwd file ".el")))
+      (message "About to attempt load-file on %s..." full-path)
+      (if (file-exists-p full-path) (load-file full-path)
+        (warn "%s seems to be missing, cannot load-file on it." full-path)))))
+
+;;
+;; FLAG -- force native-compile all the things referenced below. 
+;;
+(defun main-setup ()
+  "Load custom config files from ./etc."
+  (dolist (filespec my-files-to-load)
+    (if (listp filespec)
+	(load-one-config (first filespec) (second filespec)) 
+      (load-one-config filespec nil)))
+    ;;
+    ;; FLAG -- sort out load-gdl
+    ;;
+    ;;(load-gdl) ;; maybe now needed now? - just slime-connect to container
+  ;;
+
+
+  (add-hook 'before-make-frame-hook 'on-before-make-frame)
+  (add-hook 'after-make-frame-functions 'on-after-make-frame)
+  
+  (add-hook 'eshell-load-hook #'eat-eshell-mode)
+  (add-hook 'eshell-load-hook #'eat-eshell-visual-command-mode)
+
+  ;; Load Lisply MCP service if enabled still using manual load, this
+  ;; is not quite packaged yet as a proper emacs package,
+  ;; it's just built-in to skewed-emacs's config thusly:
+  (when load-lisply?
+    (let ((lisply-dir (concat emacs-config-directory "/sideloaded/lisply-backend/source/")))
+      (when (file-exists-p lisply-dir)
+        (message "Loading Lisply service from %s" lisply-dir)
+        (dolist (file '("http-setup.el" "endpoints.el"))
+          (let ((file-path (concat lisply-dir file)))
+            (if (file-exists-p file-path)
+                (load-file file-path)
+              (message "Warning: MCP service file %s not found" file-path))))))
+   (setq httpd-host "0.0.0.0")
+   (emacs-lisply-start-server))
+
+    
+  (message "Done with main-setup."))
+    
+
+
+(defun set-default-settings ()
+  "Set my personal preferred default settings."
+  (interactive)
+  ;;
+  ;; enable this for tricky undo situations
+  ;;
+  ;; (global-undo-tree-mode)
+  ;;
+  (if (display-graphic-p)
+      (setup-graphical-keybindings-and-faces)
+    (setup-terminal-keybindings-and-faces))
+  
+  (setup-other-keybindings-and-faces)
+
+  ;; Font rendering improvements for better PDF and general text display
+  (when (display-graphic-p)
+    ;; Better font rendering settings
+    (setq-default
+     font-use-system-font t
+     inhibit-compacting-font-caches t
+     line-spacing 0.1)
+    
+    (when (package-installed-p 'pdf-tools)
+      (setq pdf-view-display-size 'fit-page
+            pdf-view-resize-factor 1.1
+            pdf-view-use-scaling t
+            pdf-view-use-imagemagick nil)) ; Use poppler for better quality
+    
+    ;; Improve doc-view as fallback for PDF rendering
+    (with-eval-after-load 'doc-view
+      (setq doc-view-resolution 200 ; Increase from default 100
+            doc-view-ghostscript-options
+            '("-dNOPAUSE" "-sDEVICE=png16m" "-dTextAlphaBits=4" 
+              "-dBATCH" "-dSAFER" "-dQUIET" "-dGraphicsAlphaBits=4")))
+    
+    ;; Smooth scrolling improvements
+    (setq scroll-step 1
+          scroll-conservatively 10000
+          scroll-preserve-screen-position 1))
+
+  (prefer-coding-system 'utf-8)
+  (set-default-coding-systems 'utf-8)
+  (set-terminal-coding-system 'utf-8)
+  (set-keyboard-coding-system 'utf-8)
+  (set-selection-coding-system 'utf-8)
+  (set-file-name-coding-system 'utf-8)
+  (set-clipboard-coding-system 'utf-8)
+  (set-buffer-file-coding-system 'utf-8)
+  ;;(setq line-number-mode t) ;; FLAG only do this for a select few
+  (setq column-number-mode t)
+  (global-font-lock-mode t)
+  (setq-default transient-mark-mode t)
+  (show-paren-mode t)
+  (setq scroll-step 1)
+  (setup-input-methods)
+  (setq confirm-kill-processes nil)
+
+  (menu-bar-mode 0)
+  (tool-bar-mode 0)
+
+)
+
+
 
 (defun enable-company-mode ()
   "Enable company mode."
@@ -57,131 +176,6 @@
   (interactive)
   (line-number-mode -1))
 
-(defun load-one-config (file directory)
-  "Load a single configuration file FILE from DIRECTORY."
-  (let ((pwd (or directory (concat emacs-config-directory "/etc/"))))
-    (let ((full-path (concat pwd file ".el")))
-      (message "About to attempt load-file on %s..." full-path)
-      (if (file-exists-p full-path) (load-file full-path)
-        (warn "%s seems to be missing, cannot load-file on it." full-path)))))
-
-;;(defun my-all-the-icons-fonts-installed-p ()
-;; "Check if all-the-icons fonts are installed."
-;; (let ((fonts '("all-the-icons" "file-icons"
-;;		"github-octicons" "Weather Icons")))
-;;   (cl-every (lambda (font) (member font (font-family-list))) fonts)))
-
-
-;;(use-package vterm
-;;  :ensure t
-;;  :config
-;;  (setq vterm-module-cmake-args "-DUSE_SYSTEM_LIBVTERM=yes")
-;;  (add-to-list 'load-path "~/.emacs.d/vterm"))
-
-
-(defun install-chatgpt ()
-  "Install the chatgpt multi-model shell."
-  (use-package chatgpt-shell
-    :ensure t
-    :custom
-    ((chatgpt-shell-openai-key
-      (or (getenv "OPENAI_API_KEY") 
-          (plist-get (car (auth-source-search :host "llm.openai")) :secret)
-          "your-api-key-here")))))
-
-
-;;;; Install and configure all-the-icons
-;;(use-package all-the-icons
-;;  :ensure t)
-
-;;(unless (find-font (font-spec :name "all-the-icons"))
-;;  (all-the-icons-install-fonts t))
-
-;; Install and configure doom-modeline
-;;(use-package doom-modeline
-;;  :ensure t
-;;  :after all-the-icons
-;;  :config
-;;  ;; Customize doom-modeline (optional)
-;;  (setq doom-modeline-height 25
-;;        doom-modeline-bar-width 3
-;;        doom-modeline-icon t
-;;        doom-modeline-major-mode-icon t))
-
-
-(defun main-setup ()
-  "Set up the main configuration."
-
-  (require 'package)
-  ;;(add-to-list 'package-archives '("melpa" . "https://melpa.org/packages/") t)
-  (package-initialize)
-
-  (let ((packages-to-install
-	 '(flycheck
-	   company
-	   simple-httpd
-	   copilot
-	   eat
-	   ;;org
-	   ;;undo-tree
-	   ;;vscode-dark-plus-theme
-	   ;;all-the-icons
-	   ;;neotree
-	   ;;treemacs
-	   ;; vterm
-	   ;; dashboard
-	   ;;minimap
-	   ;;lsp-mode
-	   ;;lsp-ui
-	   ;;lsp-treemacs
-	   ;;treemacs-all-the-icons
-	   ;;lsp-ivy
-	   doom-themes
-	   zenburn-theme
-	   use-package
-	   ellama
-	   ))
-	(need-package-refresh-contents? nil))
-
-    (dolist (pack packages-to-install)
-      (unless (package-installed-p pack) (setq need-package-refresh-contents? t)))
-
-    (when need-package-refresh-contents?
-      (package-refresh-contents) (package-initialize)
-      )
-
-
-    (setq my-files-to-load `("slime"
-			     ;;"org"
-			     "magit"
-			     
-			     ;;"straight"
-			     ;;"copilot"
-			     ;; "eat" ;; needs straight
-			     ;;"yaml-mode"
-			     ;;"impatient-markdown"
-     			     ;;"dashboard"
-			     ))
-     
-    (dolist (filespec my-files-to-load)
-      (if (listp filespec)
-	  (load-one-config (car filespec) (cadr filespec)) ;; car and cadr - really??
-	(load-one-config filespec nil)))
-
-    (message "about to load standard packages %s" packages-to-install)
-    
-    (dolist (pack packages-to-install)
-      (ensure-package-installed pack))
-
-    ;;
-    ;; FLAG -- sort out load-gdl
-    ;;
-    ;;(load-gdl) ;; maybe now needed now? - just slime-connect to container
-    ;;
-    
-    (message "done with main-setup..")
-    
-    ))
 
 (defun server-shutdown ()
   "Save buffers, Quit, and Shutdown (kill) server."
@@ -200,7 +194,6 @@
     (dolist (buffer buffers)
       (if (string-match-p "\\*slime-repl.*\\*" (buffer-name buffer))
 	  (switch-to-buffer buffer)))))
-
 
 ;;
 ;; Get various s-expression keychords working in terminal (iTerm2 at least)
@@ -251,13 +244,14 @@ FLAG: make sure these don't clobber graphical mode bindings,
 (defun setup-other-keybindings-and-faces ()
   "Set up bindings for graphical mode."
   (interactive)
+
+  (global-set-key (kbd "\C-x y") 'previous-window-any-frame)
   (global-set-key (kbd "\C-c 8") "•")
   (global-set-key "\M-=" 'just-one-space)
   ;; Modified keyboard shortcuts
   (global-set-key "\C-x\C-b" 'electric-buffer-list)
-
   (global-set-key (kbd "C-x &") 'cycle-slime-repl-buffers)
-
+  (global-set-key (kbd "C-c M-q") 'unfill-paragraph)
   (global-set-key (kbd "C-c x") 'server-shutdown))
 
 
@@ -293,15 +287,7 @@ FLAG: make sure these don't clobber graphical mode bindings,
   (set-cursor-color "#ff00ff"))  ; Fallback for consistency
 
 
-(defvar dark-theme-options
-  '(("doom-tokyo-night" . doom-tokyo-night)
-    ("doom-one" . doom-one)
-    ("doom-pine" . doom-pine)
-    ("doom-purple" . doom-shades-of-purple)
-    ("doom-gruvbox" . doom-gruvbox)
-    ("modus-vivendi" . modus-vivendi-deuteranopia)
-    ("zenburn" . zenburn))
-  "List of dark themes for `dark-theme' function.")
+
 
 (defun dark-theme (&optional theme-name)
   "Load a dark theme, defaulting to \='doom-tokyo-night\='.
@@ -322,14 +308,7 @@ THEME-NAME is a string, e.g., \='doom-tokyo-night\='."
     (setq cursor-type 'bar)
     (message "Loaded dark theme: %s" selected-theme)))
 
-(defvar light-theme-options
-  '(("adwaita" . adwaita)
-    ("tsdh-light" . tsdh-light)
-    ("light-blue" . light-blue)
-    ("doom-one-light" . doom-one-light)
-    ("doom-feather-light" . doom-feather-light)
-    ("doom-light" . doom-gruvbox-light))
-  "List of light themes for `light-theme' function.")
+
 
 (defun light-theme (&optional theme-name)
   "Load a light theme, defaulting to \='adwaita\='.
@@ -361,98 +340,10 @@ THEME-NAME is a string, e.g., \='adwaita\='."
        "sa-translit" "Converts Harvard-Kyoto and ITRANS scheme to IAST diacritics."
        file))))
 
-(defun set-default-settings ()
-  "Set my personal preferred default settings."
-  (interactive)
-  ;;
-  ;; enable this for tricky undo situations
-  ;;
-  ;; (global-undo-tree-mode)
-  ;;
-  (if (display-graphic-p)
-      (setup-graphical-keybindings-and-faces)
-    (setup-terminal-keybindings-and-faces))
-  (setup-other-keybindings-and-faces)
-
-  ;; Font rendering improvements for better PDF and general text display
-  (when (display-graphic-p)
-    ;; Better font rendering settings
-    (setq-default
-     font-use-system-font t
-     inhibit-compacting-font-caches t
-     line-spacing 0.1)
-    
-    ;; Install and configure pdf-tools for superior PDF rendering
-    (unless (package-installed-p 'pdf-tools)
-      (package-install 'pdf-tools))
-    
-    (with-eval-after-load 'pdf-tools
-      (pdf-tools-install)
-      (setq pdf-view-display-size 'fit-page
-            pdf-view-resize-factor 1.1
-            pdf-view-use-scaling t
-            pdf-view-use-imagemagick nil)) ; Use poppler for better quality
-    
-    ;; Improve doc-view as fallback for PDF rendering
-    (with-eval-after-load 'doc-view
-      (setq doc-view-resolution 200 ; Increase from default 100
-            doc-view-ghostscript-options
-            '("-dNOPAUSE" "-sDEVICE=png16m" "-dTextAlphaBits=4" 
-              "-dBATCH" "-dSAFER" "-dQUIET" "-dGraphicsAlphaBits=4")))
-    
-    ;; Smooth scrolling improvements
-    (setq scroll-step 1
-          scroll-conservatively 10000
-          scroll-preserve-screen-position 1))
-  (prefer-coding-system 'utf-8)
-  (set-default-coding-systems 'utf-8)
-  (set-terminal-coding-system 'utf-8)
-  (set-keyboard-coding-system 'utf-8)
-  (set-selection-coding-system 'utf-8)
-  (set-file-name-coding-system 'utf-8)
-  (set-clipboard-coding-system 'utf-8)
-  (set-buffer-file-coding-system 'utf-8)
-  ;;(setq line-number-mode t) ;; FLAG only do this for a select few
-  (setq column-number-mode t)
-  (global-font-lock-mode t)
-  (setq-default transient-mark-mode t)
-  (show-paren-mode t)
-  (setq scroll-step 1)
-  (setup-input-methods)
-  (setq confirm-kill-processes nil)
-
-  (menu-bar-mode 0)
-  (tool-bar-mode 0)
-
-  (add-hook 'before-make-frame-hook 'on-before-make-frame)
-  (add-hook 'after-make-frame-functions 'on-after-make-frame)
-  
-  (add-hook 'eshell-load-hook #'eat-eshell-mode)
-  (add-hook 'eshell-load-hook #'eat-eshell-visual-command-mode)
-
-  ;;
-  ;; FLAG wonder how this gets loaded for graphic frames made after startup
-  ;;
-  (when (display-graphic-p) (on-after-make-frame (selected-frame)))
-
-  ;; Load Lisply MCP service if enabled still using manual load, this
-  ;; is not quite packaged yet as a proper emacs package,
-  ;; it's just built-in to skewed-emacs's config thusly:
-  (when load-lisply?
-    (let ((lisply-dir (concat emacs-config-directory "/sideloaded/lisply-backend/source/")))
-      (when (file-exists-p lisply-dir)
-        (message "Loading Lisply service from %s" lisply-dir)
-        (dolist (file '("http-setup.el" "endpoints.el" "backend.el"))
-          (let ((file-path (concat lisply-dir file)))
-            (if (file-exists-p file-path)
-                (load-file file-path)
-              (message "Warning: MCP service file %s not found" file-path))))))
-
-   (setq httpd-host "0.0.0.0")
-   (emacs-lisply-start-server))
 
 
-  )
+
+
 
 
 
@@ -464,12 +355,15 @@ Make it tiled to the left."
 	 (decoration-width 42) ;; Adjust as needed
 	 (decoration-height 35) ;; Adjust as needed
 	 (frame-width (- (floor (/ screen-width 2)) decoration-width))
-	 (frame-height (- screen-height decoration-height)))
+	 (fudge 10)
+	 (frame-height (- (- screen-height decoration-height) fudge)))
     (set-frame-position frame 0 0)
     (set-frame-size frame frame-width frame-height t)))
 
 
-
+;;
+;; FLAG -- probably call set-default-settings from here or similar.
+;;
 (defun on-before-make-frame ()
   "Set up settings for new frame, e.g. turning off `tool-bar-mode`."
   (tool-bar-mode -1))
@@ -479,8 +373,11 @@ Make it tiled to the left."
   "Configure settings for new FRAME."
   (select-frame frame)
   ;;(setup-themes)
+  ;; FLAG -- will the below work?
+  (set-default-settings)
+  ;; 
   (when (display-graphic-p frame)
-    (setup-graphical-keybindings-and-faces)
+    ;;(setup-graphical-keybindings-and-faces)
     (set-frame-size-and-position frame)))
 
 
@@ -497,7 +394,7 @@ Make it tiled to the left."
   (let ((fill-column (point-max)))
     (fill-paragraph nil)))
 
-(global-set-key (kbd "C-c M-q") 'unfill-paragraph)
+
 
 (defun unfill-region (start end)
   "Transform the filled region from START to END into a single long line."
@@ -520,16 +417,12 @@ Make it tiled to the left."
 ;; The actual running of stuff:
 ;;
 
-(when (file-exists-p "~/.emacs-local-early")
-  (load-file "~/.emacs-local-early"))
+(when (file-exists-p "~/.emacs-local-early") (load-file "~/.emacs-local-early"))
 (main-setup)
-(set-default-settings)
 (setup-themes)
+(set-default-settings) ;; add hood for calling this for new frames
 (load-ai-tools)
-(when (file-exists-p "~/.emacs-local")
-  (load-file "~/.emacs-local"))
-(setq native-comp-async-jobs-number 1)
-
+(when (file-exists-p "~/.emacs-local") (load-file "~/.emacs-local"))
 
 
 
@@ -539,12 +432,7 @@ Make it tiled to the left."
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(custom-safe-themes
-   '("7771c8496c10162220af0ca7b7e61459cb42d18c35ce272a63461c0fc1336015"
-     default))
- '(package-selected-packages
-   '(chatgpt-shell company copilot dashboard doom-themes eat ellama
-		   flycheck magit simple-httpd zenburn-theme)))
+ '(package-selected-packages nil))
 (custom-set-faces
  ;; custom-set-faces was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.
