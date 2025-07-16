@@ -136,7 +136,7 @@ else
     unset EMACS_BATCH_MODE
     
     # Start daemon in background
-    TERM=${TERM} COLORTERM=${COLORTERM} emacs --daemon --no-init-file --load /tmp/emacs-startup.el --load ${HOME}/.emacs.d/init.el > /tmp/emacs-daemon.log 2>&1 &
+    TERM=${TERM} COLORTERM=${COLORTERM} emacs --daemon --no-init-file --load /tmp/emacs-startup.el > /tmp/emacs-daemon.log 2>&1 &
     EMACS_PID=$!
     
     # Wait for daemon to start

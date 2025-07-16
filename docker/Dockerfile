@@ -50,13 +50,26 @@ RUN cd skewed-emacs && ./setup \
 
 # Copy startup script (used for both build and runtime)
 COPY --chown=emacs-user:emacs-user docker/startup.sh /home/emacs-user/startup.sh
-COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
-RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh \
-  && echo "=== Installing packages using startup.sh --batch ===" \
-  &&  /home/emacs-user/startup.sh --batch \
-  && echo "=== Done. ===" \
-  && echo "=== Cleaning up bloat  ===" \
-  && rm -rf /home/emacs-user/.emacs.d/.cache/copilot/ 
+COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh \
+      /home/emacs-user/emacs-repl.sh
+RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh
+
+
+# Install packages and precompile .eln files
+RUN echo "=== Installing packages and precompiling .eln files ===" \
+    && /home/emacs-user/startup.sh --batch \
+    && echo "=== Precompiling all .el files in ~/.emacs.d ===" \
+    && emacs --batch \
+       -q \
+       --eval "(setq native-comp-jit-compilation nil)" \
+       --eval "(setq native-comp-deferred-compilation nil)" \
+       --eval "(setq native-comp-async-jobs-number 5)" \
+       --eval "(require 'package)" \
+       --eval "(add-to-list 'package-archives '(\"gnu\" . \"https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/\"))" \
+       --eval "(add-to-list 'package-archives '(\"melpa\" . \"https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/\"))" \
+       --eval "(package-initialize)" \
+       --eval "(native-compile-async (list (locate-user-emacs-file \"elpa\") \"~/.emacs.d/sideloaded\" \"~/.emacs.d/etc\") t)" \
+    && echo "=== Native compilation completed ==="
 
 RUN cat << EOF >> /home/emacs-user/.bashrc
 

@@ -1,60 +1,32 @@
 
 ;;; Commentary:
 ;;; This is my personal Emacs configuration.
-;;; It is no longer based on Crafted Emacs.
+;;; It was inspired by but is no longer based on Crafted Emacs.
+;;;
 ;;; Code:
-
-
-
-;; Disable native compilation in containers
-;; Fix environment for container (comprehensive)
-;; The container may start with corrupted PATH and shell environment
 
 ;; Ensure use-package is installed
 (unless (package-installed-p 'use-package)
   (package-refresh-contents)
   (package-install 'use-package))
 
-(eval-when-compile
-  (require 'use-package))
+(eval-when-compile (require 'use-package))
 
-;; Configure package archives
+;; FLAG -- make fallbacks Configure package archives
 (setq package-archives
-      '(;;("gnu" . "http://elpa.gnu.org/packages/")
-	("gnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
-        ;;("melpa" . "https://melpa.org/packages/")
-	("melpa" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")))
+      '(("gnu" . "http://elpa.gnu.org/packages/")
+	("nongnu" . "https://elpa.nongnu.org/nongnu/")
+	;;("gnu" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/gnu/")
+        ("melpa" . "https://melpa.org/packages/")
+	;;("melpa" . "https://mirrors.tuna.tsinghua.edu.cn/elpa/melpa/")
+	))
 
-(menu-bar-mode 0)
 
-(when (or (not (getenv "PATH"))
-          (string-match-p "not found" (or (getenv "PATH") "")))
-  ;; Set up proper PATH
-  (setenv "PATH" "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
-  (setenv "SHELL" "/bin/bash")
-  
-  ;; Update process-environment directly
-  (setq process-environment
-        (cons "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-              (cons "SHELL=/bin/bash"
-                    (seq-remove (lambda (env) 
-                                  (or (string-prefix-p "PATH=" env)
-                                      (string-prefix-p "SHELL=" env)))
-                                process-environment))))
-  
-  ;; Update exec-path to match
-  (setq exec-path '("/usr/local/sbin" "/usr/local/bin" "/usr/sbin" "/usr/bin" "/sbin" "/bin"))
-  
-  ;; Use bash instead of sh for shell commands
-  (setq shell-file-name "/bin/bash"))
 
-;; Ensure /usr/bin is in exec-path regardless
-(unless (member "/usr/bin" exec-path)
-  (add-to-list 'exec-path "/usr/bin"))
-(setenv "PATH" (concat "/usr/bin:" (getenv "PATH")))
-;;(setq native-comp-jit-compilation nil)
-;;(setq native-comp-deferred-compilation nil)
-;;(setq native-comp-async-jobs-number 0)
+
+(setq native-comp-jit-compilation nil)
+(setq native-comp-deferred-compilation nil)
+(setq native-comp-async-jobs-number 0)
 
 (require 'cl-lib)
 (defvar too-old-p (< emacs-major-version 27))
@@ -63,7 +35,7 @@
 (defvar emacs-config-directory (file-name-directory (file-truename load-file-name)))
 (defvar my-files-to-load nil)
 (defvar load-lisply? t)
-;;(defvar load-lisply? nil)
+
 
 (defun ensure-package-installed (pkg)
   "Ensure PKG is installed.  If not, install it."
@@ -148,6 +120,9 @@
 	 '(flycheck
 	   company
 	   simple-httpd
+	   copilot
+	   eat
+	   ;;org
 	   ;;undo-tree
 	   ;;vscode-dark-plus-theme
 	   ;;all-the-icons
@@ -177,11 +152,13 @@
 
 
     (setq my-files-to-load `("slime"
-			     "org"
+			     ;;"org"
 			     "magit"
-			     "straight"
-			     "eat"
-			     "copilot"
+			     
+			     ;;"straight"
+			     ;;"copilot"
+			     ;; "eat" ;; needs straight
+			     ;;"yaml-mode"
 			     ;;"impatient-markdown"
      			     ;;"dashboard"
 			     ))
@@ -196,6 +173,12 @@
     (dolist (pack packages-to-install)
       (ensure-package-installed pack))
 
+    ;;
+    ;; FLAG -- sort out load-gdl
+    ;;
+    ;;(load-gdl) ;; maybe now needed now? - just slime-connect to container
+    ;;
+    
     (message "done with main-setup..")
     
     ))
@@ -438,7 +421,19 @@ THEME-NAME is a string, e.g., \='adwaita\='."
   (setup-input-methods)
   (setq confirm-kill-processes nil)
 
+  (menu-bar-mode 0)
+  (tool-bar-mode 0)
 
+  (add-hook 'before-make-frame-hook 'on-before-make-frame)
+  (add-hook 'after-make-frame-functions 'on-after-make-frame)
+  
+  (add-hook 'eshell-load-hook #'eat-eshell-mode)
+  (add-hook 'eshell-load-hook #'eat-eshell-visual-command-mode)
+
+  ;;
+  ;; FLAG wonder how this gets loaded for graphic frames made after startup
+  ;;
+  (when (display-graphic-p) (on-after-make-frame (selected-frame)))
 
   ;; Load Lisply MCP service if enabled still using manual load, this
   ;; is not quite packaged yet as a proper emacs package,
@@ -457,9 +452,6 @@ THEME-NAME is a string, e.g., \='adwaita\='."
    (emacs-lisply-start-server))
 
 
-  ;; Load local customizations if they exist
-  (when (file-exists-p "~/.emacs-local")
-    (load-file "~/.emacs-local"))
   )
 
 
@@ -499,40 +491,13 @@ Make it tiled to the left."
   )
 
 
-(add-hook 'before-make-frame-hook 'on-before-make-frame)
-(add-hook 'after-make-frame-functions 'on-after-make-frame)
-
-
-
-(when (display-graphic-p)
-  (on-after-make-frame (selected-frame)))
-
-
-;; FLAG -- sort out load-gdl
-;;
-
-;;(add-hook 'emacs-startup-hook 'my/vscode-layout)
-
-(main-setup)
-(message "At 1")
-
-(set-default-settings)
-
-(message "At 2")
-
-;;(load-gdl)
-;;(setup-themes)
-(message "At 3")
-
-
 (defun unfill-paragraph ()
   "Transform a filled paragraph into a single long line."
   (interactive)
   (let ((fill-column (point-max)))
     (fill-paragraph nil)))
 
-(global-set-key (kbd "C-c M-q") 'unfill-paragraph)  ; Optional: Bind it to a key
-
+(global-set-key (kbd "C-c M-q") 'unfill-paragraph)
 
 (defun unfill-region (start end)
   "Transform the filled region from START to END into a single long line."
@@ -546,29 +511,43 @@ Make it tiled to the left."
   (unfill-region (point-min) (point-max)))
 
 
-;;(use-package yaml-mode
-;;  :ensure t
-;;  :mode "\\.yml\\'"
-;;  )
-
-;;(use-package eat :ensure t)
-
-(add-hook 'eshell-load-hook #'eat-eshell-mode)
-
-(add-hook 'eshell-load-hook #'eat-eshell-visual-command-mode)
+(defun load-ai-tools ()
+  ;; FLAG - fill in 
+  (message "FLAG - Load the Llama etc configs here from a separate file."))
 
 
-;; Retrieve API keys from environment variables or auth-source
-(defvar *anthropic-key* (or (getenv "ANTHROPIC_API_KEY")
-                            (plist-get (car (auth-source-search :host "llm.anthropic")) :secret)
-                            "<YOUR-ANTHROPIC-KEY-HERE>"))
-(defvar *openai-key* (or (getenv "OPENAI_API_KEY")
-                         (plist-get (car (auth-source-search :host "llm.openai")) :secret)
-                         "<YOUR-OPENAI-KEY-HERE>"))
+;;
+;; The actual running of stuff:
+;;
 
-(message "At 4")
+(when (file-exists-p "~/.emacs-local-early")
+  (load-file "~/.emacs-local-early"))
+(main-setup)
+(set-default-settings)
+(setup-themes)
+(load-ai-tools)
+(when (file-exists-p "~/.emacs-local")
+  (load-file "~/.emacs-local"))
+(setq native-comp-async-jobs-number 1)
 
 
 
 
 
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(custom-safe-themes
+   '("7771c8496c10162220af0ca7b7e61459cb42d18c35ce272a63461c0fc1336015"
+     default))
+ '(package-selected-packages
+   '(chatgpt-shell company copilot dashboard doom-themes eat ellama
+		   flycheck magit simple-httpd zenburn-theme)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )
