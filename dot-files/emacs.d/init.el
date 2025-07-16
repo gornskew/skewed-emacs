@@ -93,11 +93,11 @@
       (if (file-exists-p full-path) (load-file full-path)
         (warn "%s seems to be missing, cannot load-file on it." full-path)))))
 
-(defun my-all-the-icons-fonts-installed-p ()
- "Check if all-the-icons fonts are installed."
- (let ((fonts '("all-the-icons" "file-icons"
-		"github-octicons" "Weather Icons")))
-   (cl-every (lambda (font) (member font (font-family-list))) fonts)))
+;;(defun my-all-the-icons-fonts-installed-p ()
+;; "Check if all-the-icons fonts are installed."
+;; (let ((fonts '("all-the-icons" "file-icons"
+;;		"github-octicons" "Weather Icons")))
+;;   (cl-every (lambda (font) (member font (font-family-list))) fonts)))
 
 
 ;;(use-package vterm
@@ -118,24 +118,23 @@
           "your-api-key-here")))))
 
 
-;; Install and configure all-the-icons
-(use-package all-the-icons
-  :ensure t
-  :init
-  ;; Install fonts if not already installed
-  (unless (find-font (font-spec :name "all-the-icons"))
-    (all-the-icons-install-fonts t)))
+;;;; Install and configure all-the-icons
+;;(use-package all-the-icons
+;;  :ensure t)
+
+;;(unless (find-font (font-spec :name "all-the-icons"))
+;;  (all-the-icons-install-fonts t))
 
 ;; Install and configure doom-modeline
-(use-package doom-modeline
-  :ensure t
-  :after all-the-icons
-  :config
-  ;; Customize doom-modeline (optional)
-  (setq doom-modeline-height 25
-        doom-modeline-bar-width 3
-        doom-modeline-icon t
-        doom-modeline-major-mode-icon t))
+;;(use-package doom-modeline
+;;  :ensure t
+;;  :after all-the-icons
+;;  :config
+;;  ;; Customize doom-modeline (optional)
+;;  (setq doom-modeline-height 25
+;;        doom-modeline-bar-width 3
+;;        doom-modeline-icon t
+;;        doom-modeline-major-mode-icon t))
 
 
 (defun main-setup ()
@@ -255,7 +254,7 @@ FLAG: make sure these don't clobber graphical mode bindings,
 (defun setup-graphical-keybindings-and-faces ()
   "Set up keybindings and faces for graphical mode."
 
-  (doom-modeline-mode 1)
+  ;;(doom-modeline-mode 1)
   
   (let ((scale-factor (if (> (x-display-pixel-width) 1920) 1.5 1.0)))
     

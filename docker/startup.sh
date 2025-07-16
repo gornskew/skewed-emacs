@@ -28,39 +28,32 @@ if [ "$BATCH_MODE" = "false" ]; then
     echo "SWANK_PORT: $SWANK_PORT"
 fi
 
+export PATH="/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/sbin:/bin"
+
 # Create emacs startup script with PATH/SHELL fixes
 # This script works for both batch and daemon modes
+
 cat > /tmp/emacs-startup.el << EOF
 ;; Unified emacs startup - handles both build and runtime
 (setq debug-on-error t)
 
-;; ENVIRONMENT FIX: Single location for PATH/SHELL corruption fixes
-;; This ensures clean environment for both build and runtime
-(let ((path-corrupted (or (not (getenv "PATH"))
-                          (string-match-p "not found" (or (getenv "PATH") "")))))
-  
-  ;; Fix PATH if corrupted
-  (when path-corrupted
-    (setenv "PATH" "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
-    (setq exec-path '("/usr/local/sbin" "/usr/local/bin" "/usr/sbin" "/usr/bin" "/sbin" "/bin")))
-  
-  ;; Always ensure SHELL is properly set
-  (setenv "SHELL" "/bin/bash")
-  (setq shell-file-name "/bin/bash")
-  
-  ;; Update process-environment
-  (setq process-environment
+(setenv "PATH" "/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/sbin:/bin")
+
+(setq exec-path '("/usr/bin" "/usr/local/sbin" "/usr/local/bin"
+                  "/usr/sbin" "/sbin" "/bin"))
+
+(setenv "SHELL" "/bin/bash")
+(setq shell-file-name "/bin/bash")
+
+(setq process-environment
         (cons (concat "PATH=" (getenv "PATH"))
               (cons "SHELL=/bin/bash"
-                    (seq-remove (lambda (env)
-                                  (or (string-prefix-p "PATH=" env)
-                                      (string-prefix-p "SHELL=" env)))
-                                process-environment))))
-  
-  ;; Ensure /usr/bin is in exec-path
-  (unless (member "/usr/bin" exec-path)
-    (add-to-list 'exec-path "/usr/bin"))
-  (setenv "PATH" (concat "/usr/bin:" (getenv "PATH"))))
+                    (seq-remove
+                      (lambda (env)
+                        (or (string-prefix-p "PATH=" env)
+                            (string-prefix-p "SHELL=" env)))
+                       process-environment))))
+
 
 (if (getenv "EMACS_BATCH_MODE")
     (message "=== Build Time: Loading init.el for package installation ===")
@@ -70,6 +63,7 @@ cat > /tmp/emacs-startup.el << EOF
 (message "  SHELL: %s" (getenv "SHELL"))
 (message "  TERM: %s" (getenv "TERM"))
 (message "  COLORTERM: %s" (getenv "COLORTERM"))
+(message "  PATH: %s" (getenv "PATH"))
 (message "  Git available: %s" (executable-find "git"))
 (message "  init.el exists: %s" (file-exists-p "~/.emacs.d/init.el"))
 
@@ -164,10 +158,10 @@ else
     # Show runtime status
     echo ""
     echo "=== Skewed Emacs Container Ready ==="
-    echo "â Emacs daemon running (PID: $EMACS_PID)"
-    echo "â Full init.el configuration active"
-    echo "â HTTP API available on port $HTTP_PORT"
-    echo "â All packages pre-installed during build"
+    echo " Emacs daemon running (PID: $EMACS_PID)"
+    echo " Full init.el configuration active"
+    echo " HTTP API available on port $HTTP_PORT"
+    echo " All packages pre-installed during build"
     echo ""
     echo "Usage:"
     echo "  # Test HTTP API"
