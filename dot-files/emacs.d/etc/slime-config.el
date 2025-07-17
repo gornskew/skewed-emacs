@@ -116,3 +116,4 @@
 (load-file (concat emacs-config-directory "etc/tramp/configure-tramp.el"))
 
 
+(provide 'slime-config)

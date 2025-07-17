@@ -13,3 +13,4 @@
 (setq initial-buffer-choice (lambda () (get-buffer-create "*dashboard*")))
 
 
+(provide 'dashboard-config)

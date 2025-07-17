@@ -1,4 +1,4 @@
-;;; org --- Org Mode customizations.
+;;; org-config --- Org Mode customizations.
 ;;; Commentary:
 ;;; Org Mode customizations.
 ;;;
@@ -78,3 +78,5 @@
      (org-archive-subtree)
      (setq org-map-continue-from (outline-previous-heading)))
    "/DONE" 'tree))
+
+(provide 'org-config)

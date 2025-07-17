@@ -39,3 +39,5 @@
 ("!s" ?ṣ)
 ("!S" ?Ṣ)
 )
+
+(provide 'sa-translit)

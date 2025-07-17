@@ -67,9 +67,11 @@ history.*
 
 # Local configuration that might contain sensitive info
 .emacs-local
+.emacs-local-early
 
 # Log files (broader pattern)
 *.log*
 .tokens/
 *token*
 .env
+custom.el*
