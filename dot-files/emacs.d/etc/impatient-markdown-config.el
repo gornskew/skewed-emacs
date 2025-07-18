@@ -22,4 +22,4 @@
 ;; imp-set-user-filter until we figure out how to do it
 ;; programatically.
 
-(provide 'impatient-markdown)
+(provide 'impatient-markdown-config)

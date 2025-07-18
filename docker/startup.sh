@@ -28,159 +28,43 @@ if [ "$BATCH_MODE" = "false" ]; then
     echo "SWANK_PORT: $SWANK_PORT"
 fi
 
-export PATH="/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/sbin:/bin"
 
-# Create emacs startup script with PATH/SHELL fixes
-# This script works for both batch and daemon modes
-
-cat > /tmp/emacs-startup.el << EOF
-;; Unified emacs startup - handles both build and runtime
-(setq debug-on-error t)
-
-(setenv "PATH" "/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/sbin:/bin")
-
-(setq exec-path '("/usr/bin" "/usr/local/sbin" "/usr/local/bin"
-                  "/usr/sbin" "/sbin" "/bin"))
-
-(setenv "SHELL" "/bin/bash")
-(setq shell-file-name "/bin/bash")
-
-(setq process-environment
-        (cons (concat "PATH=" (getenv "PATH"))
-              (cons "SHELL=/bin/bash"
-                    (seq-remove
-                      (lambda (env)
-                        (or (string-prefix-p "PATH=" env)
-                            (string-prefix-p "SHELL=" env)))
-                       process-environment))))
-
-
-(if (getenv "EMACS_BATCH_MODE")
-    (message "=== Build Time: Loading init.el for package installation ===")
-  (message "=== Runtime: Loading init.el with pre-installed packages ==="))
-
-(message "Environment status:")
-(message "  SHELL: %s" (getenv "SHELL"))
-(message "  TERM: %s" (getenv "TERM"))
-(message "  COLORTERM: %s" (getenv "COLORTERM"))
-(message "  PATH: %s" (getenv "PATH"))
-(message "  Git available: %s" (executable-find "git"))
-(message "  init.el exists: %s" (file-exists-p "~/.emacs.d/init.el"))
-
-;; Load init.el naturally - works for both build and runtime
-(condition-case err
-    (progn
-      (load-file "~/.emacs.d/init.el")
-      (if (getenv "EMACS_BATCH_MODE")
-          (message " Build: init.el loaded, packages installed")
-        (message " Runtime: init.el loaded with pre-installed packages")))
-  (error 
-    (message "Error loading init.el: %s" err)
-    (if (getenv "EMACS_BATCH_MODE")
-        (progn
-          (message "Build failed: init.el could not load")
-          (kill-emacs 1))
-      (message "Runtime warning: init.el had issues, continuing..."))))
-
-;; Batch mode: just exit after loading init.el
-(when (getenv "EMACS_BATCH_MODE")
-  (message " Package installation complete - exiting")
-  (kill-emacs 0))
-
-;; Runtime mode: start services
-(when (string= "${START_HTTP}" "true")
-  (when (fboundp 'emacs-lisply-start-server)
-    (setq emacs-lisply-port ${HTTP_PORT})
-    (setq httpd-host "0.0.0.0")  ; Bind to all interfaces for Docker port forwarding
-    (emacs-lisply-start-server)
-    (message " Lisply HTTP server started on port ${HTTP_PORT}")))
-
-
-;; Start default Emacs server (Unix socket) for emacsclient
-(server-start)
-(message " Emacs server started (Unix socket)")
-
-(message " Emacs daemon ready with full IDE configuration!")
-(message "   - HTTP API: port ${HTTP_PORT}")
-(message "   - Terminal IDE: emacsclient -t")
-(message "   - Projects: /projects")
-EOF
-
-if [ "$BATCH_MODE" = "true" ]; then
-    # Build-time execution: install packages and exit
-    echo "Installing packages defined in ~/.emacs.d/init.el..."
-    echo "This may take several minutes..."
-    
-    # Set environment flag for Emacs to detect btach mode
-    export EMACS_BATCH_MODE=true
-    
-    # Run emacs in batch mode with timeout
-    TERM=dumb timeout 600 emacs --batch --load /tmp/emacs-startup.el || {
-        exit_code=$?
-        if [ $exit_code -eq 124 ]; then
-            echo " Package installation timed out after 10 minutes"
-            exit 1
-        elif [ $exit_code -ne 0 ]; then
-            echo " Package installation failed with exit code: $exit_code"
-            exit 1
-        fi
-    }
-    
-    echo " Build-time package installation completed"
-    
-else
-    # Runtime execution: start daemon for interactive use
-    echo "Starting Emacs daemon (packages pre-installed, should be fast)..."
-    
-    # Ensure batch mode flag is not set
-    unset EMACS_BATCH_MODE
-    
+echo "Starting Emacs daemon (packages pre-installed, should be fast)..."
     # Start daemon in background
-    TERM=${TERM} COLORTERM=${COLORTERM} emacs --daemon --no-init-file --load /tmp/emacs-startup.el > /tmp/emacs-daemon.log 2>&1 &
-    EMACS_PID=$!
+SHELL=/bin/bash TERM=${TERM} COLORTERM=${COLORTERM} emacs --daemon --load /home/emacs-user/.emacs.d/init.el > /tmp/emacs-daemon.log 2>&1 &
+EMACS_PID=$!
     
-    # Wait for daemon to start
-    echo "Waiting for daemon to start..."
-    for i in {1..30}; do
-        if emacsclient --eval "t" > /dev/null 2>&1; then
-            echo "â Emacs daemon ready"
-            break
-        elif [ $i -eq 30 ]; then
-            echo "â Daemon failed to start"
-            echo "Daemon log:"
-            cat /tmp/emacs-daemon.log
-            exit 1
-        else
-            sleep 1
-        fi
-    done
-    
-    # Show runtime status
-    echo ""
-    echo "=== Skewed Emacs Container Ready ==="
-    echo " Emacs daemon running (PID: $EMACS_PID)"
-    echo " Full init.el configuration active"
-    echo " HTTP API available on port $HTTP_PORT"
-    echo " All packages pre-installed during build"
-    echo ""
-    echo "Usage:"
-    echo "  # Test HTTP API"
-    echo "  curl http://localhost:$HTTP_PORT/lisply/ping-lisp"
-    echo ""
-    echo "  # Full terminal IDE"
-    echo "  emacsclient -t"
-    echo ""
-    echo "  # Quick evaluation"
-    echo "  emacsclient --eval '(+ 1 2 3)'"
-    echo ""
-
-    
-    # Start the REPL as the main process (if it exists)
-    if [ -f /home/emacs-user/emacs-repl.sh ]; then
-        exec /home/emacs-user/emacs-repl.sh
+# Wait for daemon to start
+echo "Waiting for daemon to start..."
+for i in {1..30}; do
+    if emacsclient --eval "t" > /dev/null 2>&1; then
+        echo "Emacs daemon ready"
+        break
+    elif [ $i -eq 30 ]; then
+        echo "Daemon failed to start"
+        echo "Daemon log:"
+        cat /tmp/emacs-daemon.log
+        exit 1
     else
-        # Fallback: keep container running
-        echo "Keeping container alive..."
-        tail -f /tmp/emacs-daemon.log
+        sleep 1
     fi
-fi
+done
+
+# Show runtime status
+echo ""
+echo ""
+echo "Usage:"
+echo "  # Test HTTP API"
+echo "  curl http://localhost:$HTTP_PORT/lisply/ping-lisp"
+echo ""
+echo "  # Full terminal IDE"
+echo "  source dot-files/bash_profile; eskew"
+echo ""
+echo "M-x eat, then claudly for claud code."
+echo " "
+echo " M-x slime-connect for Gendl"
+echo " "
+
+exec /home/emacs-user/emacs-repl.sh
+    
+

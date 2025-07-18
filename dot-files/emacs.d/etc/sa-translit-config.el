@@ -40,4 +40,4 @@
 ("!S" ?Ṣ)
 )
 
-(provide 'sa-translit)
+(provide 'sa-translit-config)

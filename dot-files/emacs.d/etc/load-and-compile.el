@@ -9,67 +9,12 @@
 
 (require 'cl-lib)
 (require 'use-package)
+
 (setq use-package-always-ensure t) ; Ensure packages are installed
 
-(defvar third-party-packages
-  '(flycheck
-    company
-    eat
-    doom-themes
-    zenburn-theme
-    ellama
-    chatgpt-shell
-    json
-    simple-httpd
-    dashboard
-    paredit
-    
-    (magit
-     :config
-     (setq magit-git-executable (locate-file "git" exec-path))
-     (global-set-key (kbd "C-x g") 'magit-status))
-    (pdf-tools
-     :config
-     (when (and (string= (getenv "EMACS_BATCH_MODE") "true")
-		(not (string= (getenv "SKEWED_EMACS_CONTAINER") "true")))
-       (pdf-tools-install)))
-    (org
-     :config
-     (use-package org-config
-       :ensure nil
-       :load-path (lambda () (get-config-path "etc"))))
-    (copilot
-     :config
-     (bind-key* "C-." 'copilot-accept-completion)
-     (bind-key* "M-," 'copilot-accept-completion)
-     (bind-key* "C-," 'copilot-accept-completion-by-word)))
-    
-  "List of third-party packages with their configurations. Each entry is either a symbol (for packages without config) or a list starting with the package name (a symbol) followed by optional :config forms.")
-
-
-(defvar second-party-packages
-  '((sa-translit
-     :load-path (lambda () (get-config-path "etc")))
-    (dashboard-config
-     :load-path (lambda () (get-config-path "etc")))
-    (impatient-markdown
-     :load-path (lambda () (get-config-path "etc")))
-;;    (slime-config
-;;     :load-path (lambda () (get-config-path "etc"))
-;;     :config
-;;     (use-package configure-glime
-;;       :ensure nil
-;;       :load-path (lambda () (get-config-path "etc/slime")))
-;;     (setq slime-lisp-host "gendl")
-;;     (setq slime-connect-host-history '("gendl"))
-;;     (setq slime-port 4200)
-    ;;   (setq slime-connect-port-history '("4200")))
-    ))
-
-
-
-(setq package-check-signature nil) ; Avoid signature checks
-(setq package-refresh-contents nil) ; Prevent automatic refresh
+;; need this or no ? 
+;;(setq package-check-signature nil) ; Avoid signature checks
+;;(setq package-refresh-contents nil) ; Prevent automatic refresh
 
 (defun check-url-reachable (url)
   "Check if URL is reachable by attempting an HTTP request."
@@ -101,69 +46,41 @@
         (message "Official repositories unreachable, trying with Tsinghua.edu mirrors...")
         (setq package-archives tsinghua-archives)))))
 
-(defun batch-native-compile-directory (directory &optional cpu-count)
-  "Byte-compile and natively compile .el files in DIRECTORY if needed.
-Uses CPU-COUNT (or all available CPUs) for native compilation and waits for all processes to complete."
-  (add-to-list 'load-path directory)
-  (let ((el-files (directory-files-recursively
-                   directory
-                   "\\.el$"
-                   nil
-                   (lambda (dir) (not (string-match-p "\\.git" dir)))))
-        (comp-files nil)
-        (native-comp-async-jobs-number
-         (or cpu-count
-             (with-temp-buffer
-               (call-process "nproc" nil t nil)
-               (string-to-number (buffer-string))))))
-    (message "Using %d CPUs for native compilation" native-comp-async-jobs-number)
 
-    ;; Step 1: Byte-compile .el files if needed
-    (dolist (file el-files)
-      (let ((elc-file (concat file "c")))
-        (when (or (not (file-exists-p elc-file))
-                  (file-newer-than-file-p file elc-file))
-          (condition-case err
-              (progn
-                (message "Byte-compiling %s" file)
-                (byte-compile-file file))
-            (error (message "Error byte-compiling %s: %s" file err))))))
+(defun num-cpus () (cl-first (read-from-string (shell-command-to-string "nproc"))))
 
-    ;; Step 2: Collect files for native compilation if .eln is missing or outdated
-    (dolist (file el-files)
-      (let ((elc-file (concat file "c"))
-            (eln-file (comp-el-to-eln-filename file)))
-        (when (and (file-exists-p elc-file)
-                   (or (not (file-exists-p eln-file))
-                       (file-newer-than-file-p elc-file eln-file)))
-          (push file comp-files))))
-
-    ;; Step 3: Natively compile collected .elc files asynchronously
-    (when comp-files
-      (let ((comp-async-report-warnings-errors t))
-        (message "Starting native compilation for %d files" (length comp-files))
-        (native-compile-async comp-files t)
-        ;; Wait for all native compilation jobs to finish
-        (while (> (hash-table-count comp-async-compilations) 0)
-          (message "Waiting for %d native compilation jobs to complete..."
-                   (hash-table-count comp-async-compilations))
-          (sleep-for 0.5))
-        (message "Native compilation completed")))))
-
-(defun batch-compile-all ()
-  "Compile all .el files in CONFIG-DIR if necessary."
-  (if (all-packages-installed-p)
-      (message "Packages appear to be installed, not compiling all.%s" emacs-config-directory)
-    (progn
-      (message "Checking for compilation in %s" emacs-config-directory)
-      (batch-native-compile-directory emacs-config-directory (max 1 (floor (/ comp-num-cpus 2)))))))
-
-
-(defun batch-compile-all ()
-  "Force-compile all .el files in CONFIG-DIR recursively in batch mode."
-  (message "Batch compiling all .el files in %s" emacs-config-directory)
-  (batch-native-compile-directory emacs-config-directory (max 1 (floor (/ comp-num-cpus 2)))))
-
+(defun recompile-all-packages ()
+  "Force recompile all installed packages (byte and native)."
+  (interactive)
+  (let* ((packages package-alist)
+	 (package-names (mapcar #'cl-first packages))
+	 (package-dirs (mapcar #'package-desc-dir (mapcar #'car (mapcar #'cl-rest packages)))))
+    (let ((num-cpus (floor (/ (num-cpus) 2))))      
+      (cl-mapc (lambda (package-name directory)
+	      (when (file-directory-p directory)
+		(message "Byte Recompiling package: %s" package-name)
+		(byte-recompile-directory directory 0 t)))
+	    package-names package-dirs)
+      (when (featurep 'native-compile)
+	(let ((native-comp-async-jobs-number num-cpus)
+	      (wait-time-total 0)) ;; binds dynamically into call to native-compile-async call
+	  (cl-mapc (lambda (package-name directory)
+		     (when (file-directory-p directory)
+		       (message "Beginning Native Compiling Processes for  package: %s" package-name)
+		       (native-compile-async directory t) ;; this spawns background jobs without waiting
+		       (let ((wait-time 0)(increment 1))
+			 (while (> (hash-table-count comp-async-compilations) 0)
+			   (message "Waiting for %d native compilation jobs to complete..."
+				    (hash-table-count comp-async-compilations))
+			   (message "%s sec on %s, %s sec total" 
+				    (cl-incf wait-time increment) package-name
+				    (cl-incf wait-time-total))
+			   (sleep-for increment))
+			 (message "Done Native Compiling %s in %s sec" package-name wait-time))))
+		   package-names package-dirs)
+	  (message "Done All Native Compiling in %s seconds using %s parallel cores"
+		   wait-time-total native-comp-async-jobs-number))))))
+  
 (defun get-config-path (relative)
   (concat emacs-config-directory relative))
 
@@ -177,39 +94,35 @@ Uses CPU-COUNT (or all available CPUs) for native compilation and waits for all 
 
 (defun setup-packages-and-customizations (config-dir)
   "Install and load packages and customizations based on environment variables."
-  (let ((in-container (string= (getenv "SKEWED_EMACS_CONTAINER") "true"))
-        (batch-mode (string= (getenv "EMACS_BATCH_MODE") "true")))
-    (if in-container
-        (progn
-          (message "Running in container, skipping package installation")
-          (dolist (pkg-entry second-party-packages)
-            (let ((load-path-func (plist-get (cdr pkg-entry) :load-path)))
-              (when load-path-func
-                (add-to-list 'load-path (funcall load-path-func))))))
-      (progn
-        ;; Only configure archives and refresh if third-party packages are missing
-        (unless (all-packages-installed-p)
-          (configure-package-archives)
-          (package-initialize)
-          (when (or (not package-archive-contents)
-                    (not (file-exists-p (concat package-user-dir "/archives/gnu/archive-contents")))
-                    (not (file-exists-p (concat package-user-dir "/archives/nongnu/archive-contents")))
-                    (not (file-exists-p (concat package-user-dir "/archives/melpa/archive-contents"))))
-            (package-refresh-contents)))
-        ;; Load third-party packages
-        (dolist (pkg-entry third-party-packages)
-          (if (symbolp pkg-entry)
-              (eval `(use-package ,pkg-entry))
-            (eval `(use-package ,(car pkg-entry) ,@(cdr pkg-entry)))))
-        ;; Load second-party packages
-        (dolist (pkg-entry second-party-packages)
-          (if (symbolp pkg-entry)
-              (eval `(use-package ,pkg-entry :ensure nil))
-            (eval `(use-package ,(car pkg-entry) :ensure nil ,@(cdr pkg-entry)))))
-        ;; Enable deferred compilation in interactive mode
-        (unless (or in-container batch-mode)
-          (setq native-comp-deferred-compilation t)
-          (setq native-comp-async-jobs-number 2))))))
+  (let ((in-container skewed-emacs-container?))
+    (package-initialize)
+    ;; Only configure archives and refresh if third-party packages are missing
+    (unless (all-packages-installed-p)
+      (configure-package-archives)
+      (when (or (not package-archive-contents)
+                (not (file-exists-p (concat package-user-dir "/archives/gnu/archive-contents")))
+                (not (file-exists-p (concat package-user-dir "/archives/nongnu/archive-contents")))
+                (not (file-exists-p (concat package-user-dir "/archives/melpa/archive-contents")))))
+      (package-refresh-contents))
+    (dolist (pkg-entry third-party-packages)
+      (if (symbolp pkg-entry)
+	  (progn
+            (eval `(use-package ,pkg-entry :ensure ,(not in-container)))
+	    (eval `(require ',pkg-entry)))
+	(progn
+          (eval `(use-package ,(car pkg-entry) :ensure ,(not in-container) ,@(cdr pkg-entry)))
+	  (eval `(require ',(car pkg-entry))))))
+    (dolist (pkg-entry second-party-packages)
+      (if (symbolp pkg-entry)
+	  (progn
+            (eval `(use-package ,pkg-entry :ensure ,(not in-container)))
+	    (eval `(require ',pkg-entry)))
+	(progn
+          (eval `(use-package ,(car pkg-entry) :ensure ,(not in-container) ,@(cdr pkg-entry)))
+	  (eval `(require ',(car pkg-entry))))))
+    (when in-container 
+      (setq native-comp-deferred-compilation nil)
+      (setq no-native-compile t))))
 
 
 (defun update-all-packages ()

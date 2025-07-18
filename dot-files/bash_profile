@@ -143,6 +143,9 @@ if [[ $- == *i* && -z "$DOT_BASH_PROFILE_WELCOME" ]]; then
     echo "Terminal Color Tip: 'theme dark|light|solarized|custom'"
     echo "Emacs Color Tip: M-x dark-theme, M-x light-theme, or M-x load-theme..."
     echo ""
+    if [ -z "$SKEWED_EMACS_CONTAINER" ]; then
+	echo "Use `claudly` to launch claude code."
+    fi
     export DOT_BASH_PROFILE_WELCOME=1
 fi
 

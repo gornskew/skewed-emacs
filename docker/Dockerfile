@@ -42,25 +42,25 @@ COPY --chown=emacs-user:emacs-user . \
 USER emacs-user
 WORKDIR /home/emacs-user
 
-
 # Run setup to install configuration (links ~/.emacs.d to ~/skewed-emacs/dot-files/emacs.d/)
 RUN cd skewed-emacs && ./setup \
     && ls -la ~/.emacs.d/init.el \
     && ls -la ~/.emacs.d/sideloaded/lisply-backend/source/ \
     && echo "Configuration files verified"
 
-# Copy startup script (used for both build and runtime)
+# Copy startup script (used at runtime as entry point)
 COPY --chown=emacs-user:emacs-user docker/startup.sh /home/emacs-user/startup.sh
 COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh \
       /home/emacs-user/emacs-repl.sh
 RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh
 
 
-# Install packages and precompile .eln files
-RUN echo "=== Installing packages and precompiling .eln files ===" \
-    && emacs --batch -q \
-       --eval "(load \"~/.emacs.d/etc/load-and-compile.el\")" \
-    && echo "=== Native compilation completed ==="
+RUN START_HTTP=false \
+    emacs --batch --load "~/.emacs.d/init.el" \
+    && \
+    START_HTTP=FALSE \
+    emacs --batch --load "~/.emacs.d/init.el" --eval "(recompile-all-packages)"
+
 
 RUN cat << EOF >> /home/emacs-user/.bashrc
 
@@ -72,18 +72,16 @@ if [ -z "$DOT_BASH_PROFILE_LOADED" ]; then
   export DOT_BASH_PROFILE_LOADED=1
 fi
 
-echo 
-echo "Please use \"claudly\" to launch Claude Code with MCP support."
-echo 
 EOF
+
 
 # Set environment variables for runtime
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
-
+ENV SKEWED_EMACS_CONTAINER=true
 # Expose port for Lisply HTTP API
 EXPOSE 7080
 
-# Use the same startup.sh as entrypoint (will run in daemon mode)
 ENTRYPOINT ["/home/emacs-user/startup.sh"]
-#ENTRYPOINT ["/bin/bash"]
+# CMD ["/bin/bash"]
+

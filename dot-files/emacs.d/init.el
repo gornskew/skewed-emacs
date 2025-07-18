@@ -10,9 +10,68 @@
 ;; Define emacs-config-directory
 (defvar emacs-config-directory (file-name-directory (file-truename load-file-name)))
 
+(defvar start-lisply? (not (string= (getenv "START_HTTP") "false")))
+(defvar skewed-emacs-container? (getenv "SKEWED_EMACS_CONTAINER"))
+(defvar emacs-batch-mode? (getenv "EMACS_BATCH_MODE"))
+
+
+
 ;; Redirect custom settings to a separate file
 (setq custom-file (concat emacs-config-directory "custom.el"))
 
+
+(defvar third-party-packages
+  '(flycheck
+    company
+    eat
+    doom-themes
+    zenburn-theme
+    ellama
+    ;;chatgpt-shell ;; doing apparently deferred native compiling with too many warnings.
+    json
+    simple-httpd
+    dashboard
+    paredit
+    
+    (magit
+     :config
+     (setq magit-git-executable (locate-file "git" exec-path))
+     (global-set-key (kbd "C-x g") 'magit-status))
+    (pdf-tools
+     :config
+     (when (and (string= (getenv "EMACS_BATCH_MODE") "true")
+		(not (string= (getenv "SKEWED_EMACS_CONTAINER") "true")))
+       (pdf-tools-install)))
+    (org
+     :config
+     (use-package org-config
+       :ensure nil
+       :load-path (lambda () (get-config-path "etc"))))
+    
+;;    (copilot
+;;     :config
+;;     (bind-key* "C-." 'copilot-accept-completion)
+;;     (bind-key* "M-," 'copilot-accept-completion)
+;;     (bind-key* "C-," 'copilot-accept-completion-by-word))
+
+    )
+    
+  "List of third-party packages with their configurations. Each entry is either a symbol (for packages without config) or a list starting with the package name (a symbol) followed by optional :config forms.")
+
+
+(defvar second-party-packages
+  '((sa-translit-config
+     :load-path (lambda () (get-config-path "etc")))
+    (dashboard-config
+     :load-path (lambda () (get-config-path "etc")))
+    (impatient-markdown-config
+     :load-path (lambda () (get-config-path "etc")))
+    (slime-config
+     :load-path (lambda () (get-config-path "etc")))
+    (lisply-config
+     :load-path (lambda () (get-config-path "etc")))
+
+    ))
 
 ;; Load package initialization and compilation logic
 (load (concat emacs-config-directory "etc/load-and-compile.el"))
@@ -20,7 +79,7 @@
 ;; Initialize packages and customizations
 (setup-packages-and-customizations emacs-config-directory)
 
-(defvar load-lisply? t)
+
 
 (defvar light-theme-options
   '(("adwaita" . adwaita)
@@ -47,8 +106,21 @@
   (add-hook 'after-make-frame-functions 'on-after-make-frame)
   (add-hook 'eshell-load-hook #'eat-eshell-mode)
   (add-hook 'eshell-load-hook #'eat-eshell-visual-command-mode)
-  ;; Load Lisply MCP service if enabled (optional, handled in load-and-compile.el)
-  (message "Done with main-setup."))
+
+  (when start-lisply? (emacs-lisply-start-server))
+
+  (when skewed-emacs-container?
+    (message "We Are a Skewed-emacs container, defaulting slime-connect settings to
+gendl/4200.")
+    (setq slime-lisp-host "gendl"
+   	  slime-connect-host-history '("gendl")
+   	  slime-port 4200
+   	  slime-connect-port-history '("4200")))
+
+  (message "Done with main-setup.")
+
+
+  )
 
 (defun set-default-settings ()
   "Set my personal preferred default settings."
@@ -92,6 +164,7 @@
   (setq confirm-kill-processes nil)
   (menu-bar-mode 0)
   (tool-bar-mode 0))
+
 
 (defun enable-company-mode ()
   "Enable company mode."
@@ -276,7 +349,6 @@
   "Load AI-related configurations."
   (message "FLAG - Load the Llama etc configs here from a separate file."))
 
-
 (defun skewed-initialize ()
   (when (file-exists-p "~/.emacs-local-early")
     (load-file "~/.emacs-local-early"))
@@ -288,11 +360,7 @@
   ;; bump this to load-and-compile
   (load-ai-tools)
   (when (file-exists-p "~/.emacs-local")
-    (load-file "~/.emacs-local"))
-
-  (unless (string= (getenv "SKEWED_EMACS_CONTAINER") "true")
-    (batch-compile-all)))
-
+    (load-file "~/.emacs-local")))
 
 (skewed-initialize)
 
