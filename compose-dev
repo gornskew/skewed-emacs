@@ -9,7 +9,11 @@ cd "$(dirname "$0")"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
 
-${SCRIPT_DIR}/generate-env.sh
+
+if [ "$1" = "up" ]; then
+    ${SCRIPT_DIR}/generate-env.sh
+fi
+
 
 # Color output
 RED=''

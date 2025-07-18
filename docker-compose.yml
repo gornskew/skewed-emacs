@@ -105,6 +105,9 @@ services:
 
     # Add controlled access to host Emacs service only
     extra_hosts:
+    #
+    # FLAG -- do we really need host.docker.internal? 
+    #     	
       - "host.docker.internal:host-gateway"
 
     networks:
@@ -117,9 +120,6 @@ services:
       retries: 3
       start_period: 15s
     
-    depends_on:
-      skewed-emacs:
-        condition: service_healthy
 
   # Node.js Development Service
   lisply-mcp:
@@ -150,6 +150,9 @@ services:
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
 
+      #
+      # FLAG -- do we really need host.docker.internal? 
+      #     
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -157,6 +160,11 @@ services:
       - skewed-network
    
     working_dir: /projects
+
+    depends_on:
+      skewed-emacs:
+        condition: service_healthy
+
 
     
 volumes:

@@ -107,7 +107,9 @@
   (add-hook 'eshell-load-hook #'eat-eshell-mode)
   (add-hook 'eshell-load-hook #'eat-eshell-visual-command-mode)
 
-  (when start-lisply? (emacs-lisply-start-server))
+  (when start-lisply?
+    (setq httpd-host "0.0.0.0")
+    (emacs-lisply-start-server))
 
   (when skewed-emacs-container?
     (message "We Are a Skewed-emacs container, defaulting slime-connect settings to
