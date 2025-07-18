@@ -187,14 +187,12 @@ function e
 
 function eskew
 {
-    file=${1:-"/projects"};
-    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -t $file
+    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -t --eval "(dashboard-refresh-buffer)" $1
 }
 
 function egskew
 {
-    file=${1:-"/projects"};
-    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -c $file & 
+    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -c --eval "(dashboard-refresh-buffer)" $1 & 
 }
 
 

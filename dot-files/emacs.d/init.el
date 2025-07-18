@@ -324,7 +324,11 @@ gendl/4200.")
   (select-frame frame)
   (set-default-settings)
   (when (display-graphic-p frame)
-    (set-frame-size-and-position frame)))
+    (set-frame-size-and-position frame))
+  (with-selected-frame
+      (when (eq (length (frame-list)) 2)
+	(dashboard-refresh-buffer))))
+
 
 (defun setup-themes ()
   "Set up my preferred default themes."
