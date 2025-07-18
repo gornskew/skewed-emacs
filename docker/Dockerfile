@@ -20,6 +20,13 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     ghostscript \
     poppler-utils \
     imagemagick \
+    automake \
+    libpng-dev \
+    libpoppler-dev \
+    libpoppler-glib-dev \
+    libz-dev \
+    make \
+    pkg-config \
     && rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean \
     && curl -fsSL \
     https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz \
@@ -55,11 +62,17 @@ COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh \
 RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh
 
 
-RUN START_HTTP=false \
-    emacs --batch --load "~/.emacs.d/init.el" \
+RUN START_HTTP=false emacs --batch --load "~/.emacs.d/init.el" \
     && \
-    START_HTTP=FALSE \
-    emacs --batch --load "~/.emacs.d/init.el" --eval "(recompile-all-packages)"
+    START_HTTP=false emacs --batch --load "~/.emacs.d/init.el" --eval "(recompile-all-packages)" \
+    && \
+    START_HTTP=true emacs --daemon --load "~/.emacs.d/init.el" \
+    && sleep 8 && emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")"
+#
+# FLAG -- 60 just for proof of concept.
+# Instead of sleep 60, wait for async jobs to be done. 
+#
+
 
 
 RUN cat << EOF >> /home/emacs-user/.bashrc

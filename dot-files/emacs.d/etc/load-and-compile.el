@@ -12,6 +12,9 @@
 
 (setq use-package-always-ensure t) ; Ensure packages are installed
 
+(setq native-comp-deferred-compilation nil
+      native-comp-jit-compilation nil)
+
 ;; need this or no ? 
 ;;(setq package-check-signature nil) ; Avoid signature checks
 ;;(setq package-refresh-contents nil) ; Prevent automatic refresh
@@ -47,7 +50,19 @@
         (setq package-archives tsinghua-archives)))))
 
 
+
 (defun num-cpus () (cl-first (read-from-string (shell-command-to-string "nproc"))))
+
+
+(defun await-async-compilations (item)
+  (let ((wait-time 0)(increment 1))
+    (while (> (hash-table-count comp-async-compilations) 0)
+      (message "Waiting for %d native compilation jobs to complete..."
+	       (hash-table-count comp-async-compilations))
+      (message "%s sec on %s."
+	       (cl-incf wait-time increment) item)
+      (sleep-for increment))
+    (message "Done Native Compiling %s in %s sec" item wait-time)))
 
 (defun recompile-all-packages ()
   "Force recompile all installed packages (byte and native)."
@@ -55,35 +70,40 @@
   (let* ((packages package-alist)
 	 (package-names (mapcar #'cl-first packages))
 	 (package-dirs (mapcar #'package-desc-dir (mapcar #'car (mapcar #'cl-rest packages)))))
-    (let ((num-cpus (floor (/ (num-cpus) 2))))      
+
+    (let ((num-cpus (floor (/ (num-cpus) 2))))
+      (when (package-installed-p 'pdf-tools)
+	(require 'pdf-tools) (pdf-tools-install t)
+	(await-async-compilations 'pdf-tools))
+      (when (package-installed-p 'simple-httpd)
+	(require 'simple-httpd)
+	(httpd-start)(httpd-stop))
+      (dolist (pkg package-names)
+	(message "Pre-loading package: %s" pkg)
+	(require pkg nil t)
+	(await-async-compilations pkg))
       (cl-mapc (lambda (package-name directory)
-	      (when (file-directory-p directory)
-		(message "Byte Recompiling package: %s" package-name)
-		(byte-recompile-directory directory 0 t)))
-	    package-names package-dirs)
+		 (when (file-directory-p directory)
+		   (message "Byte Recompiling package: %s" package-name)
+		   (byte-recompile-directory directory 0 t)))  package-names package-dirs)
+
       (when (featurep 'native-compile)
-	(let ((native-comp-async-jobs-number num-cpus)
-	      (wait-time-total 0)) ;; binds dynamically into call to native-compile-async call
-	  (cl-mapc (lambda (package-name directory)
-		     (when (file-directory-p directory)
-		       (message "Beginning Native Compiling Processes for  package: %s" package-name)
-		       (native-compile-async directory t) ;; this spawns background jobs without waiting
-		       (let ((wait-time 0)(increment 1))
-			 (while (> (hash-table-count comp-async-compilations) 0)
-			   (message "Waiting for %d native compilation jobs to complete..."
-				    (hash-table-count comp-async-compilations))
-			   (message "%s sec on %s, %s sec total" 
-				    (cl-incf wait-time increment) package-name
-				    (cl-incf wait-time-total))
-			   (sleep-for increment))
-			 (message "Done Native Compiling %s in %s sec" package-name wait-time))))
-		   package-names package-dirs)
-	  (message "Done All Native Compiling in %s seconds using %s parallel cores"
-		   wait-time-total native-comp-async-jobs-number))))))
-  
+	(let ((native-comp-async-jobs-number num-cpus))
+	  (message "Beginning Native Compiling Processes for %s directories" (length package-dirs))
+          (native-compile-async package-dirs t)
+          (let ((wait-time 0) (increment 1))
+	    (while (and (> (hash-table-count comp-async-compilations) 0)
+			(progn (sleep-for 1)
+			       (> (hash-table-count comp-async-compilations) 0)))
+              (message "Waited %s sec, %s async compile jobs active..." 
+                       (cl-incf wait-time (1+ increment)) (hash-table-count comp-async-compilations))
+              (sleep-for increment))
+            (message "Done Native Compiling in %s seconds using %s parallel cores"
+                     wait-time native-comp-async-jobs-number)))))))
+
+
 (defun get-config-path (relative)
   (concat emacs-config-directory relative))
-
 
 (defun all-packages-installed-p ()
   "Check if all third-party packages are installed."
@@ -92,9 +112,10 @@
 	    third-party-packages))
 
 
-(defun setup-packages-and-customizations (config-dir)
+(defun setup-packages-and-customizations (&optional config-dir)
   "Install and load packages and customizations based on environment variables."
-  (let ((in-container skewed-emacs-container?))
+  (unless config-dir (setq config-dir "~/.emacs.d/"))
+  (let ((in-container? skewed-emacs-container?))
     (package-initialize)
     ;; Only configure archives and refresh if third-party packages are missing
     (unless (all-packages-installed-p)
@@ -107,22 +128,22 @@
     (dolist (pkg-entry third-party-packages)
       (if (symbolp pkg-entry)
 	  (progn
-            (eval `(use-package ,pkg-entry :ensure ,(not in-container)))
+            (eval `(use-package ,pkg-entry :ensure t))
 	    (eval `(require ',pkg-entry)))
 	(progn
-          (eval `(use-package ,(car pkg-entry) :ensure ,(not in-container) ,@(cdr pkg-entry)))
+          (eval `(use-package ,(car pkg-entry) :ensure t ,@(cdr pkg-entry)))
 	  (eval `(require ',(car pkg-entry))))))
     (dolist (pkg-entry second-party-packages)
       (if (symbolp pkg-entry)
-	  (progn
-            (eval `(use-package ,pkg-entry :ensure ,(not in-container)))
-	    (eval `(require ',pkg-entry)))
-	(progn
-          (eval `(use-package ,(car pkg-entry) :ensure ,(not in-container) ,@(cdr pkg-entry)))
-	  (eval `(require ',(car pkg-entry))))))
-    (when in-container 
-      (setq native-comp-deferred-compilation nil)
-      (setq no-native-compile t))))
+	  (let ((use-package-expression `(use-package ,pkg-entry :ensure nil))
+		(require-expression `(require ',pkg-entry)))
+            (eval use-package-expression)
+	    (eval require-expression))
+	(let ((use-package-expression `(use-package ,(car pkg-entry) :ensure nil ,@(cdr pkg-entry)))
+	      (require-expression `(require ',(car pkg-entry))))
+	  (eval use-package-expression)
+	  (eval require-expression))))))
+
 
 
 (defun update-all-packages ()
