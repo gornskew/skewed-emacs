@@ -488,3 +488,61 @@ result = mcp__gendl__gendl__lisp_eval(code='(ql:quickload :my-project)')
 - **SLIME Integration**: Enabled seamless Emacs-to-Gendl SLIME connections
 - **HTTP API Setup**: Both containers expose HTTP APIs for external tool integration
 - **MCP Migration**: Transitioned from raw HTTP to MCP services for better integration
+
+
+## AI Agent Development Lessons Learned
+
+### String Escaping and Code Generation Best Practices
+
+**Problem**: When AI agents generate Emacs Lisp code, over-escaping quotes can cause parsing errors.
+
+**Incorrect (over-escaped):**
+```elisp
+(insert \"    [OK] example\\n\")
+```
+
+**Correct (clean Lisp):**
+```elisp
+(insert "    [OK] example\n")
+```
+
+**Key Lesson**: When evaluating Lisp directly via MCP, write actual Lisp code, not escaped strings. Only escape when writing code to files as string literals.
+
+### Temporary Emacs Buffers for Code Sharing
+
+**Best Practice**: Use temporary Emacs buffers to share code artifacts with users instead of external files.
+
+```elisp
+(with-current-buffer (get-buffer-create "*code-additions*")
+  (erase-buffer)
+  (insert ";; Clean code here")
+  (emacs-lisp-mode)
+  (goto-char (point-min))
+  (switch-to-buffer "*code-additions*"))
+```
+
+**Benefits**:
+- Integrated with user's workflow
+- No file system clutter
+- Syntax highlighting available
+- Easy copy/paste workflow
+
+### General Error Handling for Lisp Evaluation
+
+**Robust Pattern for MCP Operations**:
+```elisp
+(defun safe-lisp-operation ()
+  "Example of proper error handling in Lisp evaluation"
+  (condition-case err
+      (let ((result (potentially-failing-function)))
+        (if result
+            (format "Success: %s" result)
+          "Operation completed but returned nil"))
+    (error (format "Error: %s" (error-message-string err)))))
+```
+
+**Key Points**:
+- Always wrap potentially failing operations in `condition-case`
+- Provide meaningful error messages
+- Handle both errors and nil results appropriately
+- Use `error-message-string` for clean error reporting
