@@ -1,4 +1,4 @@
-;;; load-and-compile.el --- Initialize and compile Emacs packages
+;;; load-and-compile.el -*- lexical-binding: nil -*- --- Initialize and compile Emacs packages
 ;;; Commentary:
 ;;; This file handles package installation, loading, and compilation based on environment variables.
 ;;; - If $SKEWED_EMACS_CONTAINER is true, assume packages are installed/compiled, set up load-path, and load packages without internet access.
@@ -12,7 +12,7 @@
 
 (setq use-package-always-ensure t) ; Ensure packages are installed
 
-(setq native-comp-deferred-compilation nil
+(setq ;; native-comp-deferred-compilation nil ;; obsolete
       native-comp-jit-compilation nil)
 
 ;; need this or no ? 
@@ -123,8 +123,8 @@
       (when (or (not package-archive-contents)
                 (not (file-exists-p (concat package-user-dir "/archives/gnu/archive-contents")))
                 (not (file-exists-p (concat package-user-dir "/archives/nongnu/archive-contents")))
-                (not (file-exists-p (concat package-user-dir "/archives/melpa/archive-contents")))))
-      (package-refresh-contents))
+                (not (file-exists-p (concat package-user-dir "/archives/melpa/archive-contents"))))
+	(package-refresh-contents)))
     (dolist (pkg-entry third-party-packages)
       (if (symbolp pkg-entry)
 	  (progn
@@ -145,31 +145,6 @@
 	  (eval require-expression))))))
 
 
-
-(defun update-all-packages ()
-  "Manually refresh package archives and update third-party packages."
-  (interactive)
-  (configure-package-and-install)
-  (dolist (pkg-entry third-party-packages)
-    (let ((pkg (if (symbolp pkg-entry) pkg-entry (car pkg-entry))))
-      (when (package-installed-p pkg)
-        (package-install pkg :upgrade t))))
-  ;; Delete compilation flag to trigger recompilation on next startup
-  (let ((compile-flag-file (concat emacs-config-directory ".compiled")))
-    (when (file-exists-p compile-flag-file)
-      (delete-file compile-flag-file)
-      (message "Deleted %s to trigger recompilation on next startup" compile-flag-file))))
-
-
-
-(defun clear-eln-cache ()
-  "Clear the native compilation cache."
-  (interactive)
-  (when (file-exists-p comp-eln-cache-dir)
-    (delete-directory comp-eln-cache-dir t)
-    (message "Cleared native compilation cache")))
-  
-  
 
 (provide 'load-and-compile)
 ;;; load-and-compile.el ends here

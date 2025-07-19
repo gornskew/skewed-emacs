@@ -1,4 +1,4 @@
-;;; init.el --- Personal Emacs configuration
+;;; init.el -*- lexical-binding: nil -*- --- Personal Emacs configuration
 ;;; Commentary:
 ;;; This is my personal Emacs configuration.
 ;;; It was inspired by but is no longer based on Crafted Emacs.
@@ -56,7 +56,10 @@
 
     )
     
-  "List of third-party packages with their configurations. Each entry is either a symbol (for packages without config) or a list starting with the package name (a symbol) followed by optional :config forms.")
+  "List of third-party packages with their configurations.
+Each entry is either a symbol (for packages without config)
+or a list starting with the package name (a symbol)
+followed by optional :config forms.")
 
 
 (defvar second-party-packages
@@ -146,11 +149,7 @@ gendl/4200.")
             pdf-view-resize-factor 1.1
             pdf-view-use-scaling t
             pdf-view-use-imagemagick nil))
-    (with-eval-after-load 'doc-view
-      (setq doc-view-resolution 200
-            doc-view-ghostscript-options
-            '("-dNOPAUSE" "-sDEVICE=png16m" "-dTextAlphaBits=4"
-              "-dBATCH" "-dSAFER" "-dQUIET" "-dGraphicsAlphaBits=4")))
+    
     (setq scroll-step 1
           scroll-conservatively 10000
           scroll-preserve-screen-position 1))
@@ -243,7 +242,8 @@ gendl/4200.")
     (require 'mouse)
     (xterm-mouse-mode t)
     (defun track-mouse (e))
-    (setq mouse-sel-mode t)))
+    ;; (setq mouse-sel-mode t) ;; what is this supposed to be 
+    ))
 
 (defun disable-mouse ()
   "Disable mouse interaction in terminal mode."
@@ -263,7 +263,7 @@ gendl/4200.")
   (set-cursor-color "#ff00ff"))
 
 (defun dark-theme (&optional theme-name)
-  "Load a dark theme, defaulting to 'doom-tokyo-night'."
+  "Load a dark theme, defaulting to `doom-tokyo-night."
   (interactive
    (list (completing-read "Select dark theme: "
                           (mapcar #'car dark-theme-options)
@@ -281,7 +281,7 @@ gendl/4200.")
     (message "Loaded dark theme: %s" selected-theme)))
 
 (defun light-theme (&optional theme-name)
-  "Load a light theme, defaulting to 'adwaita'."
+  "Load a light theme, defaulting to `adwaita`."
   (interactive
    (list (completing-read "Select light theme: "
                           (mapcar #'car light-theme-options)

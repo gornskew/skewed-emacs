@@ -1,4 +1,4 @@
-;;; org-config --- Org Mode customizations.
+;;; org-config -*- lexical-binding: nil -*- --- Org Mode customizations.
 ;;; Commentary:
 ;;; Org Mode customizations.
 ;;;
