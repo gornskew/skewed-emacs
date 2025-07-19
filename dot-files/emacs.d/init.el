@@ -366,7 +366,7 @@ gendl/4200.")
     (load (file-name-sans-extension custom-file)))
   (setup-themes)
   (set-default-settings)
-  ;; bump this to load-and-compile
+ ;; bump this to load-and-compile
   (load-ai-tools)
   (when (file-exists-p "~/.emacs-local")
     (load-file "~/.emacs-local")))
@@ -375,3 +375,6 @@ gendl/4200.")
 
 
 ;;; init.el ends here
+
+
+
