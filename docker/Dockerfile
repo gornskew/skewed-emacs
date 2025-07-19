@@ -27,6 +27,7 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     libz-dev \
     make \
     pkg-config \
+    dpkg-dev \
     && rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean \
     && curl -fsSL \
     https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz \
@@ -48,8 +49,6 @@ RUN echo "deb-src http://deb.debian.org/debian testing main" >> /etc/apt/sources
     cd /usr/src/emacs && \
     apt-get source emacs && \
     chown -R emacs-user:emacs-user /usr/src/emacs && \
-    echo "Emacs source code available at /usr/src/emacs/" > /usr/src/emacs/README-SOURCE && \
-    echo "" >> /usr/src/emacs/README-SOURCE && \
     rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean
 
 # Copy skewed-emacs configuration 

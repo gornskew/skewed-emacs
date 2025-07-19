@@ -174,25 +174,25 @@ function gswank
 
 function egui
 {
-    file=${1:-"~/."};
-    emacsclient --create-frame ${file}
+    file=${1:-""};
+    emacsclient -c ${file}
 }
 
 
 function e
 {
-    file=${1:-"."};
-    emacsclient -nw ${file}
+    file=${1:-""};
+    emacsclient -t ${file}
 }
 
 function eskew
 {
-    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -t --eval "(dashboard-refresh-buffer)" $1
+    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -t $1
 }
 
 function egskew
 {
-    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -c --eval "(dashboard-refresh-buffer)" $1 & 
+    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -c $1 & 
 }
 
 

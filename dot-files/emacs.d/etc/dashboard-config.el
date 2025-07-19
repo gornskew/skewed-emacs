@@ -1,9 +1,8 @@
 ;; Dashboard setup
 
-
 (defvar skewed-dashboard-banner-file (concat (temporary-file-directory) "skewed-emacs-banner.txt"))
 (dashboard-setup-startup-hook)
-(setq dashboard-banner-logo-title "𝑺𝑲𝑬𝑾𝑬𝑫  𝑬𝑴𝑨𝑪𝑺")
+(setq dashboard-banner-logo-title "𝑺𝑲𝑬𝑾𝑬𝑫 𝑬𝑴𝑨𝑪𝑺")
 
 (setq dashboard-startup-banner skewed-dashboard-banner-file)
 (setq dashboard-items '((recents  . 5)
@@ -12,12 +11,15 @@
                         (bookmarks . 5)
                         (registers . 5)))
 (setq dashboard-center-content t)
-(setq dashboard-footer-messages '("Brought to you by Gornskew Enterprises"))
+(setq dashboard-footer-messages '("Brought to you by 𝙶𝚘𝚛𝚗𝚜𝚔𝚎𝚠 𝙴𝚗𝚝𝚎𝚛𝚙𝚛𝚒𝚜𝚎𝚜"))
 
 ;;
 ;; Possibly break this one out into init.el for clarity
 ;;
-(setq initial-buffer-choice (lambda () (get-buffer-create "*dashboard*")))
+(setq initial-buffer-choice
+      (lambda ()
+	(dashboard-refresh-buffer)
+	(get-buffer-create "*dashboard*")))
 
 
 (defvar skewed-dashboard-banners
@@ -152,28 +154,5 @@ $$    $$/ $$ | $$  |$$       |$$$/    $$$ |$$       |$$    $$/
     ))
 
 
-
 (provide 'dashboard-config)
 
-Sample file:
-;;      "
-;;   ______   __    __  ________  __       __  ________  _______  
-;;  /      \ /  |  /  |/        |/  |  _  /  |/        |/       \ 
-;; /$$$$$$  |$$ | /$$/ $$$$$$$$/ $$ | / \ $$ |$$$$$$$$/ $$$$$$$  |
-;; $$ \__$$/ $$ |/$$/  $$ |__    $$ |/$  \$$ |$$ |__    $$ |  $$ |
-;; $$      \ $$  $$<   $$    |   $$ /$$$  $$ |$$    |   $$ |  $$ |
-;;  $$$$$$  |$$$$$  \  $$$$$/    $$ $$/$$ $$ |$$$$$/    $$ |  $$ |
-;; /  \__$$ |$$ |$$  \ $$ |_____ $$$$/  $$$$ |$$ |_____ $$ |__$$ |
-;; $$    $$/ $$ | $$  |$$       |$$$/    $$$ |$$       |$$    $$/ 
-;;  $$$$$$/  $$/   $$/ $$$$$$$$/ $$/      $$/ $$$$$$$$/ $$$$$$$/
-
-;;        ________  __       __   ______    ______    ______      
-;;      |        \|  \     /  \ /      \  /      \  /      \     
-;;      | $$$$$$$$| $$\   /  $$|  $$$$$$\|  $$$$$$\|  $$$$$$\    
-;;      | $$__    | $$$\ /  $$$| $$__| $$| $$   \$$| $$___\$$    
-;;      | $$  \   | $$$$\  $$$$| $$    $$| $$       \$$    \     
-;;      | $$$$$   | $$\$$ $$ $$| $$$$$$$$| $$   __  _\$$$$$$\    
-;;      | $$_____ | $$ \$$$| $$| $$  | $$| $$__/  \|  \__| $$    
-;;      | $$     \| $$  \$ | $$| $$  | $$ \$$    $$ \$$    $$    
-;;       \$$$$$$$$ \$$      \$$ \$$   \$$  \$$$$$$   \$$$$$$
-;; "
