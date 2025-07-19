@@ -5,11 +5,12 @@
 (setq dashboard-banner-logo-title "𝑺𝑲𝑬𝑾𝑬𝑫 𝑬𝑴𝑨𝑪𝑺")
 
 (setq dashboard-startup-banner skewed-dashboard-banner-file)
-(setq dashboard-items '((recents  . 3)
-                        (active-projects . 5)  
+(setq dashboard-items '((help . 3)
+			(recents  . 3)
+                        (active-projects . 5)
+			(mcp-status . 1)
                         (system-info . 1)       
-                        (mcp-status . 1)
-			(other-status . 1)
+                        (other-status . 1)
                         (agenda . 1)
                         (bookmarks . 1)))
 
@@ -68,6 +69,14 @@
                     (plist-get system-info :current-time)))))
 
 
+(defun dashboard-insert-help-info (list-size)
+  (dashboard-insert-heading "Getting Started:")
+  (insert "\n")
+  (insert "• Emacs Tutorial: C-h C-t\n")
+  (insert "• Gendl Repl: M-x slime-connect RET\n")
+  (insert "• Claude Code: M-x eat, then `claudly`\n"))
+
+
 (defun dashboard-insert-mcp-status (list-size)
   "Insert MCP services status section with clean ASCII."
   (dashboard-insert-heading "Lisply MCP Backends:")
@@ -81,6 +90,7 @@
 (defun dashboard-insert-other-status (list-size)
   "Insert MCP services status section with clean ASCII."
   (dashboard-insert-heading "Other Services:")
+  (insert "\n")
   (let ((system-info (gather-system-info)))
     (insert "    〰 SLIME: gendl-ccl:4200\n")    
     (insert "    ⚏  Docker Network: emacs-gendl-network\n")))
@@ -102,7 +112,8 @@
 
 ;; Register custom dashboard generators
 (setq dashboard-item-generators
-      (append '((system-info . dashboard-insert-system-info)
+      (append '((help . dashboard-insert-help-info)
+		(system-info . dashboard-insert-system-info)
                 (mcp-status . dashboard-insert-mcp-status)
 		(other-status . dashboard-insert-other-status)
                 (active-projects . dashboard-insert-active-projects))
