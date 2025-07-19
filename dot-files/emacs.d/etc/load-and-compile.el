@@ -59,8 +59,9 @@
     (while (> (hash-table-count comp-async-compilations) 0)
       (message "Waiting for %d native compilation jobs to complete..."
 	       (hash-table-count comp-async-compilations))
-      (message "%s sec on %s."
-	       (cl-incf wait-time increment) item)
+      (message "%s sec on %s, %s async compile jobs still active."
+	       (cl-incf wait-time increment) item
+	       (hash-table-count comp-async-compilations))
       (sleep-for increment))
     (message "Done Native Compiling %s in %s sec" item wait-time)))
 
@@ -87,19 +88,17 @@
 		   (message "Byte Recompiling package: %s" package-name)
 		   (byte-recompile-directory directory 0 t)))  package-names package-dirs)
 
+      (byte-compile-file (concat emacs-config-directory "init.el"))
+      (byte-compile-file (concat emacs-config-directory "/etc/load-and-compile.el"))
+
       (when (featurep 'native-compile)
 	(let ((native-comp-async-jobs-number num-cpus))
 	  (message "Beginning Native Compiling Processes for %s directories" (length package-dirs))
           (native-compile-async package-dirs t)
-          (let ((wait-time 0) (increment 1))
-	    (while (and (> (hash-table-count comp-async-compilations) 0)
-			(progn (sleep-for 1)
-			       (> (hash-table-count comp-async-compilations) 0)))
-              (message "Waited %s sec, %s async compile jobs active..." 
-                       (cl-incf wait-time (1+ increment)) (hash-table-count comp-async-compilations))
-              (sleep-for increment))
-            (message "Done Native Compiling in %s seconds using %s parallel cores"
-                     wait-time native-comp-async-jobs-number)))))))
+	  (await-async-compilations "installed packages")
+	  (native-compile-async (concat emacs-config-directory "init.el"))
+	  (native-compile-async (concat emacs-config-directory "etc/load-and-compile.el"))
+	  (await-async-compilations "local config files"))))))
 
 
 (defun get-config-path (relative)
