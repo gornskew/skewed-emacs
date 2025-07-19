@@ -6,22 +6,27 @@
 ;;
 ;;
 
-
+(require 'subr-x)
 (require 'url)
+(require 'dashboard)
+(require 'cl-lib)
 
+;;; Code:
+
+(defvar skewed-emacs-container? nil) ;; assumed to be pre-defined from init.el
 (defvar skewed-dashboard-banner-file (concat (temporary-file-directory) "skewed-emacs-banner.txt"))
 (dashboard-setup-startup-hook)
 (setq dashboard-banner-logo-title "𝑺𝑲𝑬𝑾𝑬𝑫 𝑬𝑴𝑨𝑪𝑺")
 
 (setq dashboard-startup-banner skewed-dashboard-banner-file)
-(setq dashboard-items '((help . 3)
-			(recents  . 3)
-                        (active-projects . 5)
+
+(setq dashboard-items `((help . 3)
+			;; (recents  . 3) replace this with one we control. 
+			(active-projects . 5)
 			(lisply-status . 1)
-                        (system-info . 1)       
-                        ;;(other-status . 1)
-                        (agenda . 1)
-                        (bookmarks . 1)))
+			(system-info . 1)
+			;;(other-status . 1)
+			(agenda . 1)))
 
 (setq dashboard-item-generators
       (append '((help . dashboard-insert-help-info)
@@ -41,105 +46,60 @@
 	(dashboard-refresh-buffer)
 	(get-buffer-create "*dashboard*")))
 
-
-(defun dashboard-insert-lisply-backends (list-size)
-  "Insert Lisply Section"
-  (message "should limit list to %s" list-size)
-  (dashboard-insert-heading "Live Lisply Backends:")
-  (insert "\n")
-  (insert (lisply-backend-status-string)))
-
-(defun dashboard-insert-system-info (list-size)
-  "Insert system information section with memory and CPU usage."
-  (message "should limit list to %s" list-size)
-  (dashboard-insert-heading "System Information:")
-  (insert "\n")
-  (let ((system-info (gather-system-info)))
-    (insert (format "    Emacs PID: %s | Uptime: %s\n" 
-                    (plist-get system-info :emacs-pid)
-                    (emacs-uptime)))
-    (let ((memory (plist-get system-info :memory-mb))
-          (cpu-time (plist-get system-info :cpu-seconds)))
-      (insert (format "    Memory: %s | CPU Time: %s\n"
-                      (if memory (format "%.1f MB" memory) "N/A")
-                      (if cpu-time 
-                          (let ((minutes (floor (/ cpu-time 60)))
-                                (seconds (mod cpu-time 60)))
-                            (if (> minutes 0)
-                                (format "%dm %.1fs" minutes seconds)
-                              (format "%.1fs" seconds)))
-                        "N/A"))))
-    (insert (format "    Packages: %d | Buffers: %d/%d total\n"
-                    (plist-get system-info :active-packages)
-                    (plist-get system-info :visible-buffers)
-		    (plist-get system-info :total-buffers)))
-    (insert (format "    Version: %s | Platform: %s\n"
-                    (plist-get system-info :emacs-version)
-                    (plist-get system-info :system-type)))
-    (insert (format "    Time: %s\n"
-                    (plist-get system-info :current-time)))))
-
 (defun dashboard-insert-help-info (list-size)
-  (message "should limit list to %s" list-size)
+  "Insert getting-started info.  LIST-SIZE is not currently being respected."
+  (message "evaluating this to please compiler: %s" list-size)
   (dashboard-insert-heading "Getting Started:")
   (insert "\n")
-  (insert "• Emacs Tutorial: C-h C-t\n")
-  (insert "• Gendl Repl: M-x slime-connect RET\n")
-  (insert "• Claude Code: M-x eat, then `claudly`\n"))
-
-
-(defun dashboard-insert-other-status (list-size)
-  "Insert other services status section."
-  (message "should limit list to %s" list-size)
-  (dashboard-insert-heading "Other Services:")
-  (insert "\n")
-  (insert "    〰 SLIME: gendl-ccl:4200\n")    
-  (insert "    ⚏  Docker Network: emacs-gendl-network\n"))
-
+  (insert (help-info-string)))
 
 
 (defun dashboard-insert-active-projects (list-size)
-  "Insert active projects with git-based sorting and smart caching."
-  (message "should limit list to %s" list-size)
+  "Insert active projects info.  LIST-SIZE is not currently being respected."
   (dashboard-insert-heading "Active Projects:")
   (insert "\n")
-  (let* ((project-dirs (seq-filter (lambda (dir) 
-                                    (and (file-directory-p (expand-file-name dir "/projects"))
-                                         (file-exists-p (expand-file-name (concat dir "/.git") "/projects"))))
-                                  (directory-files "/projects" nil "^[^.]")))
-         ;; Use cached git activity times
-         (projects-with-mtime (mapcar (lambda (proj)
-                                       (let* ((full-path (expand-file-name proj "/projects"))
-                                              (git-time (get-cached-directory-mtime full-path #'get-git-recent-activity))
-                                              (dir-time (get-simple-directory-mtime full-path))
-                                              (activity-time (or git-time dir-time)))
-                                         (cons proj activity-time)))
-                                     project-dirs))
-         (sorted-projects (sort projects-with-mtime 
-                               (lambda (a b) 
-                                 (time-less-p (cdr b) (cdr a)))))
-         (display-projects (seq-take sorted-projects (or list-size 8))))
-    (if display-projects
-        (dolist (proj-time-pair display-projects)
-          (let* ((proj (car proj-time-pair))
-                 (mtime (cdr proj-time-pair))
-                 (time-ago (if (and mtime (not (equal mtime '(0 0))))
-                              (let ((seconds-ago (float-time (time-subtract (current-time) mtime))))
-                                (cond
-                                 ((< seconds-ago 3600) (format "%.0fm ago" (/ seconds-ago 60)))
-                                 ((< seconds-ago 86400) (format "%.1fh ago" (/ seconds-ago 3600)))
-                                 ((< seconds-ago 604800) (format "%.1fd ago" (/ seconds-ago 86400)))
-                                 (t (format-time-string "%Y-%m-%d" mtime))))
-                            "unknown")))
-            (insert (format "    %s [git] - %s\n" proj time-ago))))
-      (insert "    --- No projects detected ---\n"))))
+  (insert (active-projects-string list-size)))
+
+(defun dashboard-insert-system-info (list-size)
+  "Insert system information section.  LIST-SIZE is not currently being respected."
+  (message "evaluating list size to pleaser compiler %s" list-size)
+  (dashboard-insert-heading "System Information:")
+  (insert "\n")
+  (insert (system-info-string)))
+
+;;
+;; FLAG - get more sophisticated for determining live services for
+;; standalone runnings.
+;;
+(defun dashboard-insert-lisply-backends (list-size)
+  "Insert precooked Lisply string or not.  LIST-SIZE not currently being respected."
+  (if (and skewed-emacs-container? list-size)
+      (progn
+	(dashboard-insert-heading "Live Lisply Backends:")
+	(insert "\n")
+	(insert (lisply-backends-string)))
+    (dashboard-insert-heading "No Configured Lisply Backends")
+    (insert "\n")
+    (insert "     𝙰𝚝 𝚃𝚑𝚒𝚜 𝙹𝚞𝚗𝚌𝚝𝚞𝚛𝚎")))
 
 
 
-
+;;
+;; Add back the use of this later
+;;
+;;(defun dashboard-insert-other-status (list-size)
+;;  "Insert other services status section."
+;;  (message "should limit list to %s" list-size)
+;;  (dashboard-insert-heading "Other Services:")
+;;  (insert "\n")
+;;  (insert "    〰 SLIME: gendl-ccl:4200\n")    
+;;  (insert "    ⚏  Docker Network: emacs-gendl-network\n"))
+;;
+;; Helper functions below. 
+;;
 
 (defun silent-http-ping (host port endpoint &optional timeout)
-  "Ping HTTP endpoint silently without any side effects or messages.
+  "Ping HTTP ENDPOINT on HOST at PORT silently.
 Returns (:status OK|ERROR :time response-time-ms)."
   (let ((url (format "http://%s:%d%s" host port (or endpoint "/")))
         (url-request-timeout (or timeout 2))
@@ -198,7 +158,7 @@ Returns (:status OK|ERROR :time response-time-ms)."
 
 
 (defun visible-buffer-list ()
-  "Return a list of open, non-internal buffers (similar to C-x C-b)."
+  "Return a list of open, non-internal buffers as seen in `electric-buffer-list`."
   (seq-filter (lambda (buf)
                 (not (string-prefix-p " " (buffer-name buf))))
               (buffer-list)))
@@ -233,11 +193,11 @@ Returns (:status OK|ERROR :time response-time-ms)."
 
 
 (defun get-simple-directory-mtime (dir)
-  "Get directory modification time (when files added/removed)."
+  "Get directory modification time of DIR (when files added/removed)."
   (file-attribute-modification-time (file-attributes dir)))
 
 (defun get-git-recent-activity (dir)
-  "Get most recent git commit time."
+  "Get most recent git commit time of DIR."
   (when (file-exists-p (expand-file-name ".git" dir))
     (let ((default-directory dir))
       (condition-case nil
@@ -250,7 +210,7 @@ Returns (:status OK|ERROR :time response-time-ms)."
 (defvar project-cache-timeout 30)
 
 (defun get-cached-directory-mtime (dir strategy-function)
-  "Get directory mtime with caching."
+  "Get directory mtime with caching of DIR using STRATEGY-FUNCTION."
   (let* ((cache-key dir)
          (cached-entry (gethash cache-key project-mtime-cache))
          (now (current-time)))
@@ -263,22 +223,29 @@ Returns (:status OK|ERROR :time response-time-ms)."
         new-mtime))))
 
 
+(defun help-info-string ()
+  "Return a string suitable for help dashboad item."
+  (with-output-to-string 
+   (princ (format "• Emacs Tutorial: C-h C-t\n"))
+   (princ (format "• Gendl Repl: M-x slime-connect RET\n"))
+   (princ (format "• Claude Code: M-x eat, then `claudly`\n"))))
 
-(defvar lisply-backend-status-cache-timeout 5)
-(defvar lisply-backend-status-cache nil)
-(defun lisply-backend-status-string ()
-  "Return backend status string with caching to avoid repeated network calls."
+
+(defvar lisply-backends-cache-timeout 5)
+(defvar lisply-backends-cache nil)
+(defun lisply-backends-string ()
+  "Return backend status string with caching."
   (let ((now (current-time)))
     ;; Check if cache is valid (within timeout period)
-    (if (and lisply-backend-status-cache
-             (plist-get lisply-backend-status-cache :timestamp)
-             (< (float-time (time-subtract now (plist-get lisply-backend-status-cache :timestamp)))
-                lisply-backend-status-cache-timeout))
+    (if (and lisply-backends-cache
+             (plist-get lisply-backends-cache :timestamp)
+             (< (float-time (time-subtract now (plist-get lisply-backends-cache :timestamp)))
+                lisply-backends-cache-timeout))
         ;; Return cached result
-        (plist-get lisply-backend-status-cache :result)
+        (plist-get lisply-backends-cache :result)
       ;; Generate new result and cache it
-      (let ((result (lisply-backend-status-string-uncached)))
-        (setq lisply-backend-status-cache 
+      (let ((result (lisply-backends-string-uncached)))
+        (setq lisply-backends-cache 
 	      (list :timestamp now :result result))
         result))))
 
@@ -288,14 +255,14 @@ Returns (:status OK|ERROR :time response-time-ms)."
 ;; FLAG -- drive hostnames and ports with environment vars. 
 ;;
 ;;
-(defun lisply-backend-status-string-uncached ()
+(defun lisply-backends-string-uncached ()
   "Return backend status string without any side effects.
 No buffers created, no messages shown, no slowdowns."
   (with-output-to-string 
     (dolist (backend '((:host "gendl" :port 9080)
                        (:host "skewed-emacs" :port 7080)))
       (cl-destructuring-bind (&key host port) backend
-        (let ((result (silent-http-ping host port "/lisply/ping-lisp" 1)))
+        (let ((result (silent-http-ping host port "/lisply/ping-lisp" 0.3)))
           (let ((status (plist-get result :status))
                 (time (plist-get result :time)))
             (princ (format "    [%s] %s:%s%s\n" 
@@ -305,6 +272,73 @@ No buffers created, no messages shown, no slowdowns."
                               (format " (%s)" (or time "?ms"))
                             "")))))))))
 			      
+
+(defun active-projects-string (list-size)
+  (with-output-to-string 
+    (let* ((project-dirs (seq-filter (lambda (dir) 
+                                       (and (file-directory-p (expand-file-name dir "/projects"))
+                                            (file-exists-p (expand-file-name (concat dir "/.git") "/projects"))))
+                                     (directory-files "/projects" nil "^[^.]")))
+           ;; Use cached git activity times
+           (projects-with-mtime (mapcar (lambda (proj)
+					  (let* ((full-path (expand-file-name proj "/projects"))
+						 (git-time (get-cached-directory-mtime full-path #'get-git-recent-activity))
+						 (dir-time (get-simple-directory-mtime full-path))
+						 (activity-time (or git-time dir-time)))
+                                            (cons proj activity-time)))
+					project-dirs))
+           (sorted-projects (sort projects-with-mtime 
+				  (lambda (a b) 
+                                    (time-less-p (cdr b) (cdr a)))))
+           (display-projects (seq-take sorted-projects (or list-size 8))))
+      (if display-projects
+          (dolist (proj-time-pair display-projects)
+            (let* ((proj (car proj-time-pair))
+                   (mtime (cdr proj-time-pair))
+                   (time-ago (if (and mtime (not (equal mtime '(0 0))))
+				 (let ((seconds-ago (float-time (time-subtract (current-time) mtime))))
+                                   (cond
+                                    ((< seconds-ago 3600) (format "%.0fm ago" (/ seconds-ago 60)))
+                                    ((< seconds-ago 86400) (format "%.1fh ago" (/ seconds-ago 3600)))
+                                    ((< seconds-ago 604800) (format "%.1fd ago" (/ seconds-ago 86400)))
+                                    (t (format-time-string "%Y-%m-%d" mtime))))
+                               "unknown")))
+              (princ (format "    %s [git] - %s\n" proj time-ago))))
+	(princ "    --- No projects detected ---\n")))))
+
+
+
+
+(defun system-info-string ()
+  "Insert system information section with memory and CPU usage."
+  (with-output-to-string
+    (let ((system-info (gather-system-info)))
+      (princ (format "    Emacs PID: %s | Uptime: %s\n" 
+                      (plist-get system-info :emacs-pid)
+                      (emacs-uptime)))
+      (let ((memory (plist-get system-info :memory-mb))
+            (cpu-time (plist-get system-info :cpu-seconds)))
+	(princ (format "    Memory: %s | CPU Time: %s\n"
+			(if memory (format "%.1f MB" memory) "N/A")
+			(if cpu-time 
+                            (let ((minutes (floor (/ cpu-time 60)))
+                                  (seconds (mod cpu-time 60)))
+                              (if (> minutes 0)
+                                  (format "%dm %.1fs" minutes seconds)
+				(format "%.1fs" seconds)))
+                          "N/A"))))
+      (princ (format "    Packages: %d | Buffers: %d/%d total\n"
+                      (plist-get system-info :active-packages)
+                      (plist-get system-info :visible-buffers)
+		      (plist-get system-info :total-buffers)))
+      (princ (format "    Version: %s | Platform: %s\n"
+                      (plist-get system-info :emacs-version)
+                      (plist-get system-info :system-type)))
+      (princ (format "    Time: %s\n"
+                     (plist-get system-info :current-time))))))
+
+
+
 
 (defvar skewed-dashboard-banners
   '(:blur-vision
@@ -428,6 +462,7 @@ $$    $$/ $$ | $$  |$$       |$$$/    $$$ |$$       |$$    $$/
 
 
 (defun generate-skewed-dashboard-banner (&optional text-file)
+  "Generate our needed dashboard banner TEXT-FILE."
   (unless text-file (setq text-file skewed-dashboard-banner-file))
   (let ((skewed-banner (plist-get
 			(plist-get skewed-dashboard-banners :big-money-sw) :skewed))
@@ -439,4 +474,5 @@ $$    $$/ $$ | $$  |$$       |$$$/    $$$ |$$       |$$    $$/
 
 
 (provide 'dashboard-config)
+;;; dashboard-config.el ends here
 

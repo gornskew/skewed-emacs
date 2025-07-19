@@ -161,14 +161,19 @@ start_services() {
     pull_images
     log_info "Starting services: ${services:-all}"
     $COMPOSE_CMD -f "$COMPOSE_FILE" up -d $services
+
+    echo ""
+    echo 'Use `eskew` for a terminal emacsclient,'
+    echo ' or `egskew` for a graphical one.'
+    echo "" 
     
-    # Show connection info after startup
-    if [ -z "$services" ] || [[ "$services" =~ "emacs" ]]; then
-        show_emacs_info
-    fi
-    if [ -z "$services" ] || [[ "$services" =~ "gendl" ]]; then
-        show_gendl_info
-    fi
+    # # Show connection info after startup
+    # if [ -z "$services" ] || [[ "$services" =~ "emacs" ]]; then
+    #     show_emacs_info
+    # fi
+    # if [ -z "$services" ] || [[ "$services" =~ "gendl" ]]; then
+    #     show_gendl_info
+    # fi
 }
 
 stop_services() {
