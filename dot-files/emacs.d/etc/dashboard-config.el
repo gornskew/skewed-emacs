@@ -1,5 +1,12 @@
-;;; -*- lexical-binding: t -*-
-;;; Dashboard setup 
+;;; --*- lexical-binding: nil -*- 
+;;; Dashboard setup
+
+;; To Do:
+;;
+;;
+;;
+
+
 (require 'url)
 
 (defvar skewed-dashboard-banner-file (concat (temporary-file-directory) "skewed-emacs-banner.txt"))
@@ -42,8 +49,6 @@
   (insert "\n")
   (insert (lisply-backend-status-string)))
 
-
-
 (defun dashboard-insert-system-info (list-size)
   "Insert system information section with memory and CPU usage."
   (message "should limit list to %s" list-size)
@@ -64,9 +69,10 @@
                                 (format "%dm %.1fs" minutes seconds)
                               (format "%.1fs" seconds)))
                         "N/A"))))
-    (insert (format "    Packages: %d active | Buffers: %d open\n"
+    (insert (format "    Packages: %d | Buffers: %d/%d total\n"
                     (plist-get system-info :active-packages)
-                    (plist-get system-info :active-buffers)))
+                    (plist-get system-info :visible-buffers)
+		    (plist-get system-info :total-buffers)))
     (insert (format "    Version: %s | Platform: %s\n"
                     (plist-get system-info :emacs-version)
                     (plist-get system-info :system-type)))
@@ -191,6 +197,12 @@ Returns (:status OK|ERROR :time response-time-ms)."
               (/ (+ utime stime) clock-ticks-per-sec))))))))
 
 
+(defun visible-buffer-list ()
+  "Return a list of open, non-internal buffers (similar to C-x C-b)."
+  (seq-filter (lambda (buf)
+                (not (string-prefix-p " " (buffer-name buf))))
+              (buffer-list)))
+
 (defun gather-system-info ()
   "System info gathering with memory and CPU usage."
   (let ((memory-mb (get-emacs-memory-usage))
@@ -198,7 +210,8 @@ Returns (:status OK|ERROR :time response-time-ms)."
     (list :emacs-pid (emacs-pid)
           :current-time (current-time-string)
           :active-packages (length package-activated-list)
-          :active-buffers (length (buffer-list))
+          :visible-buffers (length (visible-buffer-list))
+	  :total-buffers (length (buffer-list))
           :emacs-version emacs-version
           :system-type system-type
           :working-dir default-directory

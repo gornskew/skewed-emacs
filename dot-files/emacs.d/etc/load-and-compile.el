@@ -97,7 +97,8 @@
           (native-compile-async package-dirs t)
 	  (await-async-compilations "installed packages")
 	  (native-compile-async (concat emacs-config-directory "init.el"))
-	  (native-compile-async (concat emacs-config-directory "etc/load-and-compile.el"))
+	  (native-compile-async (concat emacs-config-directory "etc"))
+	  (native-compile-async (concat emacs-config-directory "sideloaded"))
 	  (await-async-compilations "local config files"))))))
 
 
