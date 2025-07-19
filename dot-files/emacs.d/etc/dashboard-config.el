@@ -47,25 +47,29 @@
 	(get-buffer-create "*dashboard*")))
 
 (defun dashboard-insert-help-info (list-size)
-  "Insert getting-started info.  LIST-SIZE is not currently being respected."
-  (message "evaluating this to please compiler: %s" list-size)
-  (dashboard-insert-heading "Getting Started:")
-  (insert "\n")
-  (insert (help-info-string)))
+  "Insert getting-started info.  LIST-SIZE nil to leave blank."
+  (if list-size
+      (progn
+	(dashboard-insert-heading "Getting Started:")
+	(insert "\n")
+	(insert (help-info-string)))
+    (dashboard-insert-heading "No Help for You")))
 
 
 (defun dashboard-insert-active-projects (list-size)
-  "Insert active projects info.  LIST-SIZE is not currently being respected."
+  "Insert active projects info.  LIST-SIZE is passed along."
   (dashboard-insert-heading "Active Projects:")
   (insert "\n")
   (insert (active-projects-string list-size)))
 
 (defun dashboard-insert-system-info (list-size)
-  "Insert system information section.  LIST-SIZE is not currently being respected."
-  (message "evaluating list size to pleaser compiler %s" list-size)
-  (dashboard-insert-heading "System Information:")
-  (insert "\n")
-  (insert (system-info-string)))
+  "Insert system information section.  LIST-SIZE nil to leave blank."
+  (if list-size
+      (progn
+	(dashboard-insert-heading "System Information:")
+	(insert "\n")
+	(insert (system-info-string)))
+    (dashboard-insert-heading "No System Info for You")))
 
 ;;
 ;; FLAG - get more sophisticated for determining live services for
