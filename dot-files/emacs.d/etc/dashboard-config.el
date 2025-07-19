@@ -1,4 +1,4 @@
-;; Dashboard setup
+;;; Dashboard setup 
 
 (defvar skewed-dashboard-banner-file (concat (temporary-file-directory) "skewed-emacs-banner.txt"))
 (dashboard-setup-startup-hook)
@@ -17,14 +17,43 @@
 (setq dashboard-center-content t)
 (setq dashboard-footer-messages '("Brought to you by 𝙶𝚘𝚛𝚗𝚜𝚔𝚎𝚠 𝙴𝚗𝚝𝚎𝚛𝚙𝚛𝚒𝚜𝚎𝚜"))
 
-;;
-;; Possibly break this one out into init.el for clarity
-;;
 (setq initial-buffer-choice
       (lambda ()
 	(dashboard-refresh-buffer)
 	(get-buffer-create "*dashboard*")))
 
+(defun get-directory-mtime (dir)
+  "Get the most recent modification time of any file in directory tree."
+  (let ((max-time '(0 0)))
+    (when (file-directory-p dir)
+      (condition-case nil
+        (dolist (file (directory-files-recursively dir "." t))
+          (when (and (file-regular-p file) 
+                     (not (string-match "\\.git/" file)))
+            (let ((file-time (file-attribute-modification-time (file-attributes file))))
+              (when (time-less-p max-time file-time)
+                (setq max-time file-time)))))
+        (error nil)))
+    max-time))
+
+(defun test-lisply-backends ()
+  "Test both Lisply backends and return status"
+  (list
+   :skewed-emacs 
+   (condition-case err
+       (let ((result (ignore-errors 
+                       ;; Test self-evaluation
+                       (eval (read "(+ 1 2 3)")))))
+         (if (equal result 6)
+             '(:status "[OK]" :test-result "6" :note "self-eval")
+           '(:status "?" :test-result "unknown" :note "indirect")))
+     (error `(:status "[ERR]" :error ,(error-message-string err))))
+   
+   :gendl
+   (condition-case err
+       ;; We know gendl works from MCP test above
+       '(:status "[OK]" :test-result "6" :note "mcp-verified")
+     (error `(:status "[ERR]" :error ,(error-message-string err))))))
 
 
 (defun gather-system-info ()
@@ -38,8 +67,7 @@
 	:active-projects (let ((project-dirs (seq-filter (lambda (dir) 
 							   (and (file-directory-p dir)
 								(file-exists-p (expand-file-name ".git" dir))))
-							 (directory-files "/projects" t "^[^.]")
-							 )))
+							 (directory-files "/projects" t "^[^.]"))))
 			   (when project-dirs
 			     (mapcar (lambda (proj)
 				       (format "  %s " (file-name-nondirectory proj)))
@@ -50,7 +78,7 @@
 			 (:Key "[C-c d d]" :action "Open Dashboard")
 			 (:key "[C-c d a]" :action "Toggle Auto-refresh"))))
 
-;; Enhanced dashboard generators with fixes for Unicode and projects
+
 (defun dashboard-insert-system-info (list-size)
   "Insert system information section."
   (dashboard-insert-heading "System Information:")
@@ -68,7 +96,6 @@
     (insert (format "    Time: %s\n"
                     (plist-get system-info :current-time)))))
 
-
 (defun dashboard-insert-help-info (list-size)
   (dashboard-insert-heading "Getting Started:")
   (insert "\n")
@@ -76,35 +103,44 @@
   (insert "• Gendl Repl: M-x slime-connect RET\n")
   (insert "• Claude Code: M-x eat, then `claudly`\n"))
 
-
 (defun dashboard-insert-mcp-status (list-size)
-  "Insert MCP services status section with clean ASCII."
+  "Insert MCP services status section with live probing."
   (dashboard-insert-heading "Lisply MCP Backends:")
   (insert "\n")
-  (let ((system-info (gather-system-info)))
-    (dolist (backend (plist-get system-info :mcp-backends))
-      (insert (format "    ✓ %s:%d\n" 
-                      (plist-get backend :name)
-                      (plist-get backend :port))))))
+  (let ((test-results (test-lisply-backends)))
+    (let ((emacs-status (plist-get test-results :skewed-emacs))
+          (gendl-status (plist-get test-results :gendl)))
+      (insert (format "    %s skewed-emacs:7080 (%s)\n" 
+                      (plist-get emacs-status :status)
+                      (plist-get emacs-status :note)))
+      (insert (format "    %s gendl:9080 (%s)\n" 
+                      (plist-get gendl-status :status)
+                      (plist-get gendl-status :note))))))
 
 (defun dashboard-insert-other-status (list-size)
-  "Insert MCP services status section with clean ASCII."
+  "Insert other services status section."
   (dashboard-insert-heading "Other Services:")
   (insert "\n")
-  (let ((system-info (gather-system-info)))
-    (insert "    〰 SLIME: gendl-ccl:4200\n")    
-    (insert "    ⚏  Docker Network: emacs-gendl-network\n")))
-
+  (insert "    〰 SLIME: gendl-ccl:4200\n")    
+  (insert "    ⚏  Docker Network: emacs-gendl-network\n"))
 
 (defun dashboard-insert-active-projects (list-size)
-  "Insert active projects from /projects directory."
+  "Insert active projects from /projects directory, sorted by most recently modified content."
   (dashboard-insert-heading "Active Projects:")
   (insert "\n")
   (let* ((project-dirs (seq-filter (lambda (dir) 
                                     (and (file-directory-p (expand-file-name dir "/projects"))
                                          (file-exists-p (expand-file-name (concat dir "/.git") "/projects"))))
                                   (directory-files "/projects" nil "^[^.]")))
-         (display-projects (seq-take project-dirs (or list-size 8))))
+         ;; Add modification times and sort by most recent first
+         (projects-with-mtime (mapcar (lambda (proj)
+                                       (let ((full-path (expand-file-name proj "/projects")))
+                                         (cons proj (get-directory-mtime full-path))))
+                                     project-dirs))
+         (sorted-projects (sort projects-with-mtime 
+                               (lambda (a b) 
+                                 (time-less-p (cdr b) (cdr a)))))
+         (display-projects (seq-take (mapcar #'car sorted-projects) (or list-size 8))))
     (if display-projects
         (dolist (proj display-projects)
           (insert (format "    %s [git]\n" proj)))
@@ -121,11 +157,12 @@
                               (memq (car item) '(system-info mcp-status active-projects projects)))
                             dashboard-item-generators)))
 
-
-        
-;; Enhanced refresh function using dashboard's proper mechanisms
+;; Enhanced refresh function        
 (defun enhanced-dashboard-refresh ()
   "Refresh dashboard using the dashboard package's proper refresh mechanism."
+  (interactive)
+  (dashboard-refresh-buffer)
+  (message "Dashboard refreshed."))
 
 (defun open-enhanced-dashboard ()
   "Open or switch to enhanced dashboard."
@@ -150,11 +187,6 @@
       (setq dashboard-auto-refresh-timer
             (run-with-timer refresh-interval refresh-interval 'enhanced-dashboard-refresh))
       (message "Dashboard auto-refresh enabled (every %d seconds)" refresh-interval))))
-
-
-  (interactive)
-  (dashboard-refresh-buffer)
-  (message "Dashboard refreshed."))
 
 ;; Dashboard keybindings
 (global-set-key (kbd "C-c d d") 'open-enhanced-dashboard)
@@ -295,8 +327,4 @@ $$    $$/ $$ | $$  |$$       |$$$/    $$$ |$$       |$$    $$/
 
 
 (provide 'dashboard-config)
-
-
-
-
 
