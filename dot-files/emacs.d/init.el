@@ -130,11 +130,13 @@ gendl/4200.")
 (defun set-default-settings ()
   "Set my personal preferred default settings."
   (interactive)
+
   (if (display-graphic-p)
       (setup-graphical-keybindings-and-faces)
     (setup-terminal-keybindings-and-faces))
   (setup-other-keybindings-and-faces)
   (when (display-graphic-p)
+    ;;(set-fontset-font "DejaVu Sans" nil t)
     (setq-default
      font-use-system-font t
      inhibit-compacting-font-caches t
