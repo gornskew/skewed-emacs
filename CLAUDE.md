@@ -546,3 +546,48 @@ result = mcp__gendl__gendl__lisp_eval(code='(ql:quickload :my-project)')
 - Provide meaningful error messages
 - Handle both errors and nil results appropriately
 - Use `error-message-string` for clean error reporting
+
+## Lessons Learned: Programmatic File Editing
+
+### Interactive Prompts and Minibuffer Conflicts
+*Date: July 19, 2025 - Dashboard optimization work*
+
+**Issue encountered:** When using `(save-buffer)` programmatically via MCP Emacs Lisp evaluation, **unintentional** interactive prompts for file confirmation can cause "Command attempted to use minibuffer while in minibuffer" errors.
+
+**Root cause:** The MCP evaluation context is already using the minibuffer, so nested interactive prompts fail.
+
+**Key distinction - Two scenarios:**
+
+1. **Unintentional prompts (problematic):** When you're trying to automate something but accidentally trigger user interaction
+   - Example: `(save-buffer)` unexpectedly asking where to save a file
+   - Solution: Use non-interactive alternatives
+
+2. **Intentional prompts (perfectly fine):** When you specifically want user input and communicate this
+   - Example: "I'm going to call `(find-file)` - please choose your file in the minibuffer prompt"
+   - This is often the most efficient way to let users pick files, directories, etc.
+
+**Solutions for avoiding unintentional prompts:**
+1. **Use `write-file` with explicit paths** instead of `save-buffer`
+2. **Use `write-region`** to write content directly to specific files
+3. **Ensure proper buffer-file associations** before attempting saves
+4. **Use `with-temp-file` for new content creation**
+
+**Example of safe programmatic file writing:**
+```elisp
+;; Instead of:
+;; (save-buffer)  ; Can trigger unexpected prompts
+
+;; Use:
+(write-region (point-min) (point-max) "/path/to/file.el")
+;; or
+(with-temp-file "/path/to/file.el"
+  (insert content-string))
+```
+
+**When intentional prompts are good:**
+- "Let me call `(find-file)` so you can choose which config file to edit"
+- "I'll run `(query-replace)` so you can approve each replacement"
+- Any time user choice/confirmation genuinely improves the workflow
+
+This lesson was learned during dashboard-config.el optimization where an unintentional prompt interrupted the automated editing process
+
