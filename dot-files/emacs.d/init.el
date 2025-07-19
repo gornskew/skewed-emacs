@@ -102,6 +102,9 @@
 
 (defun main-setup ()
   "Set up hooks and Lisply server if enabled."
+
+  (generate-skewed-dashboard-banner)
+  
   (add-hook 'before-make-frame-hook 'on-before-make-frame)
   (add-hook 'after-make-frame-functions 'on-after-make-frame)
   (add-hook 'eshell-load-hook #'eat-eshell-mode)
