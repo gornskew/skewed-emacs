@@ -232,7 +232,9 @@ Returns (:status OK|ERROR :time response-time-ms)."
   (with-output-to-string 
    (princ (format "• Emacs Tutorial: C-h C-t\n"))
    (princ (format "• Gendl Repl: M-x slime-connect RET\n"))
-   (princ (format "• Claude Code: M-x eat, then `claudly`\n"))))
+   (princ (format "• Claude Code: M-x eat, then `claudly`\n"))
+   (princ (format "• M-x light-theme, dark-theme, load-theme\n"))
+   ))
 
 
 (defvar lisply-backends-cache-timeout 5)

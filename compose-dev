@@ -158,7 +158,11 @@ EOF
 start_services() {
     local services="$*"
     init_env
-    pull_images
+    
+    if [ -z "${NO_PULL}" ]; then
+	pull_images
+    fi
+    
     log_info "Starting services: ${services:-all}"
     $COMPOSE_CMD -f "$COMPOSE_FILE" up -d $services
 
