@@ -1,4 +1,4 @@
-;;; init.el -*- lexical-binding: nil -*- --- Personal Emacs configuration
+;;; init.el --- skewed config -*- lexical-binding: nil -*-
 ;;; Commentary:
 ;;; This is my personal Emacs configuration.
 ;;; It was inspired by but is no longer based on Crafted Emacs.
@@ -12,72 +12,180 @@
 
 (defvar start-lisply? (not (string= (getenv "START_HTTP") "false")))
 (defvar skewed-emacs-container? (getenv "SKEWED_EMACS_CONTAINER"))
-(defvar emacs-batch-mode? (getenv "EMACS_BATCH_MODE"))
-
+(defvar skewed-emacs-docker-build? (or (getenv "EMACS_BATCH_MODE")
+				       (getenv "SKEWED_EMACS_DOCKER_BUILD")))
 
 
 ;; Redirect custom settings to a separate file
 (setq custom-file (concat emacs-config-directory "custom.el"))
 
+(defvar second-party-packages nil)
+(defvar third-party-packages nil)
 
-(defvar third-party-packages
-  '(flycheck
-    company
-    eat
-    doom-themes
-    zenburn-theme
-    ellama
-    ;;chatgpt-shell ;; doing apparently deferred native compiling with too many warnings.
-    json
-    simple-httpd
-    dashboard
-    paredit
-    
-    (magit
-     :config
-     (setq magit-git-executable (locate-file "git" exec-path))
-     (global-set-key (kbd "C-x g") 'magit-status))
-    (pdf-tools
-     :config
-     (when (and (string= (getenv "EMACS_BATCH_MODE") "true")
-		(not (string= (getenv "SKEWED_EMACS_CONTAINER") "true")))
-       (pdf-tools-install)))
-    (org
-     :config
-     (use-package org-config
-       :ensure nil
-       :load-path (lambda () (get-config-path "etc"))))
-    
-;;    (copilot
-;;     :config
-;;     (bind-key* "C-." 'copilot-accept-completion)
-;;     (bind-key* "M-," 'copilot-accept-completion)
-;;     (bind-key* "C-," 'copilot-accept-completion-by-word))
-
+(setq
+ third-party-packages
+ `((flycheck
+    :commands flycheck-mode
+    :hook (prog-mode . flycheck-mode)
+    :defer (not skewed-emacs-docker-build?)
     )
+   (company
+    :commands company-mode
+    :hook (prog-mode . company-mode)
+    :defer (not skewed-emacs-docker-build?)
+    )
+   (eat
+    :commands eat
+    :bind ("C-c t" . eat)
+    :defer (not skewed-emacs-docker-build?)
+    )
+   (doom-themes
+    :demand t				; Load immediately for UI
+    :config (load-theme 'doom-one t)
+    :defer nil
+    )
+   (zenburn-theme
+    :demand t				; Alternative theme
+    :config (load-theme 'zenburn t)
+    :defer nil)
+   (ellama
+    :commands ellama
+    :defer (not skewed-emacs-docker-build?))
+   (json
+    :mode ("\\.json\\'" . json-mode)
+    :defer nil)
+   (simple-httpd
+    :commands httpd-start
+    :defer nil)
+   (dashboard
+    :demand t				; Load for daemon startup
+    :defer nil
+    :config (dashboard-setup-startup-hook))
+   (paredit
+    :hook (emacs-lisp-mode . paredit-mode)
+    :defer (not skewed-emacs-docker-build?))
+   (magit
+    :defer (not skewed-emacs-docker-build?)
+    :commands (magit-status magit-blame)
+    :bind ("C-x g" . magit-status)
+    :config (setq magit-git-executable (locate-file "git" exec-path)))
+   (pdf-tools
+    :defer (not skewed-emacs-docker-build?)
+    :mode ("\\.pdf\\'" . pdf-view-mode)
+    :config
+    (when skewed-emacs-docker-build?
+      (pdf-tools-install)))
+   (org
+    :defer (not skewed-emacs-docker-build?)
+    :commands (org-mode org-agenda)
+    :hook (org-mode . org-config-setup)
+    )))
+
+(setq
+ second-party-packages
+ `((org-config
+    :defer (not skewed-emacs-docker-build?)
+    :load-path ,(lambda () (get-config-path "etc"))
+    :hook (org-mode . (lambda () (require 'org-config))))
+   (sa-translit-config
+    :defer nil
+    :load-path ,(lambda () (get-config-path "etc")))
+   (dashboard-config
+    :defer nil
+    :load-path ,(lambda () (get-config-path "etc"))
+    :config
+    (require 'dashboard-config)
+    (generate-skewed-dashboard-banner))
+   (impatient-markdown-config
+    :defer (not skewed-emacs-docker-build?)
+    :load-path ,(lambda () (get-config-path "etc")))
+   (slime-config
+    :defer (not skewed-emacs-docker-build?)
+    :load-path ,(lambda () (get-config-path "etc"))
+    :commands (slime slime-connect slime-repl slime-selector
+		     load-and-or-start-gendl set-slime-shortcuts)
+    :mode (("\\.lisp\\'" . lisp-mode)
+           ("\\.cl\\'" . lisp-mode)
+           ("\\.gdl\\'" . lisp-mode)
+           ("\\.gendl\\'" . lisp-mode)
+           ("\\.lhtm\\'" . lisp-mode)
+           ("\\.lhtml\\'" . lisp-mode)
+           ("\\.sexp\\'" . lisp-mode)
+           ("\\.sexpr\\'" . lisp-mode)
+           ("\\.sexps\\'" . lisp-mode))
+    :hook (lisp-mode . (lambda () (require 'slime-config))))
+   (lisply-config
+    :defer nil
+    :load-path ,(lambda () (get-config-path "etc"))
+    :config
+    (when (and start-lisply? (not skewed-emacs-docker-build?))
+      (require 'lisply-config)
+      (setq httpd-host "0.0.0.0")
+      (emacs-lisply-start-server)))))
+
+
+;; (defvar third-party-packages
+;;   '(flycheck
+;;     company
+;;     eat
+;;     doom-themes
+;;     zenburn-theme
+;;     ellama
+;;     ;;chatgpt-shell ;; doing apparently deferred native compiling with too many warnings.
+;;     json
+;;     simple-httpd
+;;     dashboard
+;;     paredit
     
-  "List of third-party packages with their configurations.
-Each entry is either a symbol (for packages without config)
-or a list starting with the package name (a symbol)
-followed by optional :config forms.")
+;;     (magit
+;;      :config
+;;      (setq magit-git-executable (locate-file "git" exec-path))
+;;      (global-set-key (kbd "C-x g") 'magit-status))
+;;     (pdf-tools
+;;      :config
+;;      (when (and (string= (getenv "EMACS_BATCH_MODE") "true")
+;; 		(not (string= (getenv "SKEWED_EMACS_CONTAINER") "true")))
+;;        (pdf-tools-install)))
+;;     (org
+;;      :config
+;;      (use-package org-config
+;;        :ensure nil
+;;        :load-path (lambda () (get-config-path "etc"))))
+    
+;; ;;    (copilot
+;; ;;     :config
+;; ;;     (bind-key* "C-." 'copilot-accept-completion)
+;; ;;     (bind-key* "M-," 'copilot-accept-completion)
+;; ;;     (bind-key* "C-," 'copilot-accept-completion-by-word))
+
+;;     )
+    
+;;   "List of third-party packages with their configurations.
+;; Each entry is either a symbol (for packages without config)
+;; or a list starting with the package name (a symbol)
+;; followed by optional :config forms.")
 
 
-(defvar second-party-packages
-  '((sa-translit-config
-     :load-path (lambda () (get-config-path "etc")))
-    (dashboard-config
-     :load-path (lambda () (get-config-path "etc")))
-    (impatient-markdown-config
-     :load-path (lambda () (get-config-path "etc")))
-    (slime-config
-     :load-path (lambda () (get-config-path "etc")))
-    (lisply-config
-     :load-path (lambda () (get-config-path "etc")))
+;; (defvar second-party-packages
+;;   '((sa-translit-config
+;;      :load-path (lambda () (get-config-path "etc")))
+;;     (dashboard-config
+;;      :load-path (lambda () (get-config-path "etc")))
+;;     (impatient-markdown-config
+;;      :load-path (lambda () (get-config-path "etc")))
+;;     (slime-config
+;;      :load-path (lambda () (get-config-path "etc")))
+;;     (lisply-config
+;;      :load-path (lambda () (get-config-path "etc")))
 
-    ))
+;;     ))
 
 ;; Load package initialization and compilation logic
 (load (concat emacs-config-directory "etc/load-and-compile.el"))
+
+
+
+
 
 ;; Initialize packages and customizations
 (setup-packages-and-customizations emacs-config-directory)
@@ -106,16 +214,12 @@ followed by optional :config forms.")
 (defun main-setup ()
   "Set up hooks and Lisply server if enabled."
 
-  (generate-skewed-dashboard-banner)
-  
   (add-hook 'before-make-frame-hook 'on-before-make-frame)
   (add-hook 'after-make-frame-functions 'on-after-make-frame)
   (add-hook 'eshell-load-hook #'eat-eshell-mode)
   (add-hook 'eshell-load-hook #'eat-eshell-visual-command-mode)
 
-  (when start-lisply?
-    (setq httpd-host "0.0.0.0")
-    (emacs-lisply-start-server))
+
 
   (when skewed-emacs-container?
     (message "We Are a Skewed-emacs container, defaulting slime-connect settings to
@@ -359,22 +463,52 @@ gendl/4200.")
   (message "FLAG - Load the Llama etc configs here from a separate file."))
 
 (defun skewed-initialize ()
-  (when (file-exists-p "~/.emacs-local-early")
-    (load-file "~/.emacs-local-early"))
-  (main-setup)
-  (when (file-exists-p custom-file)
-    (load (file-name-sans-extension custom-file)))
-  (setup-themes)
-  (set-default-settings)
- ;; bump this to load-and-compile
-  (load-ai-tools)
-  (when (file-exists-p "~/.emacs-local")
-    (load-file "~/.emacs-local")))
+  "Main initialize."
+  (let ((start-time (float-time)) curr-time elapsed)
+    (setq curr-time start-time)
+    
+    (when (file-exists-p "~/.emacs-local-early")
+      (load-file "~/.emacs-local-early"))
+    
+    (main-setup)
+
+    (let ((float-time (float-time)))
+      (setq elapsed (- float-time curr-time))
+      (setq curr-time float-time))
+    (message "Done with main-setup in %s seconds."
+	     elapsed)
+    
+    (when (file-exists-p custom-file)
+      (load (file-name-sans-extension custom-file)))
+    
+    (setup-themes)
+
+    (let ((float-time (float-time)))
+      (setq elapsed (- float-time curr-time))
+      (setq curr-time float-time))
+    (message "Done with theme setups in %s seconds."
+	     elapsed)
+    
+    (set-default-settings)
+
+    (let ((float-time (float-time)))
+      (setq elapsed (- float-time curr-time))
+      (setq curr-time float-time))
+    (message "Done with default settings setting in %s seconds."
+	     elapsed)
+    
+    
+    ;; bump this to load-and-compile
+    (load-ai-tools)
+
+    
+    (when (file-exists-p "~/.emacs-local")
+      (load-file "~/.emacs-local"))
+
+    (message "Done with skewed-initialize in %s seconds."
+	     (- (float-time) start-time))))
+
 
 (skewed-initialize)
 
-
-;;; init.el ends here
-
-
-
+(provide 'init)

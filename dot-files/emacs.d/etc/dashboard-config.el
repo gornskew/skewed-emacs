@@ -15,18 +15,27 @@
 
 (defvar skewed-emacs-container? nil) ;; assumed to be pre-defined from init.el
 (defvar skewed-dashboard-banner-file (concat (temporary-file-directory) "skewed-emacs-banner.txt"))
+
+(defvar projects-dir (if (and skewed-emacs-container? (file-exists-p "/projects/"))
+			 "/projects/" "~/projects/"))
+
 (dashboard-setup-startup-hook)
 (setq dashboard-banner-logo-title "𝑺𝑲𝑬𝑾𝑬𝑫 𝑬𝑴𝑨𝑪𝑺")
 
 (setq dashboard-startup-banner skewed-dashboard-banner-file)
 
+
+;;(setq dashboard-items nil)
+
 (setq dashboard-items `((help . 3)
-			;; (recents  . 3) replace this with one we control. 
-			(active-projects . 5)
-			(lisply-status . 1)
-			(system-info . 1)
-			;;(other-status . 1)
-			(agenda . 1)))
+ 			;;(recents  . 3) replace this with one we control. 
+ 			(active-projects . 5)
+ 			(lisply-status . 1)
+ 			(system-info . 1)
+ 			;;(other-status . 1)
+ 			(agenda . 1)
+			))
+
 
 (setq dashboard-item-generators
       (append '((help . dashboard-insert-help-info)
@@ -58,7 +67,7 @@
 
 (defun dashboard-insert-active-projects (list-size)
   "Insert active projects info.  LIST-SIZE is passed along."
-  (dashboard-insert-heading "Active Projects:")
+  (dashboard-insert-heading (format "Active Projects in %s:" projects-dir))
   (insert "\n")
   (insert (active-projects-string list-size)))
 
@@ -181,14 +190,6 @@ Returns (:status OK|ERROR :time response-time-ms)."
           :working-dir default-directory
           :memory-mb memory-mb
           :cpu-seconds cpu-seconds
-          :active-projects (let ((project-dirs (seq-filter (lambda (dir) 
-                                                            (and (file-directory-p dir)
-                                                                 (file-exists-p (expand-file-name ".git" dir))))
-                                                          (directory-files "/projects" t "^[^.]"))))
-                            (when project-dirs
-                              (mapcar (lambda (proj)
-                                        (format "  %s " (file-name-nondirectory proj)))
-                                      (seq-take project-dirs 8))))
           :lisply-backends '((:name "skewed-emacs" :port 7080 :endpoint "/lisply/lisp-eval")
                            (:name "gendl" :port 9080 :endpoint "/lisply/lisp-eval"))
           :quick-actions '((:key "[C-c d r]" :action  "Refresh Dashboard")
@@ -281,13 +282,14 @@ No buffers created, no messages shown, no slowdowns."
 
 (defun active-projects-string (list-size)
   (with-output-to-string 
-    (let* ((project-dirs (seq-filter (lambda (dir) 
-                                       (and (file-directory-p (expand-file-name dir "/projects"))
-                                            (file-exists-p (expand-file-name (concat dir "/.git") "/projects"))))
-                                     (directory-files "/projects" nil "^[^.]")))
+    (let* ((project-dirs (when (file-exists-p projects-dir)
+			   (seq-filter (lambda (dir) 
+					 (and (file-directory-p (expand-file-name dir projects-dir))
+                                              (file-exists-p (expand-file-name (concat dir "/.git") projects-dir))))
+                                       (directory-files projects-dir nil "^[^.]"))))
            ;; Use cached git activity times
            (projects-with-mtime (mapcar (lambda (proj)
-					  (let* ((full-path (expand-file-name proj "/projects"))
+					  (let* ((full-path (expand-file-name proj projects-dir))
 						 (git-time (get-cached-directory-mtime full-path #'get-git-recent-activity))
 						 (dir-time (get-simple-directory-mtime full-path))
 						 (activity-time (or git-time dir-time)))
@@ -297,22 +299,23 @@ No buffers created, no messages shown, no slowdowns."
 				  (lambda (a b) 
                                     (time-less-p (cdr b) (cdr a)))))
            (display-projects (seq-take sorted-projects (or list-size 8))))
-      (if display-projects
-          (dolist (proj-time-pair display-projects)
-            (let* ((proj (car proj-time-pair))
-                   (mtime (cdr proj-time-pair))
-                   (time-ago (if (and mtime (not (equal mtime '(0 0))))
-				 (let ((seconds-ago (float-time (time-subtract (current-time) mtime))))
-                                   (cond
-                                    ((< seconds-ago 3600) (format "%.0fm ago" (/ seconds-ago 60)))
-                                    ((< seconds-ago 86400) (format "%.1fh ago" (/ seconds-ago 3600)))
-                                    ((< seconds-ago 604800) (format "%.1fd ago" (/ seconds-ago 86400)))
-                                    (t (format-time-string "%Y-%m-%d" mtime))))
-                               "unknown")))
-              (princ (format "    %s [git] - %s\n" proj time-ago))))
-	(princ "    --- No projects detected ---\n")))))
 
-
+       (cond (display-projects
+              (dolist (proj-time-pair display-projects)
+		(let* ((proj (car proj-time-pair))
+                       (mtime (cdr proj-time-pair))
+                       (time-ago (if (and mtime (not (equal mtime '(0 0))))
+				     (let ((seconds-ago (float-time (time-subtract (current-time) mtime))))
+                                       (cond
+					((< seconds-ago 3600) (format "%.0fm ago" (/ seconds-ago 60)))
+					((< seconds-ago 86400) (format "%.1fh ago" (/ seconds-ago 3600)))
+					((< seconds-ago 604800) (format "%.1fd ago" (/ seconds-ago 86400)))
+					(t (format-time-string "%Y-%m-%d" mtime))))
+				   "unknown")))
+		  (princ (format "    %s [git] - %s\n" proj time-ago)))))
+	     ((and (file-exists-p projects-dir) (file-directory-p projects-dir))
+	      (princ (format ) "    --- No projects detected in %s ---\n" projects-dir))
+	     (t (princ "    --- No %s directory exists ---\n" projects-dir))))))
 
 
 (defun system-info-string ()

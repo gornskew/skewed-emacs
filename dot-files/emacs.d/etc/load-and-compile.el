@@ -1,14 +1,13 @@
-;;; load-and-compile.el -*- lexical-binding: nil -*- --- Initialize and compile Emacs packages
-;;; Commentary:
-;;; This file handles package installation, loading, and compilation based on environment variables.
-;;; - If $SKEWED_EMACS_CONTAINER is true, assume packages are installed/compiled, set up load-path, and load packages without internet access.
-;;; - If $EMACS_BATCH_MODE is true and $SKEWED_EMACS_CONTAINER is false, install and load packages/customizations, compile all .el files in CONFIG-DIR after main-setup.
-;;; - Otherwise, install/load packages/customizations with deferred compilation.
+;;; comiple-and-load.el --- set up package installation and compiling/loading
+;;; Summary:
+;;; This file handles package installation, loading, and compilation based on certain variables.
 ;;;
 ;;; Code:
 
 (require 'cl-lib)
 (require 'use-package)
+(require 'comp)
+(require 'comp-run)
 
 (setq use-package-always-ensure t) ; Ensure packages are installed
 
@@ -113,36 +112,113 @@
 
 
 (defun setup-packages-and-customizations (&optional config-dir)
-  "Install and load packages and customizations based on environment variables."
+  "Install and load packages based on environment (Docker build,
+container, or daemon)."
   (unless config-dir (setq config-dir "~/.emacs.d/"))
-  (let ((in-container? skewed-emacs-container?))
+
+  ;; Determine deferral strategy
+  (let ((start-time (float-time)) curr-time elapsed)	
+    (setq curr-time start-time)
+    (message "Initializing packages at %s, docker-build? %s,
+container? %s"
+             start-time skewed-emacs-docker-build?
+	     skewed-emacs-container?)
+
     (package-initialize)
-    ;; Only configure archives and refresh if third-party packages are missing
+
+    (let ((float-time (float-time)))
+      (setq elapsed (- float-time curr-time))
+      (setq curr-time float-time))
+    (message "Done with package-initialize in %s seconds."
+	     elapsed)
+							       
     (unless (all-packages-installed-p)
+      (message "Installing missing packages...")
       (configure-package-archives)
-      (when (or (not package-archive-contents)
-                (not (file-exists-p (concat package-user-dir "/archives/gnu/archive-contents")))
-                (not (file-exists-p (concat package-user-dir "/archives/nongnu/archive-contents")))
-                (not (file-exists-p (concat package-user-dir "/archives/melpa/archive-contents"))))
-	(package-refresh-contents)))
-    (dolist (pkg-entry third-party-packages)
-      (if (symbolp pkg-entry)
-	  (progn
-            (eval `(use-package ,pkg-entry :ensure t))
-	    (eval `(require ',pkg-entry)))
-	(progn
-          (eval `(use-package ,(car pkg-entry) :ensure t ,@(cdr pkg-entry)))
-	  (eval `(require ',(car pkg-entry))))))
-    (dolist (pkg-entry second-party-packages)
-      (if (symbolp pkg-entry)
-	  (let ((use-package-expression `(use-package ,pkg-entry :ensure nil))
-		(require-expression `(require ',pkg-entry)))
-            (eval use-package-expression)
-	    (eval require-expression))
-	(let ((use-package-expression `(use-package ,(car pkg-entry) :ensure nil ,@(cdr pkg-entry)))
-	      (require-expression `(require ',(car pkg-entry))))
-	  (eval use-package-expression)
-	  (eval require-expression))))))
+      (when
+	  (or (not package-archive-contents)
+              (not
+	       (file-exists-p
+		(concat package-user-dir "/archives/gnu/archive-contents")))
+              (not
+	       (file-exists-p
+		(concat package-user-dir "/archives/nongnu/archive-contents")))
+              (not
+	       (file-exists-p
+		(concat package-user-dir "/archives/melpa/archive-contents"))))
+        (package-refresh-contents)))
+    
+
+    (let ((float-time (float-time)))
+      (setq elapsed (- float-time curr-time))
+      (setq curr-time float-time))
+    (message "Done with configure-package-archives, refresh-contents in %s seconds."
+	     elapsed)
+
+    ;; Third-party packages
+    (dolist (pkg (append third-party-packages second-party-packages))
+      (message "Processing use-package for %S" pkg)
+      (eval `(use-package ,@pkg))
+      (let ((float-time (float-time)))
+	(setq elapsed (- float-time curr-time))
+	(setq curr-time float-time))
+      (message
+       "Done with %s use-package in %s seconds." 
+       (cl-first pkg ) elapsed))
+
+    (let ((float-time (float-time)))
+      (setq elapsed (- float-time curr-time))
+      (setq curr-time float-time))
+    (message "Done with third- and second-party packages in %s seconds."
+	     elapsed)
+
+    (message "Done with setup-packages-and-customizations in %s seconds."
+	     (- (float-time) start-time))))
+
+
+
+;; (defun setup-packages-and-customizations (&optional config-dir)
+;;   "Install and load packages and customizations based on environment variables."
+;;   (unless config-dir (setq config-dir "~/.emacs.d/"))
+;;   (let ((in-container? skewed-emacs-container?))
+;;     (message "Before Package-initialize at %s, in-container? is %s" (float-time) in-container?)
+;;     (package-initialize)
+;;     (message "Package-initialize completed at: %s" (float-time))
+;;     (unless (all-packages-installed-p)
+;;       (message "All Desired Packages are Not Yet Installed. Installing them...")
+;;       (configure-package-archives)
+;;       (when (or (not package-archive-contents)
+;;                 (not (file-exists-p (concat package-user-dir "/archives/gnu/archive-contents")))
+;;                 (not (file-exists-p (concat package-user-dir "/archives/nongnu/archive-contents")))
+;;                 (not (file-exists-p (concat package-user-dir "/archives/melpa/archive-contents"))))
+;; 	(package-refresh-contents)))
+
+;;     (message "Before use-package of third-party-packages: %s" (float-time))
+    
+;;     (dolist (pkg-entry third-party-packages)
+;;       (let ((use-package-expression
+;; 	     (if (symbolp pkg-entry)
+;; 		 (progn
+;; 		   (eval `(use-package ,pkg-entry :ensure t))
+;; 		   (eval `(require ',pkg-entry)))
+;; 	       (progn
+;; 		 (eval `(use-package ,(car pkg-entry) :ensure t ,@(cdr pkg-entry)))
+;; 		 (eval `(require ',(car pkg-entry)))))))
+;; 	(message "Evaling %S for package activation." use-package-expression)
+;; 	(eval use-package-expression)))
+
+;;     (message "Before use-package of second-party-packages: %s" (float-time))
+    
+;;     (dolist (pkg-entry second-party-packages)
+;;       (if (symbolp pkg-entry)
+;; 	  (let ((use-package-expression `(use-package ,pkg-entry :ensure nil))
+;; 		(require-expression `(require ',pkg-entry)))
+;;             (eval use-package-expression)
+;; 	    (eval require-expression))
+;; 	(let ((use-package-expression `(use-package ,(car pkg-entry) :ensure nil ,@(cdr pkg-entry)))
+;; 	      (require-expression `(require ',(car pkg-entry))))
+;; 	  (eval use-package-expression)
+;; 	  (eval require-expression))))))
 
 
 
