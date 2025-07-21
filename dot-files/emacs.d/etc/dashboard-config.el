@@ -1,4 +1,4 @@
-;;; --*- lexical-binding: nil -*- 
+;;; Dashboard Config --- splashy dash  -*- lexical-binding: nil -*-
 ;;; Dashboard setup
 
 ;; To Do:
@@ -16,8 +16,11 @@
 (defvar skewed-emacs-container? nil) ;; assumed to be pre-defined from init.el
 (defvar skewed-dashboard-banner-file (concat (temporary-file-directory) "skewed-emacs-banner.txt"))
 
-(defvar projects-dir (if (and skewed-emacs-container? (file-exists-p "/projects/"))
-			 "/projects/" "~/projects/"))
+(defvar projects-dir
+  (expand-file-name
+   (if (or skewed-emacs-container? skewed-emacs-docker-build?
+	   (file-exists-p "/projects/"))
+       "/projects/" "~/projects/")))
 
 (dashboard-setup-startup-hook)
 (setq dashboard-banner-logo-title "𝑺𝑲𝑬𝑾𝑬𝑫 𝑬𝑴𝑨𝑪𝑺")
@@ -282,40 +285,58 @@ No buffers created, no messages shown, no slowdowns."
 
 (defun active-projects-string (list-size)
   (with-output-to-string 
-    (let* ((project-dirs (when (file-exists-p projects-dir)
-			   (seq-filter (lambda (dir) 
-					 (and (file-directory-p (expand-file-name dir projects-dir))
-                                              (file-exists-p (expand-file-name (concat dir "/.git") projects-dir))))
-                                       (directory-files projects-dir nil "^[^.]"))))
+    (let* ((project-dirs
+	    (when (file-exists-p projects-dir)
+	      (seq-filter
+	       (lambda (dir) 
+		 (and (file-directory-p (expand-file-name dir projects-dir))
+                      (file-exists-p
+		       (expand-file-name (concat dir "/.git") projects-dir))))
+               (directory-files projects-dir nil "^[^.]"))))
            ;; Use cached git activity times
-           (projects-with-mtime (mapcar (lambda (proj)
-					  (let* ((full-path (expand-file-name proj projects-dir))
-						 (git-time (get-cached-directory-mtime full-path #'get-git-recent-activity))
-						 (dir-time (get-simple-directory-mtime full-path))
-						 (activity-time (or git-time dir-time)))
-                                            (cons proj activity-time)))
-					project-dirs))
+           (projects-with-mtime
+	    (mapcar
+	     (lambda (proj)
+	       (let* ((full-path (expand-file-name proj projects-dir))
+		      (git-time (get-cached-directory-mtime
+				 full-path #'get-git-recent-activity))
+		      (dir-time (get-simple-directory-mtime full-path))
+		      (activity-time (or git-time dir-time)))
+                 (cons proj activity-time)))
+		    project-dirs))
            (sorted-projects (sort projects-with-mtime 
 				  (lambda (a b) 
                                     (time-less-p (cdr b) (cdr a)))))
            (display-projects (seq-take sorted-projects (or list-size 8))))
 
-       (cond (display-projects
-              (dolist (proj-time-pair display-projects)
-		(let* ((proj (car proj-time-pair))
-                       (mtime (cdr proj-time-pair))
-                       (time-ago (if (and mtime (not (equal mtime '(0 0))))
-				     (let ((seconds-ago (float-time (time-subtract (current-time) mtime))))
-                                       (cond
-					((< seconds-ago 3600) (format "%.0fm ago" (/ seconds-ago 60)))
-					((< seconds-ago 86400) (format "%.1fh ago" (/ seconds-ago 3600)))
-					((< seconds-ago 604800) (format "%.1fd ago" (/ seconds-ago 86400)))
-					(t (format-time-string "%Y-%m-%d" mtime))))
-				   "unknown")))
-		  (princ (format "    %s [git] - %s\n" proj time-ago)))))
-	     ((and (file-exists-p projects-dir) (file-directory-p projects-dir))
-	      (princ (format ) "    --- No projects detected in %s ---\n" projects-dir))
-	     (t (princ "    --- No %s directory exists ---\n" projects-dir))))))
+      (cond
+	(display-projects
+         (dolist (proj-time-pair display-projects)
+	   (let*
+	       ((proj (car proj-time-pair))
+                (mtime (cdr proj-time-pair))
+                (time-ago
+		 (if (and mtime (not (equal mtime '(0 0))))
+		     (let ((seconds-ago
+			    (float-time (time-subtract
+					 (current-time) mtime))))
+                       (cond
+			((< seconds-ago 3600)
+			 (format "%.0fm ago" (/ seconds-ago 60)))
+			((< seconds-ago 86400)
+			 (format "%.1fh ago" (/ seconds-ago 3600)))
+			((< seconds-ago 604800)
+			 (format "%.1fd ago" (/ seconds-ago 86400)))
+			(t (format-time-string "%Y-%m-%d" mtime))))
+		   "unknown")))
+	     (princ (format "    %s [git] - %s\n" proj time-ago)))))
+	((and (file-exists-p projects-dir)
+	      (file-directory-p projects-dir))
+	 (princ
+	  (format "    --- No projects detected in %s ---\n" projects-dir)))
+	(t (princ
+	    (format "    --- No %s directory exists ---\n"
+		    projects-dir)))))))
 
 
 (defun system-info-string ()

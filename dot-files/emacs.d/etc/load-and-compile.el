@@ -5,6 +5,10 @@
 ;;; Code:
 
 (require 'cl-lib)
+
+(defvar emacs-config-directory
+  (expand-file-name "etc/" (file-name-directory (file-truename load-file-name))))
+
 (require 'use-package)
 (require 'comp)
 (require 'comp-run)
@@ -174,53 +178,6 @@ container? %s"
 
     (message "Done with setup-packages-and-customizations in %s seconds."
 	     (- (float-time) start-time))))
-
-
-
-;; (defun setup-packages-and-customizations (&optional config-dir)
-;;   "Install and load packages and customizations based on environment variables."
-;;   (unless config-dir (setq config-dir "~/.emacs.d/"))
-;;   (let ((in-container? skewed-emacs-container?))
-;;     (message "Before Package-initialize at %s, in-container? is %s" (float-time) in-container?)
-;;     (package-initialize)
-;;     (message "Package-initialize completed at: %s" (float-time))
-;;     (unless (all-packages-installed-p)
-;;       (message "All Desired Packages are Not Yet Installed. Installing them...")
-;;       (configure-package-archives)
-;;       (when (or (not package-archive-contents)
-;;                 (not (file-exists-p (concat package-user-dir "/archives/gnu/archive-contents")))
-;;                 (not (file-exists-p (concat package-user-dir "/archives/nongnu/archive-contents")))
-;;                 (not (file-exists-p (concat package-user-dir "/archives/melpa/archive-contents"))))
-;; 	(package-refresh-contents)))
-
-;;     (message "Before use-package of third-party-packages: %s" (float-time))
-    
-;;     (dolist (pkg-entry third-party-packages)
-;;       (let ((use-package-expression
-;; 	     (if (symbolp pkg-entry)
-;; 		 (progn
-;; 		   (eval `(use-package ,pkg-entry :ensure t))
-;; 		   (eval `(require ',pkg-entry)))
-;; 	       (progn
-;; 		 (eval `(use-package ,(car pkg-entry) :ensure t ,@(cdr pkg-entry)))
-;; 		 (eval `(require ',(car pkg-entry)))))))
-;; 	(message "Evaling %S for package activation." use-package-expression)
-;; 	(eval use-package-expression)))
-
-;;     (message "Before use-package of second-party-packages: %s" (float-time))
-    
-;;     (dolist (pkg-entry second-party-packages)
-;;       (if (symbolp pkg-entry)
-;; 	  (let ((use-package-expression `(use-package ,pkg-entry :ensure nil))
-;; 		(require-expression `(require ',pkg-entry)))
-;;             (eval use-package-expression)
-;; 	    (eval require-expression))
-;; 	(let ((use-package-expression `(use-package ,(car pkg-entry) :ensure nil ,@(cdr pkg-entry)))
-;; 	      (require-expression `(require ',(car pkg-entry))))
-;; 	  (eval use-package-expression)
-;; 	  (eval require-expression))))))
-
-
 
 (provide 'load-and-compile)
 ;;; load-and-compile.el ends here

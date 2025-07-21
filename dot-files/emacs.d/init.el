@@ -475,6 +475,7 @@ gendl/4200.")
     (let ((float-time (float-time)))
       (setq elapsed (- float-time curr-time))
       (setq curr-time float-time))
+
     (message "Done with main-setup in %s seconds."
 	     elapsed)
     
@@ -506,9 +507,13 @@ gendl/4200.")
       (load-file "~/.emacs-local"))
 
     (message "Done with skewed-initialize in %s seconds."
-	     (- (float-time) start-time))))
+	     (- (float-time) start-time))
+
+    ))
 
 
 (skewed-initialize)
 
 (provide 'init)
+
+;;; init.el ends here

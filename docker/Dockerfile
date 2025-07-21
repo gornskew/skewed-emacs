@@ -73,20 +73,17 @@ COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh \
 RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh
 
 
-RUN START_HTTP=false emacs --batch --load "~/.emacs.d/init.el" \
-    && \
-    START_HTTP=false emacs --batch --load "~/.emacs.d/init.el" --eval "(recompile-all-packages)" \
-    && \
-    START_HTTP=true emacs --daemon --load "~/.emacs.d/init.el" \
-    && sleep 8 && emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")"
-#
-# FLAG -- 60 just for proof of concept.
-# Instead of sleep 60, wait for async jobs to be done. 
-#
 
-
-
-RUN cat << EOF >> /home/emacs-user/.bashrc
+RUN echo "*** Before first emacs run ***" \
+&& START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch --load "~/.emacs.d/init.el" \
+&& echo "*** Before second emacs run ***" \
+&& START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch --load "~/.emacs.d/init.el" \
+   --eval "(recompile-all-packages)" \
+&& echo "*** Before third emacs run ***" \
+&& START_HTTP=true SKEWED_EMACS_DOCKER_BUILD=true emacs --daemon --load "~/.emacs.d/init.el" \
+&& echo "*** Before client waiting ***" \
+&& sleep 8 && emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")" \
+&& cat << EOF >> /home/emacs-user/.bashrc
 
 export DOT_BASHRC_LOADED=1
 export DOT_PROFILE_LOADED=1

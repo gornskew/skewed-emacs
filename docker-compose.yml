@@ -161,9 +161,9 @@ services:
    
     working_dir: /projects
 
-    depends_on:
-      skewed-emacs:
-        condition: service_healthy
+#    depends_on:
+#      skewed-emacs:
+#        condition: service_healthy
 
 
     
