@@ -58,30 +58,44 @@
 	(dashboard-refresh-buffer)
 	(get-buffer-create "*dashboard*")))
 
+
 (defun dashboard-insert-help-info (list-size)
-  "Insert getting-started info.  LIST-SIZE nil to leave blank."
+  "Insert getting-started info. LIST-SIZE nil to leave blank."
   (if list-size
       (progn
-	(dashboard-insert-heading "Getting Started:")
-	(insert "\n")
-	(insert (help-info-string)))
+        (dashboard-insert-heading "Getting Started:")
+        (insert "\n")
+        (dolist (line (help-info-strings))
+          (insert line)))
     (dashboard-insert-heading "No Help for You")))
+
+;;
+;; (defun dashboard-insert-help-info (list-size)
+;;   "Insert getting-started info.  LIST-SIZE nil to leave blank."
+;;   (if list-size
+;;       (progn
+;; 	(dashboard-insert-heading "Getting Started:")
+;; 	(insert "\n")
+;; 	(insert (help-info-strings)))
+;;     (dashboard-insert-heading "No Help for You")))
+;;
 
 
 (defun dashboard-insert-active-projects (list-size)
   "Insert active projects info.  LIST-SIZE is passed along."
   (dashboard-insert-heading (format "Active Projects in %s:" projects-dir))
   (insert "\n")
-  (insert (active-projects-string list-size)))
+  (dolist (proj-string (active-projects-strings list-size))
+    (insert proj-string)))
 
 (defun dashboard-insert-system-info (list-size)
-  "Insert system information section.  LIST-SIZE nil to leave blank."
-  (if list-size
-      (progn
-	(dashboard-insert-heading "System Information:")
-	(insert "\n")
-	(insert (system-info-string)))
-    (dashboard-insert-heading "No System Info for You")))
+    "Insert system information section.  LIST-SIZE nil to leave blank."
+    (if list-size
+	(progn
+	  (dashboard-insert-heading "System Information:")
+	  (insert "\n")
+	  (insert (system-info-string)))
+      (dashboard-insert-heading "No System Info for You")))
 
 ;;
 ;; FLAG - get more sophisticated for determining live services for
@@ -230,15 +244,49 @@ Returns (:status OK|ERROR :time response-time-ms)."
         (puthash cache-key (list :mtime new-mtime :timestamp now) project-mtime-cache)
         new-mtime))))
 
+(defun help-info-strings ()
+  "Return a list of propertized strings for help dashboard item."
+  (list
+   (propertize "• Emacs Tutorial: C-h C-t\n"
+               'keymap (let ((map (make-sparse-keymap)))
+                         (define-key map (kbd "RET") 'help-with-tutorial)
+                         (define-key map [mouse-1] 'help-with-tutorial)
+                         map)
+               'face 'button
+               'help-echo "Run Emacs tutorial (C-h C-t)")
+   (propertize "• Gendl Repl: M-x slime-connect RET\n"
+               'keymap (let ((map (make-sparse-keymap)))
+                         (define-key map (kbd "RET") 'slime-connect)
+                         (define-key map [mouse-1] 'slime-connect)
+                         map)
+               'face 'button
+               'help-echo "Connect to Gendl REPL (slime-connect)")
+   (propertize "• Claude Code: M-x eat, then `claudly`\n"
+               'keymap (let ((map (make-sparse-keymap))
+			     (function (lambda () (interactive)
+					 (eat))))
+                         (define-key map (kbd "RET") function)
+                         (define-key map [mouse-1] function)
+                         map)
+               'face 'button
+               'help-echo "Run eat and insert 'claudly'")
+   (propertize "• M-x light-theme, dark-theme, load-theme\n"
+               'keymap (let ((map (make-sparse-keymap)))
+                         (define-key map (kbd "RET") 'load-theme)
+                         (define-key map [mouse-1] 'load-theme)
+                         map)
+               'face 'button
+               'help-echo "Run load-theme")))
 
-(defun help-info-string ()
-  "Return a string suitable for help dashboad item."
-  (with-output-to-string 
-   (princ (format "• Emacs Tutorial: C-h C-t\n"))
-   (princ (format "• Gendl Repl: M-x slime-connect RET\n"))
-   (princ (format "• Claude Code: M-x eat, then `claudly`\n"))
-   (princ (format "• M-x light-theme, dark-theme, load-theme\n"))
-   ))
+
+;; (defun help-info-string ()
+;;   "Return a string suitable for help dashboad item."
+;;   (with-output-to-string 
+;;    (princ (format "• Emacs Tutorial: C-h C-t\n"))
+;;    (princ (format "• Gendl Repl: M-x slime-connect RET\n"))
+;;    (princ (format "• Claude Code: M-x eat, then `claudly`\n"))
+;;    (princ (format "• M-x light-theme, dark-theme, load-theme\n"))
+;;    ))
 
 
 (defvar lisply-backends-cache-timeout 5)
@@ -282,61 +330,71 @@ No buffers created, no messages shown, no slowdowns."
                               (format " (%s)" (or time "?ms"))
                             "")))))))))
 			      
-
-(defun active-projects-string (list-size)
-  (with-output-to-string 
-    (let* ((project-dirs
-	    (when (file-exists-p projects-dir)
-	      (seq-filter
-	       (lambda (dir) 
-		 (and (file-directory-p (expand-file-name dir projects-dir))
-                      (file-exists-p
-		       (expand-file-name (concat dir "/.git") projects-dir))))
-               (directory-files projects-dir nil "^[^.]"))))
-           ;; Use cached git activity times
-           (projects-with-mtime
-	    (mapcar
-	     (lambda (proj)
-	       (let* ((full-path (expand-file-name proj projects-dir))
-		      (git-time (get-cached-directory-mtime
-				 full-path #'get-git-recent-activity))
-		      (dir-time (get-simple-directory-mtime full-path))
-		      (activity-time (or git-time dir-time)))
-                 (cons proj activity-time)))
-		    project-dirs))
-           (sorted-projects (sort projects-with-mtime 
-				  (lambda (a b) 
-                                    (time-less-p (cdr b) (cdr a)))))
-           (display-projects (seq-take sorted-projects (or list-size 8))))
-
-      (cond
-	(display-projects
-         (dolist (proj-time-pair display-projects)
-	   (let*
-	       ((proj (car proj-time-pair))
+(defun active-projects-strings (list-size)
+  "Return a list of propertized strings for active projects."
+  (let* ((project-dirs
+          (when (file-exists-p projects-dir)
+            (seq-filter
+             (lambda (dir)
+               (and (file-directory-p (expand-file-name dir projects-dir))
+                    (file-exists-p
+                     (expand-file-name (concat dir "/.git") projects-dir))))
+             (directory-files projects-dir nil "^[^.]"))))
+         (projects-with-mtime
+          (mapcar
+           (lambda (proj)
+             (let* ((full-path (expand-file-name proj projects-dir))
+                    (git-time (get-cached-directory-mtime
+                               full-path #'get-git-recent-activity))
+                    (dir-time (get-simple-directory-mtime full-path))
+                    (activity-time (or git-time dir-time)))
+               (cons proj activity-time)))
+           project-dirs))
+         (sorted-projects (sort projects-with-mtime
+                               (lambda (a b)
+                                 (time-less-p (cdr b) (cdr a)))))
+         (display-projects (seq-take sorted-projects (or list-size 8))))
+    (cond
+     (display-projects
+      (mapcar
+       (lambda (proj-time-pair)
+         (let* ((proj (car proj-time-pair))
                 (mtime (cdr proj-time-pair))
+                (full-path (expand-file-name proj projects-dir))
                 (time-ago
-		 (if (and mtime (not (equal mtime '(0 0))))
-		     (let ((seconds-ago
-			    (float-time (time-subtract
-					 (current-time) mtime))))
+                 (if (and mtime (not (equal mtime '(0 0))))
+                     (let ((seconds-ago
+                            (float-time (time-subtract
+                                         (current-time) mtime))))
                        (cond
-			((< seconds-ago 3600)
-			 (format "%.0fm ago" (/ seconds-ago 60)))
-			((< seconds-ago 86400)
-			 (format "%.1fh ago" (/ seconds-ago 3600)))
-			((< seconds-ago 604800)
-			 (format "%.1fd ago" (/ seconds-ago 86400)))
-			(t (format-time-string "%Y-%m-%d" mtime))))
-		   "unknown")))
-	     (princ (format "    %s [git] - %s\n" proj time-ago)))))
-	((and (file-exists-p projects-dir)
-	      (file-directory-p projects-dir))
-	 (princ
-	  (format "    --- No projects detected in %s ---\n" projects-dir)))
-	(t (princ
-	    (format "    --- No %s directory exists ---\n"
-		    projects-dir)))))))
+                        ((< seconds-ago 3600)
+                         (format "%.0fm ago" (/ seconds-ago 60)))
+                        ((< seconds-ago 86400)
+                         (format "%.1fh ago" (/ seconds-ago 3600)))
+                        ((< seconds-ago 604800)
+                         (format "%.1fd ago" (/ seconds-ago 86400)))
+                        (t (format-time-string "%Y-%m-%d" mtime))))
+                   "unknown")))
+           (format "    %s - %s\n"
+                   (propertize proj
+                               'keymap (let ((map (make-sparse-keymap)))
+                                         (define-key map (kbd "RET")
+						     (eval 
+						      `(lambda () (interactive)
+							 (dired ,full-path))))
+                                         (define-key map [mouse-1]
+						     `(lambda () (interactive)
+							(dired ,full-path)))
+                                         map)
+                               'face 'button
+                               'help-echo (format "Open %s in Dired" full-path))
+                   time-ago)))
+       display-projects))
+     ((and (file-exists-p projects-dir)
+           (file-directory-p projects-dir))
+      (list (format "    --- No projects detected in %s ---\n" projects-dir)))
+     (t
+      (list (format "    --- No %s directory exists ---\n" projects-dir))))))
 
 
 (defun system-info-string ()
