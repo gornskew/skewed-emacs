@@ -111,7 +111,8 @@
 (defun all-packages-installed-p ()
   "Check if all third-party packages are installed."
   (cl-every (lambda (pkg-entry)
-	      (package-installed-p (if (symbolp pkg-entry) pkg-entry (car pkg-entry))))
+	      (package-installed-p
+	       (if (symbolp pkg-entry) pkg-entry (car pkg-entry))))
 	    third-party-packages))
 
 

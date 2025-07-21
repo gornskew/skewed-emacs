@@ -24,62 +24,66 @@
 
 (setq
  third-party-packages
- `((flycheck
-    :commands flycheck-mode
-    :hook (prog-mode . flycheck-mode)
-    :defer (not skewed-emacs-docker-build?)
-    )
-   (company
-    :commands company-mode
-    :hook (prog-mode . company-mode)
-    :defer (not skewed-emacs-docker-build?)
-    )
-   (eat
-    :commands eat
-    :bind ("C-c t" . eat)
-    :defer (not skewed-emacs-docker-build?)
-    )
-   (doom-themes
-    :demand t				; Load immediately for UI
-    :config (load-theme 'doom-one t)
-    :defer nil
-    )
-   (zenburn-theme
-    :demand t				; Alternative theme
-    :config (load-theme 'zenburn t)
-    :defer nil)
-   (ellama
-    :commands ellama
-    :defer (not skewed-emacs-docker-build?))
-   (json
-    :mode ("\\.json\\'" . json-mode)
-    :defer nil)
-   (simple-httpd
-    :commands httpd-start
-    :defer nil)
-   (dashboard
-    :demand t				; Load for daemon startup
-    :defer nil
-    :config (dashboard-setup-startup-hook))
-   (paredit
-    :hook (emacs-lisp-mode . paredit-mode)
-    :defer (not skewed-emacs-docker-build?))
-   (magit
-    :defer (not skewed-emacs-docker-build?)
-    :commands (magit-status magit-blame)
-    :bind ("C-x g" . magit-status)
-    :config (setq magit-git-executable (locate-file "git" exec-path)))
-   (pdf-tools
-    :defer (not skewed-emacs-docker-build?)
-    :mode ("\\.pdf\\'" . pdf-view-mode)
-    :config
-    (when skewed-emacs-docker-build?
-      (pdf-tools-install)))
-   (org
-    :defer (not skewed-emacs-docker-build?)
-    :commands (org-mode org-agenda)
-    :hook (org-mode . org-config-setup)
-    )))
+ (remove
+  nil
+  `((flycheck
+     :commands flycheck-mode
+     :hook (prog-mode . flycheck-mode)
+     :defer (not skewed-emacs-docker-build?)
+     )
+    (company
+     :commands company-mode
+     :hook (prog-mode . company-mode)
+     :defer (not skewed-emacs-docker-build?)
+     )
+    (eat
+     :commands eat
+     :bind ("C-c t" . eat)
+     :defer (not skewed-emacs-docker-build?)
+     )
+    (doom-themes
+     :demand t				; Load immediately for UI
+     :config (load-theme 'doom-one t)
+     :defer nil
+     )
+    (zenburn-theme
+     :demand t				; Alternative theme
+     :config (load-theme 'zenburn t)
+     :defer nil)
+    (ellama
+     :commands ellama
+     :defer (not skewed-emacs-docker-build?))
+    (json
+     :mode ("\\.json\\'" . json-mode)
+     :defer nil)
+    (simple-httpd
+     :commands httpd-start
+     :defer nil)
+    (dashboard
+     :demand t				; Load for daemon startup
+     :defer nil
+     :config (dashboard-setup-startup-hook))
+    (paredit
+     :hook (emacs-lisp-mode . paredit-mode)
+     :defer (not skewed-emacs-docker-build?))
+    (magit
+     :defer (not skewed-emacs-docker-build?)
+     :commands (magit-status magit-blame)
+     :bind ("C-x g" . magit-status)
+     :config (setq magit-git-executable (locate-file "git" exec-path)))
+
+    ,(unless (eql system-type 'android)
+      `(pdf-tools
+	:defer (not skewed-emacs-docker-build?)
+	:mode ("\\.pdf\\'" . pdf-view-mode)
+	:config
+	(when skewed-emacs-docker-build?
+	  (pdf-tools-install))))
+    (org
+     :defer (not skewed-emacs-docker-build?)
+     :commands (org-mode org-agenda)
+     :hook (org-mode . org-config-setup)
+     ))))
 
 (setq
  second-party-packages
@@ -123,74 +127,8 @@
       (setq httpd-host "0.0.0.0")
       (emacs-lisply-start-server)))))
 
-
-;; (defvar third-party-packages
-;;   '(flycheck
-;;     company
-;;     eat
-;;     doom-themes
-;;     zenburn-theme
-;;     ellama
-;;     ;;chatgpt-shell ;; doing apparently deferred native compiling with too many warnings.
-;;     json
-;;     simple-httpd
-;;     dashboard
-;;     paredit
-    
-;;     (magit
-;;      :config
-;;      (setq magit-git-executable (locate-file "git" exec-path))
-;;      (global-set-key (kbd "C-x g") 'magit-status))
-;;     (pdf-tools
-;;      :config
-;;      (when (and (string= (getenv "EMACS_BATCH_MODE") "true")
-;; 		(not (string= (getenv "SKEWED_EMACS_CONTAINER") "true")))
-;;        (pdf-tools-install)))
-;;     (org
-;;      :config
-;;      (use-package org-config
-;;        :ensure nil
-;;        :load-path (lambda () (get-config-path "etc"))))
-    
-;; ;;    (copilot
-;; ;;     :config
-;; ;;     (bind-key* "C-." 'copilot-accept-completion)
-;; ;;     (bind-key* "M-," 'copilot-accept-completion)
-;; ;;     (bind-key* "C-," 'copilot-accept-completion-by-word))
-
-;;     )
-    
-;;   "List of third-party packages with their configurations.
-;; Each entry is either a symbol (for packages without config)
-;; or a list starting with the package name (a symbol)
-;; followed by optional :config forms.")
-
-
-;; (defvar second-party-packages
-;;   '((sa-translit-config
-;;      :load-path (lambda () (get-config-path "etc")))
-;;     (dashboard-config
-;;      :load-path (lambda () (get-config-path "etc")))
-;;     (impatient-markdown-config
-;;      :load-path (lambda () (get-config-path "etc")))
-;;     (slime-config
-;;      :load-path (lambda () (get-config-path "etc")))
-;;     (lisply-config
-;;      :load-path (lambda () (get-config-path "etc")))
-
-;;     ))
-
-;; Load package initialization and compilation logic
 (load (concat emacs-config-directory "etc/load-and-compile.el"))
-
-
-
-
-
-;; Initialize packages and customizations
 (setup-packages-and-customizations emacs-config-directory)
-
-
 
 (defvar light-theme-options
   '(("adwaita" . adwaita)
