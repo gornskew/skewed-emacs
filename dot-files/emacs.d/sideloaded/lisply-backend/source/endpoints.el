@@ -32,7 +32,7 @@
   (vector
    ;; ping_lisp tool (generic name)
    `(("name" . "ping_lisp")
-     ("description" . "Check if the Lisp server is available")
+     ("description" . "Check if the Lisp server is pingable")
      ("inputSchema" . (("type" . "object")
                        ("properties" . ,(make-hash-table))
                        ("required" . []))))
