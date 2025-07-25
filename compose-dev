@@ -150,6 +150,7 @@ NETWORK:
     - Inter-container: <service-hostname>:<container-port>
 
 EOF
+    show_skew_commands
 }
 
 # Service management
@@ -163,11 +164,16 @@ start_services() {
 
     log_info "Starting services: ${services:-all}"
     $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" up -d $services
+}
 
-    printf "\n"
-    printf "Use \`eskew\` for a terminal emacsclient,\n"
-    printf " or \`egskew\` for a graphical one.\n"
-    printf "\n"
+show_skew_commands() {
+    printf "\n%b\n" "${RED}To Launch Emacs:${NC}"
+    printf "\n%b\n" "${BLUE}Do this:${NC} source ./dot-files/bash_profile"
+    printf "%b\n" "${BLUE}Then you'll be able to use:${NC}"
+    printf "%b\n" "\`eskew\` ${BLUE}for a terminal emacsclient, or${NC}"
+    printf "%b\n\n" "\`egskew\` ${BLUE}for a graphical one.${NC}"
+    printf "%b\n" "${BLUE}For a full permanent skewed-emacs config on your host,"
+    printf "%b\n\n" "${BLUE}do this:${NC}  ./setup"
 }
 
 stop_services() {
@@ -352,6 +358,7 @@ main() {
             if [ -z "$services" ] || [[ "$services" =~ "genworks-gdl" ]]; then
                 show_genworks_gdl_info
             fi
+	    show_skew_commands
             ;;
         down)
             stop_services

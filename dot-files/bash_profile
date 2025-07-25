@@ -199,9 +199,14 @@ function egskew
 function claudly
 {
     file=${1:-"."};
-    docker exec -it --detach-keys "ctrl-^" lisply-mcp /home/node/.claude/local/claude --mcp-config /app/docker/mcp-config.json
+    
+    # First, merge the MCP configs inside the lisply-mcp container
+    echo "Merging MCP configurations..."
+    docker exec lisply-mcp node /app/scripts/merge-mcp-config.js
+    
+    # Then run Claude with the merged config
+    docker exec -it --detach-keys "ctrl-^" lisply-mcp /home/node/.claude/local/claude --mcp-config /tmp/merged-mcp-config.json
 }
-
 
 
 function gendl-run-container {

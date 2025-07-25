@@ -116,6 +116,7 @@ services:
         target: /projects
         bind:
           create_host_path: true
+      - /var/run/docker.sock:/var/run/docker.sock
       - ${USER_CONFIG_DIR}:/home/node/.config
     environment:
       - HOST_EMACS_URL=http://host.docker.internal:7080
@@ -123,6 +124,9 @@ services:
       - "${DOCKER_GROUP_ID:-999}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    group_add:
+      - "${DOCKER_GROUP_ID:-999}"
+
     networks:
       - skewed-network
     working_dir: /projects
