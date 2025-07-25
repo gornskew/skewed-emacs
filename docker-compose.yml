@@ -3,32 +3,28 @@
 # Dr. Frankenstein'd together from existing run scripts
 #
 # Usage:
-#   docker compose up                    # Start both services
-#   docker compose up emacs              # Start only Emacs
+#   docker compose up                    # Start all services
+#   docker compose up skewed-emacs       # Start only Emacs
 #   docker compose up gendl              # Start only Gendl
 #   docker compose down                  # Stop all services
-#   docker compose exec emacs emacsclient -t    # Connect to Emacs
+#   docker compose exec skewed-emacs emacsclient -t    # Connect to Emacs
 #
-
 
 networks:
   skewed-network:
     name: ${DOCKER_NETWORK_NAME:-skewed-emacs-network}
     driver: bridge
 
-
 services:
-  skewed-emacs: 
+  skewed-emacs:
     image: gornskew/${EMACS_CONTAINER_NAME:-skewed-emacs}:${EMACS_IMAGE_TAG:-devo}
     container_name: ${EMACS_CONTAINER_NAME:-skewed-emacs}
     hostname: ${EMACS_CONTAINER_NAME:-skewed-emacs}
     restart: unless-stopped
     stdin_open: true
     tty: true
-    
     ports:
       - "${EMACS_HTTP_HOST_PORT:-7081}:${EMACS_HTTP_PORT:-7080}"
-      
     environment:
       - HTTP_PORT=${EMACS_HTTP_PORT:-7080}
       - HTTP_HOST_PORT=${EMACS_HTTP_HOST_PORT:-7081}
@@ -38,7 +34,6 @@ services:
       - DISPLAY=${DISPLAY:-:0}
       - TERM=${TERM}
       - COLORTERM=${COLORTERM}
-    
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
@@ -47,34 +42,28 @@ services:
           create_host_path: true
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /var/run/docker.sock:/var/run/docker.sock
-    
-    # Add docker group for Docker socket access
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
-
     networks:
       - skewed-network
-    
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${EMACS_HTTP_PORT:-7080}/lisply/ping-lisp"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
-        
 
   gendl:
     image: genworks/gendl:${GENDL_IMAGE_TAG:-devo-ccl}
     container_name: ${GENDL_CONTAINER_NAME:-gendl}
-    hostname: gendl-backend
+    hostname: gendl
+    user: root
     restart: unless-stopped
     stdin_open: true
     tty: true
-    
     ports:
       - "${GENDL_HTTP_HOST_PORT:-9081}:${GENDL_HTTP_PORT:-9080}"
       - "${GENDL_SWANK_HOST_PORT:-4201}:${GENDL_SWANK_PORT:-4200}"
-    
     environment:
       - HTTP_PORT=${GENDL_HTTP_PORT:-9080}
       - HTTP_HOST_PORT=${GENDL_HTTP_HOST_PORT:-9081}
@@ -90,7 +79,6 @@ services:
       - START_TELNET=${GENDL_START_TELNET:-false}
       - GENDL_MODE=${GENDL_MODE:-default}
       - HOST_USER_UID=${HOST_USER_UID:-1000}
-    
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
@@ -98,44 +86,30 @@ services:
         bind:
           create_host_path: true
       - /var/run/docker.sock:/var/run/docker.sock
-    
-    # Add docker group for Docker socket access
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
-
-    # Add controlled access to host Emacs service only
     extra_hosts:
-    #
-    # FLAG -- do we really need host.docker.internal? 
-    #     	
       - "host.docker.internal:host-gateway"
-
     networks:
       - skewed-network
-    
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${GENDL_HTTP_PORT:-9080}/lisply/ping-lisp"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
-    
 
-  # Node.js Development Service
   lisply-mcp:
-   # FLAG change this  to be hosted under gornskew d.h. account
     image: gornskew/lisply-mcp:${NODE_IMAGE_TAG:-devo}
     container_name: ${NODE_CONTAINER_NAME:-lisply-mcp}
     hostname: lisply-mcp
     restart: unless-stopped
     stdin_open: true
     tty: true
-    
     ports:
       - "${NODE_DEV_HOST_PORT:-3001}:${NODE_DEV_PORT:-3000}"
       - "${NODE_API_HOST_PORT:-8081}:${NODE_API_PORT:-8080}"
       - "${NODE_ALT_HOST_PORT:-9001}:${NODE_ALT_PORT:-9000}"
-    
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
@@ -143,30 +117,20 @@ services:
         bind:
           create_host_path: true
       - ${USER_CONFIG_DIR}:/home/node/.config
-    
     environment:
       - HOST_EMACS_URL=http://host.docker.internal:7080
-          
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
-
-      #
-      # FLAG -- do we really need host.docker.internal? 
-      #     
     extra_hosts:
       - "host.docker.internal:host-gateway"
-
     networks:
       - skewed-network
-   
     working_dir: /projects
-
 #    depends_on:
 #      skewed-emacs:
 #        condition: service_healthy
 
-
-    
 volumes:
   emacs-cache:
   gendl-cache:
+  
