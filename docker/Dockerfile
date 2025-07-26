@@ -1,5 +1,5 @@
-# Optimized Skewed Emacs Dockerfile -
-# Using Debian base with GUI Emacs support
+# Skewed Emacs Dockerfile -
+# Using Debian testing for their emacs 30.1 support.
 FROM debian:testing-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -28,21 +28,20 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     make \
     pkg-config \
     dpkg-dev \
-    fonts-dejavu \
-    && rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean \
-    && curl -fsSL \
+    fonts-dejavu && \
+    rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean && \
+    curl -fsSL \
     https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz \
     | tar xz --strip-components=1 -C /usr/local/bin \
-    docker/docker \
-    && chmod +x /usr/local/bin/docker \
-    && groupadd -g 1000 emacs-user  \
-    && useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user \
-    && mkdir -p /projects \
-    && chown emacs-user:emacs-user /projects \
-    && ln -s \
-    /home/emacs-user/skewed-emacs/docker/copilot-language-server \
-    /usr/local/bin/copilot-language-server && \
-    ln -s /projects /home/emacs-user/projects \
+    docker/docker && \
+    chmod +x /usr/local/bin/docker &&\
+    groupadd -g 1000 emacs-user && \
+    useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user && \
+    mkdir -p /projects && \
+    chown emacs-user:emacs-user /projects && \
+    ln -s /home/emacs-user/skewed-emacs/docker/copilot-language-server \
+          /usr/local/bin/copilot-language-server && \
+    ln -s /projects /home/emacs-user/projects && \ 
     fc-cache -fv && \ 
     echo "deb-src http://deb.debian.org/debian testing main" >> /etc/apt/sources.list && \
     echo "deb-src http://deb.debian.org/debian-security testing-security main" >> /etc/apt/sources.list && \
