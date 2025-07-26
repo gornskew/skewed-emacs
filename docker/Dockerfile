@@ -42,6 +42,7 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     && ln -s \
     /home/emacs-user/skewed-emacs/docker/copilot-language-server \
     /usr/local/bin/copilot-language-server && \
+    ln -s /projects /home/emacs-user/projects \
     fc-cache -fv && \ 
     echo "deb-src http://deb.debian.org/debian testing main" >> /etc/apt/sources.list && \
     echo "deb-src http://deb.debian.org/debian-security testing-security main" >> /etc/apt/sources.list && \

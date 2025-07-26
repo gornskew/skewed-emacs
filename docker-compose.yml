@@ -82,7 +82,7 @@ services:
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
-        target: /home/gendl-user/projects
+        target: /projects
         bind:
           create_host_path: true
       - /var/run/docker.sock:/var/run/docker.sock
