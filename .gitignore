@@ -75,4 +75,5 @@ history.*
 *token*
 .env
 custom.el*
-genworks-gdl.yml 
+genworks-gdl.yml
+private-mcp-config.json

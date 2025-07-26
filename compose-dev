@@ -167,7 +167,7 @@ start_services() {
 }
 
 show_skew_commands() {
-    printf "\n%b\n" "${RED}To Launch Emacs:${NC}"
+    printf "\n%b\n" "${BLUE}𝚃𝚘 𝙻𝚊𝚞𝚗𝚌𝚑 𝙴𝚖𝚊𝚌𝚜:${NC}"
     printf "\n%b\n" "${BLUE}Do this:${NC} source ./dot-files/bash_profile"
     printf "%b\n" "${BLUE}Then you'll be able to use:${NC}"
     printf "%b\n" "\`eskew\` ${BLUE}for a terminal emacsclient, or${NC}"

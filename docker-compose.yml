@@ -124,9 +124,6 @@ services:
       - "${DOCKER_GROUP_ID:-999}"
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    group_add:
-      - "${DOCKER_GROUP_ID:-999}"
-
     networks:
       - skewed-network
     working_dir: /projects
