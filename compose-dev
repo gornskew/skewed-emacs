@@ -292,30 +292,6 @@ ${GREEN}Alternative Access:${NC}
 EOF
 }
 
-# Update output functions
-show_emacs_info() {
-    printf "%b\n" "${GREEN}Skewed Emacs Service Started:${NC}"
-    printf "    HTTP API: http://localhost:${EMACS_HTTP_HOST_PORT:-7081}/lisply/ping-lisp\n"
-    printf "    Connect:  %s emacs\n" "$0"
-    printf "    Shell:    %s shell skewed-emacs\n" "$0"
-    printf "\n"
-}
-
-show_gendl_info() {
-    printf "%b\n" "${GREEN}Gendl Service Started:${NC}"
-    printf "    HTTP API: http://localhost:${GENDL_HTTP_HOST_PORT:-9081}/lisply/ping-lisp\n"
-    printf "    SWANK:    localhost:${GENDL_SWANK_HOST_PORT:-4201} (for SLIME)\n"
-    printf "    Shell:    %s shell gendl\n" "$0"
-    printf "\n"
-}
-
-show_genworks_gdl_info() {
-    printf "%b\n" "${GREEN}Genworks GDL Service Started:${NC}"
-    printf "    HTTP API: http://localhost:${GDL_HTTP_HOST_PORT:-9089}/lisply/ping-lisp\n"
-    printf "    SWANK:    localhost:${GDL_SWANK_HOST_PORT:-4209} (for SLIME)\n"
-    printf "    Shell:    %s shell genworks-gdl\n" "$0"
-    printf "\n"
-}
 
 pull_images() {
     log_info "Pulling latest images"
@@ -349,15 +325,7 @@ main() {
         up)
             shift
             start_services "$@"
-            if [ -z "$services" ] || [[ "$services" =~ "skewed-emacs" ]]; then
-                show_emacs_info
-            fi
-            if [ -z "$services" ] || [[ "$services" =~ "gendl" ]]; then
-                show_gendl_info
-            fi
-            if [ -z "$services" ] || [[ "$services" =~ "genworks-gdl" ]]; then
-                show_genworks_gdl_info
-            fi
+            
 	    show_skew_commands
             ;;
         down)
