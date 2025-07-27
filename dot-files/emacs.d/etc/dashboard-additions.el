@@ -32,7 +32,7 @@
                     (push (string-to-number (match-string 1 ports-str)) swank-ports)
                     (setq pos (match-end 0)))
                   
-                  (push (list :name name 
+                  (push (list :name name
                              :http-ports (nreverse http-ports)
                              :swank-ports (nreverse swank-ports)
                              :running t)
@@ -43,8 +43,8 @@
 (defun discover-network-lisply-backends ()
   "Discover lisply backends from actual running Docker containers."
   (let ((services (discover-running-docker-services))
-        (backends '()))
-        (in-container-p (file-exists-p "/projects"))
+        (backends '())
+        (in-container-p (file-exists-p "/projects")))
     
     (dolist (service services)
       (let ((name (plist-get service :name))
