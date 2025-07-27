@@ -79,81 +79,38 @@
     (insert proj-string)))
 
 (defun dashboard-insert-system-info (list-size)
-    "Insert system information section.  LIST-SIZE nil to leave blank."
-    (if list-size
-	(progn
-	  (dashboard-insert-heading "System Information:")
-	  (insert "\n")
-	  (insert (system-info-string)))
-      (dashboard-insert-heading "No System Info for You")))
+  "Insert system information using propertized strings list. LIST-SIZE nil to leave blank."
+  (if list-size
+      (progn
+        (dashboard-insert-heading "System Information:")
+        (insert "\n")
+        (dolist (line (system-info-strings list-size))
+          (insert line)))
+    (dashboard-insert-heading "No System Info for You")))
 
 ;;
 ;; FLAG - get more sophisticated for determining live services for
 ;; standalone runnings.
 ;;
 (defun dashboard-insert-lisply-backends (list-size)
-  "Insert Lisply backends status with clickable links."
+  "Insert Lisply backends status using propertized strings list."
   (if list-size
       (progn
         (dashboard-insert-heading "Lisply Backends:")
         (insert "\n")
-        (let ((backends (or (discover-network-lisply-backends)
-                           '((:host "localhost" :port 7080 :name "skewed-emacs")
-                             (:host "localhost" :port 9081 :name "gendl")))))
-          (if backends
-              (dolist (backend backends)
-                (let* ((host (plist-get backend :host))
-                       (port (plist-get backend :port))
-                       (name (or (plist-get backend :name) "unknown"))
-                       (result (silent-http-ping host port "/lisply/ping-lisp" 0.5)))
-                  (insert "    ")
-                  (insert (propertize 
-                          (format "[%s] %s (%s:%s)%s"
-                                  (if (string= (plist-get result :status) "OK") "OK" "!DN!")
-                                  name host port
-                                  (if (string= (plist-get result :status) "OK")
-                                      (format " - %s" (or (plist-get result :time) "?ms"))
-                                    ""))
-                          'keymap (let ((map (make-sparse-keymap)))
-                                    (define-key map (kbd "RET")
-                                                `(lambda () (interactive)
-                                                   (browse-url (format "http://%s:%s" ,host ,port))))
-                                    (define-key map [mouse-1]
-                                                `(lambda () (interactive)
-                                                   (browse-url (format "http://%s:%s" ,host ,port))))
-                                    map)
-                          'face (if (string= (plist-get result :status) "OK") 'success 'error)
-                          'help-echo (format "Open %s Lisply backend in browser" name)))
-                  (insert "\n")))
-            (insert "    No Lisply backends discovered\n"))))
+        (dolist (line (lisply-backends-strings list-size))
+          (insert line)))
     (dashboard-insert-heading "No Lisply Backends Configured")))
 
 (defun dashboard-insert-other-status (list-size)
-  "Insert other services status section with clickable SWANK links.  
+  "Insert other services status section using propertized strings list.  
 LIST-SIZE used as boolean"
   (if list-size
       (progn
         (dashboard-insert-heading "𝒮𝒲𝒜𝒩𝒦 Service hosts and ports:")
         (insert "\n")
-        (dolist (service-info (discover-swank-services))
-          (let ((host (plist-get service-info :host))
-                (port (plist-get service-info :port))
-                (name (plist-get service-info :name)))
-            (insert "    ")
-            (insert (propertize (format "🏭 %s on %s" host port)
-                               'keymap (let ((map (make-sparse-keymap)))
-                                         (define-key map (kbd "RET")
-                                                     `(lambda () (interactive)
-                                                        (slime-connect ,host ,port)))
-                                         (define-key map [mouse-1]
-                                                     `(lambda () (interactive)
-                                                        (slime-connect ,host ,port)))
-                                         map)
-                               'face 'button
-                               'help-echo (format "Connect to SLIME on %s:%s" host port)))
-	    (insert "\n")
-            ))
-	(insert "  Enter via an above link or use 𝙼-𝚡 𝚜𝚕𝚒𝚖𝚎-𝚌𝚘𝚗𝚗𝚎𝚌𝚝.\n"))
+        (dolist (line (other-status-strings list-size))
+          (insert line)))
     (dashboard-insert-heading "No SWANK Services")))
 ;; Helper functions below. 
 ;;
@@ -379,33 +336,96 @@ Returns (:status OK|ERROR :time response-time-ms)."
       (list (format "    --- No %s directory exists ---\n" projects-dir))))))
 
 
-(defun system-info-string ()
-  "Insert system information section with memory and CPU usage."
-  (with-output-to-string
-    (let ((system-info (gather-system-info)))
-      (princ (format "    Emacs PID: %s | Uptime: %s\n" 
-                      (plist-get system-info :emacs-pid)
-                      (emacs-uptime)))
-      (let ((memory (plist-get system-info :memory-mb))
-            (cpu-time (plist-get system-info :cpu-seconds)))
-	(princ (format "    Memory: %s | CPU Time: %s\n"
-			(if memory (format "%.1f MB" memory) "N/A")
-			(if cpu-time 
-                            (let ((minutes (floor (/ cpu-time 60)))
-                                  (seconds (mod cpu-time 60)))
-                              (if (> minutes 0)
-                                  (format "%dm %.1fs" minutes seconds)
-				(format "%.1fs" seconds)))
-                          "N/A"))))
-      (princ (format "    Packages: %d | Buffers: %d/%d total\n"
-                      (plist-get system-info :active-packages)
-                      (plist-get system-info :visible-buffers)
-		      (plist-get system-info :total-buffers)))
-      (princ (format "    Version: %s | Platform: %s\n"
-                      (plist-get system-info :emacs-version)
-                      (plist-get system-info :system-type)))
-      (princ (format "    Time: %s\n"
-                     (plist-get system-info :current-time))))))
+(defun lisply-backends-strings (list-size)
+  "Return a list of propertized strings for lisply backends dashboard item."
+  (if list-size
+      (let ((backends (or (discover-network-lisply-backends)
+                         '((:host "localhost" :port 7080 :name "skewed-emacs")
+                           (:host "localhost" :port 9081 :name "gendl")))))
+        (if backends
+            (mapcar (lambda (backend)
+                      (let* ((host (plist-get backend :host))
+                             (port (plist-get backend :port))
+                             (name (or (plist-get backend :name) "unknown"))
+                             (result (silent-http-ping host port "/lisply/ping-lisp" 0.5)))
+                        (format "    %s\n"
+                               (propertize 
+                                (format "[%s] %s (%s:%s)%s"
+                                        (if (string= (plist-get result :status) "OK") "OK" "!DN!")
+                                        name host port
+                                        (if (string= (plist-get result :status) "OK")
+                                            (format " - %s" (or (plist-get result :time) "?ms"))
+                                          ""))
+                                'keymap (let ((map (make-sparse-keymap)))
+                                          (define-key map (kbd "RET")
+                                                      `(lambda () (interactive)
+                                                         (browse-url (format "http://%s:%s" ,host ,port))))
+                                          (define-key map [mouse-1]
+                                                      `(lambda () (interactive)
+                                                         (browse-url (format "http://%s:%s" ,host ,port))))
+                                          map)
+                                'face (if (string= (plist-get result :status) "OK") 'success 'error)
+                                'help-echo (format "Open %s Lisply backend in browser" name)))))
+                    backends)
+          (list "    No Lisply backends discovered\n")))
+    '()))
+
+(defun other-status-strings (list-size)
+  "Return a list of propertized strings for other status (SWANK services) dashboard item."
+  (if list-size
+      (let ((services (discover-swank-services)))
+        (if services
+            (append
+             (mapcar (lambda (service-info)
+                       (let ((host (plist-get service-info :host))
+                             (port (plist-get service-info :port))
+                             (name (plist-get service-info :name)))
+                         (format "    %s\n"
+                                (propertize (format "🏭 %s on %s" host port)
+                                           'keymap (let ((map (make-sparse-keymap)))
+                                                     (define-key map (kbd "RET")
+                                                                 `(lambda () (interactive)
+                                                                    (slime-connect ,host ,port)))
+                                                     (define-key map [mouse-1]
+                                                                 `(lambda () (interactive)
+                                                                    (slime-connect ,host ,port)))
+                                                     map)
+                                           'face 'button
+                                           'help-echo (format "Connect to SLIME on %s:%s" host port)))))
+                     services)
+             (list "  Enter via an above link or use 𝙼-𝚡 𝚜𝚕𝚒𝚖𝚎-𝚌𝚘𝚗𝚗𝚎𝚌𝚝.\n"))
+          (list "  No SWANK services detected\n")))
+    '()))
+
+(defun system-info-strings (list-size)
+  "Return a list of propertized strings for system information dashboard item."
+  (if list-size
+      (let ((system-info (gather-system-info)))
+        (list 
+         (format "    Emacs PID: %s | Uptime: %s\n" 
+                 (plist-get system-info :emacs-pid)
+                 (emacs-uptime))
+         (let ((memory (plist-get system-info :memory-mb))
+               (cpu-time (plist-get system-info :cpu-seconds)))
+           (format "    Memory: %s | CPU Time: %s\n"
+                   (if memory (format "%.1f MB" memory) "N/A")
+                   (if cpu-time 
+                       (let ((minutes (floor (/ cpu-time 60)))
+                             (seconds (mod cpu-time 60)))
+                         (if (> minutes 0)
+                             (format "%dm %.1fs" minutes seconds)
+                           (format "%.1fs" seconds)))
+                     "N/A")))
+         (format "    Packages: %d | Buffers: %d/%d total\n"
+                 (plist-get system-info :active-packages)
+                 (plist-get system-info :visible-buffers)
+                 (plist-get system-info :total-buffers))
+         (format "    Version: %s | Platform: %s\n"
+                 (plist-get system-info :emacs-version)
+                 (plist-get system-info :system-type))
+         (format "    Time: %s\n"
+                 (plist-get system-info :current-time))))
+    '()))
 
 
 
