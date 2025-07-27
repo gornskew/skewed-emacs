@@ -9,6 +9,7 @@
 (require 'subr-x)
 (require 'url)
 (require 'dashboard)
+(require 'dashboard-additions)
 (require 'cl-lib)
 
 ;;; Code:
@@ -33,9 +34,9 @@
 (setq dashboard-items `((help . 3)
  			;;(recents  . 3) replace this with one we control. 
  			(active-projects . 5)
+			(other-status . 1)
  			(lisply-status . 1)
  			(system-info . 1)
- 			;;(other-status . 1)
  			(agenda . 1)
 			))
 
@@ -68,18 +69,6 @@
         (dolist (line (help-info-strings))
           (insert line)))
     (dashboard-insert-heading "No Help for You")))
-
-;;
-;; (defun dashboard-insert-help-info (list-size)
-;;   "Insert getting-started info.  LIST-SIZE nil to leave blank."
-;;   (if list-size
-;;       (progn
-;; 	(dashboard-insert-heading "Getting Started:")
-;; 	(insert "\n")
-;; 	(insert (help-info-strings)))
-;;     (dashboard-insert-heading "No Help for You")))
-;;
-
 
 (defun dashboard-insert-active-projects (list-size)
   "Insert active projects info.  LIST-SIZE is passed along."
@@ -317,8 +306,7 @@ Returns (:status OK|ERROR :time response-time-ms)."
   "Return backend status string without any side effects.
 No buffers created, no messages shown, no slowdowns."
   (with-output-to-string 
-    (dolist (backend '((:host "gendl" :port 9080)
-                       (:host "skewed-emacs" :port 7080)))
+    (dolist (backend (discover-network-lisply-backends))
       (cl-destructuring-bind (&key host port) backend
         (let ((result (silent-http-ping host port "/lisply/ping-lisp" 0.3)))
           (let ((status (plist-get result :status))

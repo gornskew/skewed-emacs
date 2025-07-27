@@ -1,36 +1,38 @@
-# IMPORTANT: Run ./generate-env.sh first to create your .env file
-# Docker Compose for Skewed Emacs + Gendl Development Environment
-# Dr. Frankenstein'd together from existing run scripts
+#
+# IMPORTANT: use ./compose-dev rather than calling `docker compose` directly.
+#
+# Docker Composition for:
+# - Skewed Emacs
+# - Gendl Development Environment
+# - Node.js container for Lisply-Mcp and Claude Code.
 #
 # Usage:
-#   docker compose up                    # Start all services
-#   docker compose up skewed-emacs       # Start only Emacs
-#   docker compose up gendl              # Start only Gendl
-#   docker compose down                  # Stop all services
-#   docker compose exec skewed-emacs emacsclient -t    # Connect to Emacs
+#   ./compose-dev up                     # Start all services
+#   ./compose-dev down                   # Stop all services
 #
 
 networks:
   skewed-network:
-    name: ${DOCKER_NETWORK_NAME:-skewed-emacs-network}
+    name: ${DOCKER_NETWORK_NAME:-skewed-network}
     driver: bridge
 
 services:
+
   skewed-emacs:
-    image: gornskew/${EMACS_CONTAINER_NAME:-skewed-emacs}:${EMACS_IMAGE_TAG:-devo}
-    container_name: ${EMACS_CONTAINER_NAME:-skewed-emacs}
-    hostname: ${EMACS_CONTAINER_NAME:-skewed-emacs}
+    image: gornskew/${EMACS_IMAGE_BASE:-skewed-emacs}:${EMACS_IMAGE_BRANCH:-master}
+    container_name: ${EMACS_IMAGE_BASE:-skewed-emacs}
+    hostname: ${EMACS_IMAGE_BASE:-skewed-emacs}
     restart: unless-stopped
     stdin_open: true
     tty: true
     ports:
-      - "${EMACS_HTTP_HOST_PORT:-7081}:${EMACS_HTTP_PORT:-7080}"
+      - "7081:7080"
     environment:
-      - HTTP_PORT=${EMACS_HTTP_PORT:-7080}
-      - HTTP_HOST_PORT=${EMACS_HTTP_HOST_PORT:-7081}
-      - START_HTTP=${EMACS_START_HTTP:-true}
-      - START_SWANK=${EMACS_START_SWANK:-false}
-      - SWANK_PORT=${EMACS_SWANK_PORT:-4200}
+      - HTTP_PORT=7080
+      - HTTP_HOST_PORT=7081
+      - START_HTTP=true
+      - START_SWANK=false
+      - SWANK_PORT=4200
       - DISPLAY=${DISPLAY:-:0}
       - TERM=${TERM}
       - COLORTERM=${COLORTERM}
@@ -47,37 +49,37 @@ services:
     networks:
       - skewed-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${EMACS_HTTP_PORT:-7080}/lisply/ping-lisp"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:7080/lisply/ping-lisp"]
+      interval: 108s
+      timeout: 3s
       retries: 3
       start_period: 10s
 
-  gendl:
-    image: genworks/gendl:${GENDL_IMAGE_TAG:-devo-ccl}
-    container_name: ${GENDL_CONTAINER_NAME:-gendl}
-    hostname: gendl
+  gendl-ccl:
+    image: genworks/${GENDL_IMAGE_BASE:-gendl}:${GENDL_IMAGE_BRANCH}-ccl
+    container_name: ${GENDL_IMAGE_BASE:-gendl}-ccl
+    hostname: gendl-ccl
     user: root
     restart: unless-stopped
     stdin_open: true
     tty: true
     ports:
-      - "${GENDL_HTTP_HOST_PORT:-9081}:${GENDL_HTTP_PORT:-9080}"
-      - "${GENDL_SWANK_HOST_PORT:-4201}:${GENDL_SWANK_PORT:-4200}"
+      - "9081:9080"
+      - "4201:4200"
     environment:
-      - HTTP_PORT=${GENDL_HTTP_PORT:-9080}
-      - HTTP_HOST_PORT=${GENDL_HTTP_HOST_PORT:-9081}
-      - HTTPS_PORT=${GENDL_HTTPS_PORT:-9443}
-      - HTTPS_HOST_PORT=${GENDL_HTTPS_HOST_PORT:-9444}
-      - SWANK_PORT=${GENDL_SWANK_PORT:-4200}
-      - SWANK_HOST_PORT=${GENDL_SWANK_HOST_PORT:-4201}
-      - TELNET_PORT=${GENDL_TELNET_PORT:-4023}
-      - TELNET_HOST_PORT=${GENDL_TELNET_HOST_PORT:-4024}
-      - START_HTTP=${GENDL_START_HTTP:-true}
-      - START_HTTPS=${GENDL_START_HTTPS:-false}
-      - START_SWANK=${GENDL_START_SWANK:-true}
-      - START_TELNET=${GENDL_START_TELNET:-false}
-      - GENDL_MODE=${GENDL_MODE:-default}
+      - HTTP_PORT=9080
+      - HTTP_HOST_PORT=9081
+      - HTTPS_PORT=9443
+      - HTTPS_HOST_PORT=9444
+      - SWANK_PORT=4200
+      - SWANK_HOST_PORT=4201
+      - TELNET_PORT=4023
+      - TELNET_HOST_PORT=4024
+      - START_HTTP=true
+      - START_HTTPS=false
+      - START_SWANK=true
+      - START_TELNET=false
+      - GENDL_MODE=default
       - HOST_USER_UID=${HOST_USER_UID:-1000}
     volumes:
       - type: bind
@@ -93,23 +95,70 @@ services:
     networks:
       - skewed-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${GENDL_HTTP_PORT:-9080}/lisply/ping-lisp"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:9080/lisply/ping-lisp"]
+      interval: 72s
+      timeout: 3s
       retries: 3
       start_period: 15s
 
-  lisply-mcp:
-    image: gornskew/lisply-mcp:${NODE_IMAGE_TAG:-devo}
-    container_name: ${NODE_CONTAINER_NAME:-lisply-mcp}
-    hostname: lisply-mcp
+  gendl-sbcl:
+    image: genworks/${GENDL_IMAGE_BASE}:${GENDL_IMAGE_BRANCH}-sbcl
+    container_name: ${GENDL_IMAGE_BASE}-sbcl
+    hostname: ${GENDL_IMAGE_BASE}-sbcl
+    user: root
     restart: unless-stopped
     stdin_open: true
     tty: true
     ports:
-      - "${NODE_DEV_HOST_PORT:-3001}:${NODE_DEV_PORT:-3000}"
-      - "${NODE_API_HOST_PORT:-8081}:${NODE_API_PORT:-8080}"
-      - "${NODE_ALT_HOST_PORT:-9001}:${NODE_ALT_PORT:-9000}"
+      - "9091:9090"
+      - "4211:4210"
+    environment:
+      - HTTP_PORT=9090
+      - HTTP_HOST_PORT=9091
+      - HTTPS_PORT=9453
+      - HTTPS_HOST_PORT=9454
+      - SWANK_PORT=4210
+      - SWANK_HOST_PORT=4211
+      - TELNET_PORT=4033
+      - TELNET_HOST_PORT=4034
+      - START_HTTP=true
+      - START_HTTPS=false
+      - START_SWANK=true
+      - START_TELNET=false
+      - GENDL_MODE=default
+      - HOST_USER_UID=${HOST_USER_UID:-1000}
+    volumes:
+      - type: bind
+        source: ${PROJECTS_DIR}
+        target: /projects
+        bind:
+          create_host_path: true
+      - /var/run/docker.sock:/var/run/docker.sock
+    group_add:
+      - "${DOCKER_GROUP_ID:-999}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - skewed-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9090/lisply/ping-lisp"]
+      interval: 90s
+      timeout: 3s
+      retries: 3
+      start_period: 15s
+
+
+  lisply-mcp:
+    image: gornskew/${NODE_IMAGE_BASE}:${NODE_IMAGE_BRANCH:-master}
+    container_name: ${NODE_IMAGE_BASE_NAME:-lisply-mcp}
+    hostname: ${NODE_IMAGE_BASE_NAME:-lisply-mcp}
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    ports:
+      - "3001:3000"
+      - "8081:8080"
+      - "9001:9000"
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
@@ -127,11 +176,9 @@ services:
     networks:
       - skewed-network
     working_dir: /projects
-#    depends_on:
-#      skewed-emacs:
-#        condition: service_healthy
 
-volumes:
-  emacs-cache:
-  gendl-cache:
-  
+# 
+# volumes:
+#   emacs-cache:
+#   gendl-cache:
+#   
