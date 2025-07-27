@@ -4,12 +4,7 @@
 # Git directory (not needed in container)
 .git/
 
-# Image/media files (if not essential)
-img/
-*.png
-*.jpg
-*.gif
-*.svg
+
 
 # Emacs package directories
 dot-files/emacs.d/straight

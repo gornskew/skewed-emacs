@@ -1,14 +1,14 @@
 # Skewed Emacs: Containerized MCP Setup for Emacs Lisp and Common Lisp
 
-plus a ready-to-use emacs user configuration. 
+A containerized Emacs development environment with Model Context
+Protocol (MCP) integration, enabling AI agents to interact directly
+with Emacs and Common Lisp REPLs for automated development workflows.
 
-![Skewed Emacs Logo](img/skewed-1-t.png)
+![Skewed Emacs Logo](img/skewed-dash.jpg)
 
-This README assumes that you have access to a system with a [bash](https://www.gnu.org/software/bash/) shell
-and [docker](https://www.docker.com/get-started) available. 
-
-Skewed Emacs provides several capabilities from several angles. It
-aims to be several things to several people and do all of them well.
+This README assumes that you have access to a system with a
+[bash](https://www.gnu.org/software/bash/) shell and
+[docker](https://www.docker.com/get-started) available.
 
 ## What Can This Do for Me
 
