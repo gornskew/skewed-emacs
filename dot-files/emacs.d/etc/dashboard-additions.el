@@ -70,7 +70,7 @@
                        :running t)
                   backends))
     
-    (nreverse backends)))
+    (nreverse backends))))))
 
 (defun discover-swank-services ()
   "Discover SWANK services from actual running Docker containers."
