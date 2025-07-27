@@ -15,7 +15,8 @@
 ;;; Code:
 
 (defvar skewed-emacs-container? nil) ;; assumed to be pre-defined from init.el
-(defvar skewed-dashboard-banner-file (concat (temporary-file-directory) "skewed-emacs-banner.txt"))
+(defvar skewed-dashboard-banner-file
+  (concat (temporary-file-directory) "skewed-emacs-banner.txt"))
 
 (defvar projects-dir
   (expand-file-name
@@ -91,31 +92,74 @@
 ;; standalone runnings.
 ;;
 (defun dashboard-insert-lisply-backends (list-size)
-  "Insert precooked Lisply string or not.  LIST-SIZE not currently being respected."
-  (if (and skewed-emacs-container? list-size)
+  "Insert Lisply backends status with clickable links."
+  (if list-size
       (progn
-	(dashboard-insert-heading "Live Lisply Backends:")
-	(insert "\n")
-	(insert (lisply-backends-string)))
-    (dashboard-insert-heading "No Configured Lisply Backends")
-    (insert "\n")
-    (insert "     𝙰𝚝 𝚃𝚑𝚒𝚜 𝙹𝚞𝚗𝚌𝚝𝚞𝚛𝚎")))
+        (dashboard-insert-heading "Lisply Backends:")
+        (insert "\n")
+        (let ((backends (or (discover-network-lisply-backends)
+                           '((:host "localhost" :port 7080 :name "skewed-emacs")
+                             (:host "localhost" :port 9081 :name "gendl")))))
+          (if backends
+              (dolist (backend backends)
+                (let* ((host (plist-get backend :host))
+                       (port (plist-get backend :port))
+                       (name (or (plist-get backend :name) "unknown"))
+                       (result (silent-http-ping host port "/lisply/ping-lisp" 0.5)))
+                  (insert "    ")
+                  (insert (propertize 
+                          (format "[%s] %s (%s:%s)%s"
+                                  (if (string= (plist-get result :status) "OK") "OK" "!DN!")
+                                  name host port
+                                  (if (string= (plist-get result :status) "OK")
+                                      (format " - %s" (or (plist-get result :time) "?ms"))
+                                    ""))
+                          'keymap (let ((map (make-sparse-keymap)))
+                                    (define-key map (kbd "RET")
+                                                `(lambda () (interactive)
+                                                   (browse-url (format "http://%s:%s" ,host ,port))))
+                                    (define-key map [mouse-1]
+                                                `(lambda () (interactive)
+                                                   (browse-url (format "http://%s:%s" ,host ,port))))
+                                    map)
+                          'face (if (string= (plist-get result :status) "OK") 'success 'error)
+                          'help-echo (format "Open %s Lisply backend in browser" name)))
+                  (insert "\n")))
+            (insert "    No Lisply backends discovered\n"))))
+    (dashboard-insert-heading "No Lisply Backends Configured")))
 
-
-
-;;
-;; Add back the use of this later
-;;
-;;(defun dashboard-insert-other-status (list-size)
-;;  "Insert other services status section."
-;;  (message "should limit list to %s" list-size)
-;;  (dashboard-insert-heading "Other Services:")
-;;  (insert "\n")
-;;  (insert "    〰 SLIME: gendl-ccl:4200\n")    
-;;  (insert "    ⚏  Docker Network: emacs-gendl-network\n"))
-;;
+(defun dashboard-insert-other-status (list-size)
+  "Insert other services status section with clickable SWANK links.  
+LIST-SIZE used as boolean"
+  (if list-size
+      (progn
+        (dashboard-insert-heading "𝒮𝒲𝒜𝒩𝒦 Service hosts and ports:")
+        (insert "\n")
+        (dolist (service-info (discover-swank-services))
+          (let ((host (plist-get service-info :host))
+                (port (plist-get service-info :port))
+                (name (plist-get service-info :name)))
+            (insert "    ")
+            (insert (propertize (format "🏭 %s on %s" host port)
+                               'keymap (let ((map (make-sparse-keymap)))
+                                         (define-key map (kbd "RET")
+                                                     `(lambda () (interactive)
+                                                        (slime-connect ,host ,port)))
+                                         (define-key map [mouse-1]
+                                                     `(lambda () (interactive)
+                                                        (slime-connect ,host ,port)))
+                                         map)
+                               'face 'button
+                               'help-echo (format "Connect to SLIME on %s:%s" host port)))
+	    (insert "\n")
+            ))
+	(insert "  Enter via an above link or use 𝙼-𝚡 𝚜𝚕𝚒𝚖𝚎-𝚌𝚘𝚗𝚗𝚎𝚌𝚝.\n"))
+    (dashboard-insert-heading "No SWANK Services")))
 ;; Helper functions below. 
 ;;
+
+
+
 
 (defun silent-http-ping (host port endpoint &optional timeout)
   "Ping HTTP ENDPOINT on HOST at PORT silently.
@@ -267,56 +311,6 @@ Returns (:status OK|ERROR :time response-time-ms)."
                'face 'button
                'help-echo "Run load-theme")))
 
-
-;; (defun help-info-string ()
-;;   "Return a string suitable for help dashboad item."
-;;   (with-output-to-string 
-;;    (princ (format "• Emacs Tutorial: C-h C-t\n"))
-;;    (princ (format "• Gendl Repl: M-x slime-connect RET\n"))
-;;    (princ (format "• Claude Code: M-x eat, then `claudly`\n"))
-;;    (princ (format "• M-x light-theme, dark-theme, load-theme\n"))
-;;    ))
-
-
-(defvar lisply-backends-cache-timeout 5)
-(defvar lisply-backends-cache nil)
-(defun lisply-backends-string ()
-  "Return backend status string with caching."
-  (let ((now (current-time)))
-    ;; Check if cache is valid (within timeout period)
-    (if (and lisply-backends-cache
-             (plist-get lisply-backends-cache :timestamp)
-             (< (float-time (time-subtract now (plist-get lisply-backends-cache :timestamp)))
-                lisply-backends-cache-timeout))
-        ;; Return cached result
-        (plist-get lisply-backends-cache :result)
-      ;; Generate new result and cache it
-      (let ((result (lisply-backends-string-uncached)))
-        (setq lisply-backends-cache 
-	      (list :timestamp now :result result))
-        result))))
-
-;;
-;; FLAG -- deal with cross-container host/port scenarios. 
-;;
-;; FLAG -- drive hostnames and ports with environment vars. 
-;;
-;;
-(defun lisply-backends-string-uncached ()
-  "Return backend status string without any side effects.
-No buffers created, no messages shown, no slowdowns."
-  (with-output-to-string 
-    (dolist (backend (discover-network-lisply-backends))
-      (cl-destructuring-bind (&key host port) backend
-        (let ((result (silent-http-ping host port "/lisply/ping-lisp" 0.3)))
-          (let ((status (plist-get result :status))
-                (time (plist-get result :time)))
-            (princ (format "    [%s] %s:%s%s\n" 
-                          (if (string= status "OK") "OK" "!DN!")
-                          host port
-                          (if (string= status "OK") 
-                              (format " (%s)" (or time "?ms"))
-                            "")))))))))
 			      
 (defun active-projects-strings (list-size)
   "Return a list of propertized strings for active projects."

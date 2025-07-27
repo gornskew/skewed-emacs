@@ -159,11 +159,14 @@
 
 
 
+  ;;
+  ;; FLAG -- do something to not have to hardcode "gendl-ccl" and the port here. 
+  ;;
   (when skewed-emacs-container?
     (message "We Are a Skewed-emacs container, defaulting slime-connect settings to
-gendl/4200.")
-    (setq slime-lisp-host "gendl"
-   	  slime-connect-host-history '("gendl")
+gendl-ccl/4200.")
+    (setq slime-lisp-host "gendl-ccl"
+   	  slime-connect-host-history '("gendl-ccl")
    	  slime-port 4200
    	  slime-connect-port-history '("4200")))
 

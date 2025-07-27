@@ -1,5 +1,6 @@
-;; Dashboard additions with real Docker service discovery
-;; This file provides actual discovery of running Docker services
+;;; dashboard-additions --- Look up services more dynamically
+
+;;; Code:
 
 (defun discover-running-docker-services ()
   "Discover currently running Docker containers that might be Lisply backends."
@@ -33,9 +34,9 @@
                     (setq pos (match-end 0)))
                   
                   (push (list :name name
-                             :http-ports (nreverse http-ports)
-                             :swank-ports (nreverse swank-ports)
-                             :running t)
+                              :http-ports (nreverse http-ports)
+                              :swank-ports (nreverse swank-ports)
+                              :running t)
                         services))))))
         services)
     (error '())))
@@ -43,8 +44,7 @@
 (defun discover-network-lisply-backends ()
   "Discover lisply backends from actual running Docker containers."
   (let ((services (discover-running-docker-services))
-        (backends '())
-        (in-container-p (file-exists-p "/projects")))
+        (backends '()))
     
     (dolist (service services)
       (let ((name (plist-get service :name))
@@ -54,23 +54,21 @@
           (let ((service-type (cond 
                               ((string-match "emacs" name) "emacs-lisp")
                               (t "common-lisp"))))
-            (push (list :host (if in-container-p name "localhost")
-                       :port (if in-container-p 
-                               ;; Container ports: 7080, 9080, 9088, 9090, 9098
-                               (cond 
-                                ((= port 7081) 7080)
-                                ((= port 9081) 9080)
-                                ((= port 9089) 9088)
-                                ((= port 9091) 9090)
-                                ((= port 9099) 9098)
-                                (t port))
-                             port)
-                       :name name
-                       :type service-type
-                       :running t)
-                  backends))
+            (push
+	     (list :host (if skewed-emacs-container? name "localhost")
+		   :port (if skewed-emacs-container? (cond 
+						      ((= port 7081) 7080)
+						      ((= port 9081) 9080)
+						      ((= port 9089) 9088)
+						      ((= port 9091) 9090)
+						      ((= port 9099) 9098)
+						      (t port)) port)
+                   :name name
+                   :type service-type
+                   :running t)
+                  backends)))))
     
-    (nreverse backends))))))
+    (nreverse backends)))
 
 (defun discover-swank-services ()
   "Discover SWANK services from actual running Docker containers."
@@ -87,9 +85,16 @@
                            ((string-match "sbcl" name) "SBCL") 
                            ((string-match "non-smp" name) "Commercial")
                            ((string-match "smp" name) "Commercial SMP")
-                           (t "Lisp"))))
-            (push (list :host "localhost"
-                       :port port
+                           (t "Lisp")))
+                ;; Convert external port to internal port when in container
+                (internal-port (cond
+                               ((= port 4201) 4200)  ;; gendl-ccl
+                               ((= port 4209) 4208)  ;; genworks-gdl-non-smp  
+                               ((= port 4211) 4210)  ;; gendl-sbcl
+                               ((= port 4219) 4218)  ;; genworks-gdl-smp
+                               (t port))))
+            (push (list :host (if skewed-emacs-container? name "localhost")
+                       :port (if skewed-emacs-container? internal-port port)
                        :name name
                        :impl lisp-impl
                        :running t)
@@ -97,42 +102,8 @@
     
     (nreverse swank-services)))
 
-(defun dashboard-insert-other-status (list-size)
-  "Insert SWANK services discovered from running containers."
-  (when list-size
-    (dashboard-insert-heading "SWANK Services (SLIME):")
-    (insert "\n")
-    (let ((swank-services (discover-swank-services)))
-      (if swank-services
-          (progn
-            (dolist (service swank-services)
-              (let ((host (plist-get service :host))
-                    (port (plist-get service :port))
-                    (name (plist-get service :name))
-                    (impl (plist-get service :impl)))
-                (insert (format "    * %s:%d (%s - %s)\n" host port impl name))))
-            (insert "\n")
-            (insert "    Connect with: M-x slime-connect\n"))
-        (insert "    No SWANK services detected\n")))))
 
-(defun lisply-backends-string-uncached ()
-  "Return backend status string using actual Docker discovery."
-  (with-output-to-string 
-    (dolist (backend (discover-network-lisply-backends))
-      (let ((host (plist-get backend :host))
-            (port (plist-get backend :port))
-            (name (plist-get backend :name))
-            (type (plist-get backend :type)))
-        (let ((result (silent-http-ping host port "/lisply/ping-lisp" 0.5)))
-          (let ((status (plist-get result :status))
-                (time (plist-get result :time))
-                (display-name (or name (format "%s:%s" host port))))
-            (princ (format "    [%s] %s (%s)%s\n" 
-                          (if (string= status "OK") "OK" "DN")
-                          display-name
-                          type
-                          (if (string= status "OK") 
-                              (format " - %s" (or time "?ms"))
-                            " - not responding")))))))))
 
 (provide 'dashboard-additions)
+
+;;; dashboard-additions.el ends here
