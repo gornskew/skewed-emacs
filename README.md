@@ -1,57 +1,115 @@
-# Skewed Emacs: A Handy Setup for Gnu Emacs with Slime and AI
+# Skewed Emacs: Containerized MCP Setup for Emacs Lisp and Common Lisp
+
+plus a ready-to-use emacs user configuration. 
 
 ![Skewed Emacs Logo](img/skewed-1-t.png)
 
-This is a comprehensive, opinionated configuration for Emacs and
-Linux/Unix bash environments, optimized for Terminal-mode Emacs-based
-Slime Common Lisp and Gendl development. Skewed-emacs is available in
-a containerized form which avoids the need to touch your own config
-files. Skewed-emacs also ships with a built-in [Lisply
-backend](./dot-files/emacs.d/sideloaded/lisply-backend/README.md) for
-exposing your emacs to an AI Agent as an MCP server.
+This README assumes that you have access to a system with a [bash](https://www.gnu.org/software/bash/) shell
+and [docker](https://www.docker.com/get-started) available. 
+
+Skewed Emacs provides several capabilities from several angles. It
+aims to be several things to several people and do all of them well.
+
+## What Can This Do for Me
+
+This Skewed Emacs repository houses essentially three things:
+
+1.  a ready-to-go Emacs configuration
+   
+2.  a containerized emacs daemon version 
+
+3.  a container orchestration to bring in supplemental compatible
+    backend container services.
+
 
 ## Features
 
-- **Emacs Configuration:**
-  - Ships with common useful packages pre-installed 
-  - Includes [Slime](https://en.wikipedia.org/wiki/SLIME) setup for
-    Common Lisp and Gendl development, with extensive customizations
-  - AI client integration (Copilot, GPT, Ellama, etc)
-  - MCP (Model Context Protocol) server backend for allowing AI agents
-    to drive your emacs from AI agents
-  - Org-mode, Magit, Doom color themes, theme functions
+- **A Sampling of Included Emacs Packages:**
+  - [Slime](https://en.wikipedia.org/wiki/SLIME) for Common Lisp / Swank
+  - Paredit-mode, Flycheck-mode, Company-mode
+  - Magit, Org-mode
+  - Doom Color Themes, theme switching functions
 
-- **Skewed Windows:**
+- **Lisply-MCP (Model Context Protocol) Backend:**
+  - allows AI agents to drive your contained emacs.
+  - Defined in this repository and sideloaded from
+    `dot-files/emacs.d/sideloaded/lisply-backend/`
+
+- **Docker Integration:**
+  - Local container image defined in `docker/Dockerfile` and `docker/build`.
+    Images are pushed to tagged `gornskew/skewed-emacs` versions at Dockerhub.
+  - Docker Compose orchestration for running configured skewed-emacs with
+    other helpful containers such as lisply-mcp for the Lisply-MCP compatible middleware.
+
+
+## Customizations for Windows
+
+The Skewed Emacs repository also contains files to help setting up a
+Windows machine for Emacs (with or without WSL)
+
   - For using Emacs with modern keyboards, it is recommended to [map
     CapsLock to Control](windows-keybindings/README.md).
   - AutoHotkey (.ahk) configuration for Emacs-style keybindings across
     Microsoft Edge, Chroms, Claude, and other applications as per your
     specification. Just double click the file in File Explorer.
 
-- **Docker Integration:**
-  - Docker Compose for running skewed-emacs with other helpful
-    containers. 
-  - `docker/Dockerfile` and `docker./build` script for building and
-    pushing the skewed-emacs container. Note the comment in `build`
-    about whether to use `silex/emacs` or install our own emacs (our
-    own emacs supports X11 but is 0.5GB larger).
 
 ## Containerized Runnings (recommended)
 
-1. Clone this repo anywhere on your filesystem:
-   ```bash
-   git clone <repository-url> skewed-emacs
+This is the easiest way to get everything started.
+
+The steps below assume that you have access to a system with a
+[bash](https://www.gnu.org/software/bash/) shell and [docker](https://www.docker.com/get-started) available.
+
+1. Make a `~/projects/` directory if you don't already have one:
+
+```bash
+
+    cd
+    mkdir -p projects/
+    cd projects/
+    
+```
+
+2. Clone this repo into `~/projects/`:
+
+```bash
+
+   git clone https://github.com/gornskew/skewed-emacs 
    cd skewed-emacs
-   ./compose-dev up 
-   ```
 
-This starts three containers:
-- **skewed-emacs**: Emacs with AI integrations (HTTP API on port 7081)  
-- **gendl**: Common Lisp/Gendl system (HTTP API on port 9081, SWANK on port 4201)
-- **lisply-mcp**: Node.js environment for Claude Code (MCP tools auto-configured)
+```
+
+3. Start the default container orchestra:
+
+```
+   ./compose-dev up
+   
+```
+
+This will pull and starts four containers:
+- **skewed-emacs**: Emacs with Benefits 
+- **gendl-ccl**: Gendl system on Clozure CL
+- **gendl-sbcl**: Gendl system on Steel Bank CL
+- **lisply-mcp**: Node.js environment MCP & Claude
 
 
-2. See [the directions](./README-compose.md) for further details.
+Now you can use the `eskew` or `egskew` aliases to launch a terminal-
+or graphical-based emacs client. These aliases are defined in the
+`dot-files/bash_profile`, so if you did not run the `~/.setup` on your
+host machine, you can quickly define thes aliases for yourself with
+
+```
+  cd ~/projects/skewed-emacs/
+  source dot-files/bash_profile
+  
+```
+
+Then can do `eskew` or `egskew` to get a client attached to the
+containerized skewed emacs daemon.
+
+After you are in, see the "Getting Started" section near the top of
+the default landing dashboard.
 
 
 ## Local Installation
@@ -61,20 +119,37 @@ files" in your home directory. It does not download or install or run
 any of the systems discussed in the Containerized Runnings section
 above.
 
-1. Clone this repo anywhere on your filesystem:
-   ```bash
-   git clone <repository-url> skewed-emacs
-   ```
+1. Make a `~/projects/` directory if you don't already have one:
 
-2. Run the setup script:
-   ```bash
+```bash
+
+    cd
+    mkdir -p projects/
+    cd projects/
+    
+```
+
+2. Clone this repo into `~/projects/`:
+
+```bash
+
+   git clone https://github.com/gornskew/skewed-emacs 
    cd skewed-emacs
+
+```
+
+
+3. Run the setup script:
+   ```bash
+   
+   cd ~/projects/skewed-emacs
    ./setup
+   
    ```
    
-   The setup script will create symlinks of the salient "dot-files"
-   (hidden files starting with `.` pointing to the corresponding files
-   in the cloned repo, for example:
+   The setup script will create symbolic links of the salient
+   "dot-files" (hidden files starting with `.` pointing to the
+   corresponding files in the cloned repo, for example:
    
     `~/.emacs.d -> ~/skewed-emacs/dot-files/emacs.d`
    
@@ -83,7 +158,7 @@ above.
    with names appended with `-pre-skewed-emacs`.
 
 
-# Optional options
+### Optional options for `setup`
 
 - `--dry-run`: Shows what would happen without making any changes
 - `--shadow-suffix=NAME` or `--shadow-suffix NAME`: Creates symlinks with a "-NAME" suffix
@@ -133,34 +208,32 @@ tilde (~) in the dot-files directory.
 ```
 
 
-⚠️ **Warning**: The setup script will overwrite your existing
-`.emacs.d` directory and several dotfiles in your home
-directory. Existing files will be backed up with a `-pre-skewed-emacs`
-suffix. Run it with `--dry-run` first to see what it will do without
-it touching anything.
+⚠️ **Warning**: The setup script may overwrite your existing
+               `~/.emacs.d/` and `~/.bash_profile`. It is designed to
+               back up this data, but in case of defects or failure it
+               would be wise to back up your existing dot files before
+               running the `./setup` script.
+	       
 
 ## Requirements
 
- - Emacs 29+ (30+ recommended)
- - Node.js (optional, 22+ recommended, for github copilot install)
- - Docker (optional, 20+ recommended, for containerized development)
+ - Bash
+ - Docker 
  - Git
- - realpath (included in coreutils on Linux; on macOS install via
-   Homebrew: `brew install coreutils`)
+
 
 ## Configuration Structure
 
- - `dot-files/` - Contains all dotfiles that will end up symlinked to
+ - `dot-files/` - all dotfiles that will end up symlinked to
    your home directory
   - `emacs.d/` - Emacs configuration, to be linked to ~/.emacs.d/
     - `init.el` - Main Emacs configuration entry point
     - `etc/` - Modular configuration files
-    - `sideloaded/` - Third-party packages
+    - `sideloaded/` - Second-party packages
   - `bash_profile` - Bash configuration
   - `tmux.conf` - tmux configuration
   - `zshrc` - ZSH configuration
 
- - `notes/` - Documentation and setup guides
 
 ## Customization
 
@@ -168,61 +241,6 @@ For personal customizations that shouldn't be committed to this
 repository, add them to a `~/.emacs-local` file, which will be loaded
 at the end of the Emacs initialization process.
 
-## Installation Options and Rationale
-
-Skewed Emacs is not currently designed to blend automatically with
-your existing configuration; it's optimized more for fresh or
-containerixed setups. If you want to merge this with your
-already-existing configuration, you have two installation approaches
-to choose from:
-
-### 1. Regular Installation (Default)
-
-With the standard installation approach, the `./setup` script will:
-
-- Back up your existing dot files with a `-pre-skewed-emacs` suffix
-- Replace them with symlinks to the Skewed Emacs versions
-- Allow you to merge your customizations back in a controlled manner
-
-If you have your own preëxisting config, add it back in a stepwise,
-deliberate manner in your `~/.emacs-local` file, which you can
-version-control separately or together with your own private fork or
-branch of this repo. 
-
-### 2. Shadow Installation (`--shadow-suffix=NAME`)
-Shadow Intallation can be used if you want to inspect or play with
-Skewed Emacs without stepping on your existing setup.
-
-- Use `--shadow-suffix=shadow` to create parallel configuration files with a `-shadow` suffix
-- Or use `--shadow-suffix=NAME` to create files with your own custom suffix
-
-#### Using Shadow Configurations
-
-To test the shadow installation you can use techniques such as the
-following:
-
-```bash
-# Start Emacs with the shadow config
-emacs -q --load "~/.emacs.d-shadow/init.el"
-```
-
-
-```bash
-# Source the shadow bash profile in your current shell
-source ~/.bash_profile[SUFFIX]
-```
-
-Or you could edit your existing `~/.bash_profile` and/or
-`~/.emacs.d/init.el` to load the skewed-emacs shadow versions at some
-point in their execution.
-
-
-## MCP Server Backend 
-
-This repository also includes a backend for the Lisply-MCP (Model
-Context Protocol) [middleware](github.com/gornskew/lisply-mcp).  The
-backend implementation is
-[here](./dot-files/emacs.d/sideloaded/lisply-backend).
 
 
 
