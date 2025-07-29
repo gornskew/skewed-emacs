@@ -319,6 +319,7 @@ gendl-ccl/4200.")
       (error "Unknown theme: %s" selected-theme))
     (clear-themes)
     (load-theme theme-symbol t)
+    (setup-modeline-contrast)  ; Apply modeline fix after theme load
     (when (not (display-graphic-p))
       (send-string-to-terminal "\e]12;rgb:ff/00/ff\a"))
     (set-cursor-color "#ff00ff")
@@ -337,6 +338,7 @@ gendl-ccl/4200.")
       (error "Unknown theme: %s" selected-theme))
     (clear-themes)
     (load-theme theme-symbol t)
+    (setup-modeline-contrast)  ; Apply modeline fix after theme load
     (when (not (display-graphic-p))
       (send-string-to-terminal "\e]12;rgb:00/00/ff\a"))
     (set-cursor-color "#0000ff")
@@ -377,10 +379,32 @@ gendl-ccl/4200.")
     (set-frame-size-and-position frame)))
 
 
+(defun setup-modeline-contrast ()
+  "Fix modeline contrast for better visibility, adapting to current theme."
+  (interactive)
+  (let* ((bg (face-background 'default))
+         (fg (face-foreground 'default))
+         (is-dark (< (color-distance bg "black") (color-distance bg "white"))))
+    (if is-dark
+        ;; Dark theme colors - much more contrast from dark backgrounds
+        (custom-set-faces
+         '(mode-line ((t (:foreground "#ffffff" :background "#404040" :weight bold :box (:line-width 2 :color "#666666")))))
+         '(mode-line-inactive ((t (:foreground "#cccccc" :background "#303030" :box (:line-width 1 :color "#555555"))))))
+      ;; Light theme colors - much more contrast from light backgrounds
+      (custom-set-faces
+       '(mode-line ((t (:foreground "#000000" :background "#d0d0d0" :weight bold :box (:line-width 2 :color "#999999")))))
+       '(mode-line-inactive ((t (:foreground "#444444" :background "#e8e8e8" :box (:line-width 1 :color "#bbbbbb")))))))
+    (message "Modeline contrast improved for %s theme" (if is-dark "dark" "light"))))
+
+;; Automatically apply modeline contrast fix after any theme load
+(defadvice load-theme (after fix-modeline-contrast activate)
+  "Automatically fix modeline contrast after loading any theme."
+  (setup-modeline-contrast))
 
 (defun setup-themes ()
   "Set up my preferred default themes."
-  (dark-theme))
+  (dark-theme)
+  (setup-modeline-contrast))
 
 (defun unfill-paragraph ()
   "Transform a filled paragraph into a single long line."
