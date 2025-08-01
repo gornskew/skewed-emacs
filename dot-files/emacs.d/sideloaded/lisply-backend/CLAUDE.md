@@ -177,6 +177,188 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(
 )
 ```
 
+## PAREDIT COMMAND REFERENCE
+
+### Critical Paredit Commands for Structural Editing
+
+**🔥 MOST IMPORTANT: Slurping and Barfing**
+These are the core paredit operations that safely restructure code:
+
+```python
+# SLURP: Pull expressions into current parentheses group
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(progn
+               ;; Forward slurp: (foo bar) baz -> (foo bar baz)
+               (paredit-forward-slurp-sexp)
+               ;; Backward slurp: foo (bar baz) -> (foo bar baz)  
+               (paredit-backward-slurp-sexp))'''
+)
+
+# BARF: Push expressions out of current parentheses group  
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(progn
+               ;; Forward barf: (foo bar baz) -> (foo bar) baz
+               (paredit-forward-barf-sexp)
+               ;; Backward barf: (foo bar baz) -> foo (bar baz)
+               (paredit-backward-barf-sexp))'''
+)
+```
+
+**Essential Structural Operations:**
+```python
+# Wrapping and unwrapping
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(progn
+               (paredit-wrap-round)        ; Wrap selection in ()
+               (paredit-wrap-square)       ; Wrap selection in []
+               (paredit-wrap-curly)        ; Wrap selection in {}
+               (paredit-splice-sexp))      ; Remove surrounding parens'''
+)
+
+# Safe deletion
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(progn
+               (paredit-kill)              ; Kill to end of sexp
+               (paredit-kill-word)         ; Kill word maintaining balance
+               (paredit-backward-kill-word); Kill word backward
+               (paredit-splice-sexp-killing-backward)  ; Remove parens, kill backward
+               (paredit-splice-sexp-killing-forward))  ; Remove parens, kill forward'''
+)
+```
+
+**Navigation Commands:**
+```python
+# Structural movement (ALWAYS use these instead of character movement)
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(progn
+               (paredit-forward)           ; Move forward over sexp
+               (paredit-backward)          ; Move backward over sexp
+               (paredit-forward-down)      ; Move down into sexp
+               (paredit-backward-up)       ; Move up out of sexp
+               (paredit-forward-up)        ; Move up and forward
+               (paredit-backward-down))    ; Move down and backward'''
+)
+```
+
+### Paredit Editing Workflow Examples
+
+**Example 1: Adding a parameter to a function call**
+```python
+# Start: (my-function arg1 arg2)
+# Goal:  (my-function new-arg arg1 arg2)
+
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(progn
+               ;; 1. Position cursor after opening paren
+               (search-forward "(my-function")
+               (forward-char 1)  ; After the opening paren
+               ;; 2. Insert new parameter
+               (insert "new-arg ")
+               ;; Paredit automatically maintains balance!
+               "Parameter added safely")'''
+)
+```
+
+**Example 2: Restructuring nested expressions**
+```python
+# Start: (if condition (do-something arg1 arg2))
+# Goal:  (when condition (do-something arg1 arg2))
+
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(progn
+               ;; 1. Position on 'if'
+               (search-forward "(if")
+               (forward-char 1)
+               ;; 2. Kill the word 'if'
+               (paredit-kill-word)
+               ;; 3. Insert 'when'
+               (insert "when")
+               "Converted if to when safely")'''
+)
+```
+
+**Example 3: Extracting an expression**
+```python
+# Start: (foo (bar baz) qux)
+# Goal:  (bar baz) (foo qux)
+
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(progn
+               ;; 1. Position on (bar baz)
+               (search-forward "(bar")
+               (backward-char 1)  ; On opening paren of (bar baz)
+               ;; 2. Mark the expression
+               (mark-sexp)
+               ;; 3. Kill it
+               (paredit-kill)
+               ;; 4. Go to appropriate location and yank
+               (beginning-of-line)
+               (yank)
+               (insert " ")
+               "Expression extracted safely")'''
+)
+```
+
+### Common Paredit Mistakes to Avoid
+
+**❌ DON'T DO THESE:**
+```python
+# NEVER use these for Lisp editing:
+# - delete-char, delete-backward-char
+# - kill-line, kill-word  
+# - replace-string, replace-regexp on parentheses
+# - Manual parentheses insertion/deletion
+
+# WRONG: This breaks balance
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(progn
+               (search-forward "(old-name")
+               (delete-char 10)  ; BAD: Can break parentheses
+               (insert "(new-name"))'''  # DANGEROUS
+)
+```
+
+**✅ DO THIS INSTEAD:**
+```python
+# RIGHT: Use paredit structural editing
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(progn
+               (search-forward "(old-name")
+               (forward-char 1)  ; Move inside parentheses
+               (paredit-kill-word)  ; Safely remove 'old-name'
+               (insert "new-name"))'''  # Safe replacement
+)
+```
+
+### Quick Reference: Most Used Paredit Commands
+
+| Task | Command | Example |
+|------|---------|---------|
+| Add to group | `paredit-forward-slurp-sexp` | `(a b) c` → `(a b c)` |
+| Remove from group | `paredit-forward-barf-sexp` | `(a b c)` → `(a b) c` |
+| Wrap in parens | `paredit-wrap-round` | `a b` → `(a b)` |
+| Remove parens | `paredit-splice-sexp` | `(a b)` → `a b` |
+| Safe kill word | `paredit-kill-word` | `(old-name ...)` → `( ...)` |
+| Kill to end | `paredit-kill` | `(a b c d)` → `(a b)` |
+| Move by sexp | `forward-sexp` / `backward-sexp` | Navigate structures |
+
+### Learning Resources
+
+**Official Paredit Documentation:**
+- In Emacs: `C-h f paredit-mode` or `M-x describe-function paredit-mode`
+- Paredit cheat sheet: `paredit-cheatsheet` (if installed)
+- Tutorial: `paredit-tutorial` (interactive learning)
+
+**Key Concept: "Slurping and Barfing"**
+- **Slurp** = "eat" or "absorb" - pull expressions into the current parenthetical group
+- **Barf** = "spit out" - push expressions out of the current parenthetical group
+- These operations are the foundation of structural editing
+
+**Memory Aid:**
+- Think of parentheses as containers that can grow/shrink
+- Slurp = container gets bigger (eats more)
+- Barf = container gets smaller (spits out content)
+
 ### Common Editing Patterns
 
 **Pattern 1: Safe Function Renaming**

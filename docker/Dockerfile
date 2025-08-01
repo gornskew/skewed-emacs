@@ -28,7 +28,14 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
     make \
     pkg-config \
     dpkg-dev \
-    fonts-dejavu && \
+    fonts-dejavu \
+    unzip && \
+    # Install Nerd fonts for emacs doom-mode-line
+    mkdir -p /usr/share/fonts/nerd-fonts && \
+    curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/NerdFontsSymbolsOnly.zip -o /tmp/NerdFontsSymbolsOnly.zip && \
+    unzip /tmp/NerdFontsSymbolsOnly.zip -d /usr/share/fonts/nerd-fonts && \
+    rm /tmp/NerdFontsSymbolsOnly.zip && \
+    fc-cache -fv && \
     rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean && \
     curl -fsSL \
     https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz \
@@ -79,6 +86,10 @@ RUN echo "*** Before first emacs run ***" \
 && echo "*** Before second emacs run ***" \
 && START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch --load "~/.emacs.d/init.el" \
    --eval "(recompile-all-packages)" \
+&& echo "*** Installing all-the-icons fonts ***" \
+&& START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch --load "~/.emacs.d/init.el" \
+   --eval "(when (package-installed-p 'all-the-icons) (all-the-icons-install-fonts t))" \
+&& fc-cache -fv \
 && echo "*** Before third emacs run ***" \
 && START_HTTP=true SKEWED_EMACS_DOCKER_BUILD=true emacs --daemon --load "~/.emacs.d/init.el" \
 && echo "*** Before client waiting ***" \

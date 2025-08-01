@@ -200,8 +200,9 @@ function claudly
 {
     file=${1:-"."};
     
-    # Ensure auto-updates are disabled to prevent error messages for users
-    docker exec lisply-mcp /home/node/.claude/local/claude config set --global autoUpdates false >/dev/null 2>&1
+    # Update Claude Code to latest version
+    echo "Checking for Claude Code updates..."
+    docker exec lisply-mcp bash -c 'cd ~/.claude/local && npm update @anthropic-ai/claude-code' >/dev/null 2>&1
     
     # First, merge the MCP configs inside the lisply-mcp container
     echo "Merging MCP configurations..."

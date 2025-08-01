@@ -22,6 +22,12 @@
 (defvar second-party-packages nil)
 (defvar third-party-packages nil)
 
+;; Simple, reliable icon detection
+(defun skewed-should-use-icons-p ()
+  "Simple icon detection: graphical=icons, terminal=unicode."
+  (display-graphic-p))
+
+
 (setq
  third-party-packages
  (remove
@@ -33,7 +39,7 @@
      )
     (company
      :commands company-mode
-     :hook (prog-mode . company-mode)
+     :hook (prog-mode . company-mode)  
      :defer (not skewed-emacs-docker-build?)
      )
     (eat
@@ -46,6 +52,40 @@
      :config (load-theme 'doom-one t)
      :defer nil
      )
+    ;; (all-the-icons
+    ;;  :demand t
+    ;;  :defer nil
+    ;;  :config
+    ;;  ;; Install fonts once at startup if needed (no dynamic installation)
+    ;;  (when (and (display-graphic-p)
+    ;;             (not (find-font (font-spec :name "all-the-icons"))))
+    ;;    (all-the-icons-install-fonts t)))
+
+    (use-package nerd-icons
+      :demand t
+      :config (when (and (display-graphic-p)
+			 (not (find-font
+			       (font-spec :name "Symbols Nerd Font Mono"))))
+		(nerd-icons-install-fonts t)))
+    
+    (doom-modeline
+     :demand t
+     :hook (after-init . doom-modeline-mode)
+     :defer nil
+     :config
+     (setq doom-modeline-height 25
+           doom-modeline-bar-width 3
+           doom-modeline-enable-word-count t
+           doom-modeline-buffer-file-name-style 'truncate-upto-project
+           doom-modeline-icon (display-graphic-p)
+           doom-modeline-unicode-fallback t
+           doom-modeline-buffer-encoding nil
+           doom-modeline-env-version t
+           doom-modeline-vcs-max-length 12
+           doom-modeline-workspace-name t)
+     (when (package-installed-p 'nerd-icons)
+       (setq nerd-icons-font-family "Symbols Nerd Font Mono")))
+    
     (zenburn-theme
      :demand t				; Alternative theme
      :config (load-theme 'zenburn t)
@@ -54,7 +94,7 @@
      :commands ellama
      :defer (not skewed-emacs-docker-build?))
     (json
-     :mode ("\\.json\\'" . json-mode)
+     :mode ("\\.json\\'". json-mode)
      :defer nil)
     (simple-httpd
      :commands httpd-start
@@ -73,17 +113,18 @@
      :config (setq magit-git-executable (locate-file "git" exec-path)))
 
     ,(unless (eql system-type 'android)
-      `(pdf-tools
-	:defer (not skewed-emacs-docker-build?)
-	:mode ("\\.pdf\\'" . pdf-view-mode)
-	:config
-	(when skewed-emacs-docker-build?
-	  (pdf-tools-install))))
+       `(pdf-tools
+	 :defer (not skewed-emacs-docker-build?)
+	 :mode ("\\.pdf\\'". pdf-view-mode)
+	 :config
+	 (when skewed-emacs-docker-build?
+	   (pdf-tools-install))))
     (org
      :defer (not skewed-emacs-docker-build?)
      :commands (org-mode org-agenda)
      :hook (org-mode . org-config-setup)
      ))))
+
 
 (setq
  second-party-packages
@@ -265,9 +306,13 @@ gendl-ccl/4200.")
   "Set up keybindings and faces for graphical mode."
   (let ((scale-factor (if (> (x-display-pixel-width) 1920) 1.5 1.0)))
     (set-face-attribute 'default nil
+			;;:family "DejaVu Sans"
                         :height (round (* 110 scale-factor))
                         :weight 'normal
-                        :width 'normal)))
+                        :width 'normal)
+    ;; Ensure Nerd Font for icons
+    ;;(set-fontset-font t 'unicode "Symbols Nerd Font Mono" nil 'prepend);
+    ))
 
 (defun setup-other-keybindings-and-faces ()
   "Set up additional keybindings and faces."
@@ -319,7 +364,8 @@ gendl-ccl/4200.")
       (error "Unknown theme: %s" selected-theme))
     (clear-themes)
     (load-theme theme-symbol t)
-    (setup-modeline-contrast)  ; Apply modeline fix after theme load
+    (unless (bound-and-true-p doom-modeline-mode)
+      (setup-modeline-contrast))
     (when (not (display-graphic-p))
       (send-string-to-terminal "\e]12;rgb:ff/00/ff\a"))
     (set-cursor-color "#ff00ff")
@@ -338,7 +384,8 @@ gendl-ccl/4200.")
       (error "Unknown theme: %s" selected-theme))
     (clear-themes)
     (load-theme theme-symbol t)
-    (setup-modeline-contrast)  ; Apply modeline fix after theme load
+    (unless (bound-and-true-p doom-modeline-mode)
+      (setup-modeline-contrast))
     (when (not (display-graphic-p))
       (send-string-to-terminal "\e]12;rgb:00/00/ff\a"))
     (set-cursor-color "#0000ff")
