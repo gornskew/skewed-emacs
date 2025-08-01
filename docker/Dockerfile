@@ -19,6 +19,8 @@ RUN apt-get -y update && apt-get -y install --no-install-recommends \
     libpng-dev \
     libpoppler-glib8 \
     unzip \
+    fonts-noto fonts-noto-color-emoji fonts-noto-mono \
+    fonts-font-awesome fonts-symbola fonts-powerline \
     fontconfig && \
     # Install Nerd Fonts with debugging
     mkdir -p /usr/share/fonts/truetype/nerd-fonts && \
