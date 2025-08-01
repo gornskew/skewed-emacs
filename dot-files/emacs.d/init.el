@@ -78,7 +78,19 @@
      (when (package-installed-p 'nerd-icons)
        (setq nerd-icons-font-family "Symbols Nerd Font Mono")))
 
-    (rainbow-delimiters
+    (rainbow-delimiter(rainbow-delimiters
+     :defer (not skewed-emacs-docker-build?)
+     :hook ((prog-mode . rainbow-delimiters-mode)
+            (emacs-lisp-mode . rainbow-delimiters-mode)
+            (lisp-mode . rainbow-delimiters-mode)
+            (scheme-mode . rainbow-delimiters-mode)
+            (clojure-mode . rainbow-delimiters-mode)
+            (json-mode . rainbow-delimiters-mode)
+            (eshell-mode . rainbow-delimiters-mode))
+     :config
+     (setq rainbow-delimiters-max-face-count 8
+           rainbow-delimiters-highlight-braces-p t
+           rainbow-delimiters-highlight-brackets-p t))
      :hook (prog-mode . rainbow-delimiters-mode)
      :defer (not skewed-emacs-docker-build?)
      :config
@@ -93,7 +105,18 @@
      (setq projectile-completion-system 'default
            projectile-project-search-path '("~/projects/" "~/")))
 
-    (solaire-mode
+    (solaire-mod(solaire-mode
+     :demand t
+     :defer nil
+     :config
+     (solaire-global-mode 1)
+     ;; Better contrast settings for modeline
+     (setq solaire-mode-auto-swap-bg nil
+           solaire-mode-remap-modeline nil)
+     ;; Auto-enable for appropriate buffer types
+     (add-hook 'dired-mode-hook #'solaire-mode)
+     (add-hook 'help-mode-hook #'solaire-mode)
+     (add-hook 'compilation-mode-hook #'solaire-mode))
      :demand t
      :defer nil
      :config
