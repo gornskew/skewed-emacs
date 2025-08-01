@@ -1,119 +1,83 @@
 # Skewed Emacs Dockerfile -
-# Using Debian testing for their emacs 30.1 support.
+# Using Debian testing for Emacs 30.1 support.
 FROM debian:testing-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Install runtime dependencies including GUI Emacs
-# Note: emacs package includes X11 support for graphical emacsclient
-RUN apt-get -y update && apt-get -y upgrade && apt-get -y autoremove && \
-    apt-get -y install \
-    emacs \
+RUN apt-get -y update && apt-get -y install --no-install-recommends \
+    emacs-gtk \
     ncurses-term \
     curl \
     wget \
     git \
-    gcc \
-    libc6-dev \
     ca-certificates \
     openssh-client \
     ghostscript \
     poppler-utils \
     imagemagick \
-    automake \
     libpng-dev \
-    libpoppler-dev \
-    libpoppler-glib-dev \
-    libz-dev \
-    make \
-    pkg-config \
-    dpkg-dev \
-    fonts-dejavu \
-    unzip && \
-    # Install Nerd fonts for emacs doom-mode-line
-    mkdir -p /usr/share/fonts/nerd-fonts && \
+    libpoppler-glib8 \
+    unzip \
+    fontconfig && \
+    # Install Nerd Fonts with debugging
+    mkdir -p /usr/share/fonts/truetype/nerd-fonts && \
     curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/NerdFontsSymbolsOnly.zip -o /tmp/NerdFontsSymbolsOnly.zip && \
-    unzip /tmp/NerdFontsSymbolsOnly.zip -d /usr/share/fonts/nerd-fonts && \
+    ls -l /tmp/NerdFontsSymbolsOnly.zip && \
+    unzip -v /tmp/NerdFontsSymbolsOnly.zip && \
+    unzip /tmp/NerdFontsSymbolsOnly.zip -d /usr/share/fonts/truetype/nerd-fonts && \
     rm /tmp/NerdFontsSymbolsOnly.zip && \
+    ls -l /usr/share/fonts/truetype/nerd-fonts && \
     fc-cache -fv && \
-    rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean && \
-    curl -fsSL \
-    https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz \
-    | tar xz --strip-components=1 -C /usr/local/bin \
-    docker/docker && \
-    chmod +x /usr/local/bin/docker &&\
+    fc-list | grep "Symbols Nerd Font" || echo "ERROR: Nerd Fonts not found in fc-list" && \
+    # Install Docker CLI
+    curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz | tar xz --strip-components=1 -C /usr/local/bin docker/docker && \
+    chmod +x /usr/local/bin/docker && \
+    # Create user and directories
     groupadd -g 1000 emacs-user && \
     useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user && \
-    mkdir -p /projects && \
-    chown emacs-user:emacs-user /projects && \
-    ln -s /home/emacs-user/skewed-emacs/docker/copilot-language-server \
-          /usr/local/bin/copilot-language-server && \
-    ln -s /projects /home/emacs-user/projects && \ 
-    fc-cache -fv && \ 
-    echo "deb-src http://deb.debian.org/debian testing main" >> /etc/apt/sources.list && \
-    echo "deb-src http://deb.debian.org/debian-security testing-security main" >> /etc/apt/sources.list && \
-    apt-get update && \
-    mkdir -p /usr/src/emacs && \
-    cd /usr/src/emacs && \
-    apt-get source emacs && \
-    chown -R emacs-user:emacs-user /usr/src/emacs && \
+    mkdir -p /projects && chown emacs-user:emacs-user /projects && \
+    ln -s /home/emacs-user/skewed-emacs/docker/copilot-language-server /usr/local/bin/copilot-language-server && \
+    ln -s /projects /home/emacs-user/projects && \
+    # Clean up
     rm -rf /var/cache/apt/* /var/lib/apt/lists/* && apt-get clean
 
-# Copy skewed-emacs configuration 
-COPY --chown=emacs-user:emacs-user . \
-    /home/emacs-user/skewed-emacs/
+# Copy skewed-emacs configuration
+COPY --chown=emacs-user:emacs-user . /home/emacs-user/skewed-emacs/
 
-# Switch to emacs-user for all subsequent operations
+# Switch to emacs-user
 USER emacs-user
 WORKDIR /home/emacs-user
 
-# Run setup to install configuration (links ~/.emacs.d to ~/skewed-emacs/dot-files/emacs.d/)
-RUN cd skewed-emacs && ./setup \
-    && ls -la ~/.emacs.d/init.el \
-    && ls -la ~/.emacs.d/sideloaded/lisply-backend/source/ \
-    && echo "Configuration files verified"
+# Run setup and initialize Emacs
+RUN cd skewed-emacs && ./setup && \
+    ls -la ~/.emacs.d/init.el && \
+    ls -la ~/.emacs.d/sideloaded/lisply-backend/source/ && \
+    echo "Configuration files verified" && \
+    # Initialize Emacs and install nerd-icons fonts
+    START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch --load "~/.emacs.d/init.el" && \
+    START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch --load "~/.emacs.d/init.el" --eval "(recompile-all-packages)" && \
+    START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch --load "~/.emacs.d/init.el" --eval "(when (package-installed-p 'nerd-icons) (nerd-icons-install-fonts t))" && \
+    fc-cache -fv && \
+    fc-list | grep "Symbols Nerd Font" || echo "ERROR: Nerd Fonts not found in fc-list after nerd-icons" && \
+    START_HTTP=true SKEWED_EMACS_DOCKER_BUILD=true emacs --daemon --load "~/.emacs.d/init.el" && \
+    sleep 8 && emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")" && \
+    echo "Emacs initialization complete"
 
-# Copy startup script (used at runtime as entry point)
+# Update .bashrc
+RUN echo 'export DOT_BASHRC_LOADED=1' >> /home/emacs-user/.bashrc && \
+    echo 'export DOT_PROFILE_LOADED=1' >> /home/emacs-user/.bashrc && \
+    echo 'if [ -z "$DOT_BASH_PROFILE_LOADED" ]; then . "$HOME/.bash_profile"; export DOT_BASH_PROFILE_LOADED=1; fi' >> /home/emacs-user/.bashrc
+
+# Copy startup scripts
 COPY --chown=emacs-user:emacs-user docker/startup.sh /home/emacs-user/startup.sh
-COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh \
-      /home/emacs-user/emacs-repl.sh
+COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
 RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh
 
-
-
-RUN echo "*** Before first emacs run ***" \
-&& START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch --load "~/.emacs.d/init.el" \
-&& echo "*** Before second emacs run ***" \
-&& START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch --load "~/.emacs.d/init.el" \
-   --eval "(recompile-all-packages)" \
-&& echo "*** Installing all-the-icons fonts ***" \
-&& START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch --load "~/.emacs.d/init.el" \
-   --eval "(when (package-installed-p 'all-the-icons) (all-the-icons-install-fonts t))" \
-&& fc-cache -fv \
-&& echo "*** Before third emacs run ***" \
-&& START_HTTP=true SKEWED_EMACS_DOCKER_BUILD=true emacs --daemon --load "~/.emacs.d/init.el" \
-&& echo "*** Before client waiting ***" \
-&& sleep 8 && emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")" \
-&& cat << EOF >> /home/emacs-user/.bashrc
-
-export DOT_BASHRC_LOADED=1
-export DOT_PROFILE_LOADED=1
-
-if [ -z "$DOT_BASH_PROFILE_LOADED" ]; then
-  . "$HOME/.bash_profile"
-  export DOT_BASH_PROFILE_LOADED=1
-fi
-
-EOF
-
-
-# Set environment variables for runtime
+# Set environment variables
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
 ENV SKEWED_EMACS_CONTAINER=true
-# Expose port for Lisply HTTP API
 EXPOSE 7080
 
 ENTRYPOINT ["/home/emacs-user/startup.sh"]
-# CMD ["/bin/bash"]
-

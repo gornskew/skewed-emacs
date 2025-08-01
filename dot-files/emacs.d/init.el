@@ -52,16 +52,8 @@
      :config (load-theme 'doom-one t)
      :defer nil
      )
-    ;; (all-the-icons
-    ;;  :demand t
-    ;;  :defer nil
-    ;;  :config
-    ;;  ;; Install fonts once at startup if needed (no dynamic installation)
-    ;;  (when (and (display-graphic-p)
-    ;;             (not (find-font (font-spec :name "all-the-icons"))))
-    ;;    (all-the-icons-install-fonts t)))
 
-    (use-package nerd-icons
+    (nerd-icons
       :demand t
       :config (when (and (display-graphic-p)
 			 (not (find-font
