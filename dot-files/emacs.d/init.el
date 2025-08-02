@@ -49,7 +49,7 @@
      )
     (doom-themes
      :demand t				; Load immediately for UI
-     :config (load-theme 'doom-one t)
+     :config (load-theme 'modus-vivendi t)
      :defer nil
      )
 
@@ -78,7 +78,7 @@
      (when (package-installed-p 'nerd-icons)
        (setq nerd-icons-font-family "Symbols Nerd Font Mono")))
 
-    (rainbow-delimiter(rainbow-delimiters
+    (rainbow-delimiters
      :defer (not skewed-emacs-docker-build?)
      :hook ((prog-mode . rainbow-delimiters-mode)
             (emacs-lisp-mode . rainbow-delimiters-mode)
@@ -91,10 +91,6 @@
      (setq rainbow-delimiters-max-face-count 8
            rainbow-delimiters-highlight-braces-p t
            rainbow-delimiters-highlight-brackets-p t))
-     :hook (prog-mode . rainbow-delimiters-mode)
-     :defer (not skewed-emacs-docker-build?)
-     :config
-     (setq rainbow-delimiters-max-face-count 8))
 
     (projectile
      :commands (projectile-mode projectile-find-file projectile-switch-project)
@@ -105,7 +101,7 @@
      (setq projectile-completion-system 'default
            projectile-project-search-path '("~/projects/" "~/")))
 
-    (solaire-mod(solaire-mode
+    (solaire-mode
      :demand t
      :defer nil
      :config
@@ -117,12 +113,6 @@
      (add-hook 'dired-mode-hook #'solaire-mode)
      (add-hook 'help-mode-hook #'solaire-mode)
      (add-hook 'compilation-mode-hook #'solaire-mode))
-     :demand t
-     :defer nil
-     :config
-     (solaire-global-mode 1)
-     ;;(setq solaire-mode-auto-swap-bg t)
-     )
     
     (zenburn-theme
      :demand t				; Alternative theme
@@ -164,67 +154,67 @@
      ))))
 
 
-(setq
- second-party-packages
- `((org-config
-    :defer (not skewed-emacs-docker-build?)
-    :load-path ,(lambda () (get-config-path "etc"))
-    :hook (org-mode . (lambda () (require 'org-config))))
-   (sa-translit-config
-    :defer nil
-    :load-path ,(lambda () (get-config-path "etc")))
-   (dashboard-config
-    :defer nil
-    :load-path ,(lambda () (get-config-path "etc"))
-    :config
-    (require 'dashboard-config)
-    (generate-skewed-dashboard-banner))
-   (impatient-markdown-config
-    :defer (not skewed-emacs-docker-build?)
-    :load-path ,(lambda () (get-config-path "etc")))
-   (slime-config
-    :defer (not skewed-emacs-docker-build?)
-    :load-path ,(lambda () (get-config-path "etc"))
-    :commands (slime slime-connect slime-repl slime-selector
-		     load-and-or-start-gendl set-slime-shortcuts)
-    :mode (("\\.lisp\\'" . lisp-mode)
-           ("\\.cl\\'" . lisp-mode)
-           ("\\.gdl\\'" . lisp-mode)
-           ("\\.gendl\\'" . lisp-mode)
-           ("\\.lhtm\\'" . lisp-mode)
-           ("\\.lhtml\\'" . lisp-mode)
-           ("\\.sexp\\'" . lisp-mode)
-           ("\\.sexpr\\'" . lisp-mode)
-           ("\\.sexps\\'" . lisp-mode))
-    :hook (lisp-mode . (lambda () (require 'slime-config))))
-   (lisply-config
-    :defer nil
-    :load-path ,(lambda () (get-config-path "etc"))
-    :config
-    (when (and start-lisply? (not skewed-emacs-docker-build?))
-      (require 'lisply-config)
-      (setq httpd-host "0.0.0.0")
-      (emacs-lisply-start-server)))))
+ (setq
+  second-party-packages
+  `((org-config
+     :defer (not skewed-emacs-docker-build?)
+     :load-path ,(lambda () (get-config-path "etc"))
+     :hook (org-mode . (lambda () (require 'org-config))))
+    (sa-translit-config
+     :defer nil
+     :load-path ,(lambda () (get-config-path "etc")))
+    (dashboard-config
+     :defer nil
+     :load-path ,(lambda () (get-config-path "etc"))
+     :config
+     (require 'dashboard-config)
+     (generate-skewed-dashboard-banner))
+    (impatient-markdown-config
+     :defer (not skewed-emacs-docker-build?)
+     :load-path ,(lambda () (get-config-path "etc")))
+    (slime-config
+     :defer (not skewed-emacs-docker-build?)
+     :load-path ,(lambda () (get-config-path "etc"))
+     :commands (slime slime-connect slime-repl slime-selector
+		      load-and-or-start-gendl set-slime-shortcuts)
+     :mode (("\\.lisp\\'" . lisp-mode)
+            ("\\.cl\\'" . lisp-mode)
+            ("\\.gdl\\'" . lisp-mode)
+            ("\\.gendl\\'" . lisp-mode)
+            ("\\.lhtm\\'" . lisp-mode)
+            ("\\.lhtml\\'" . lisp-mode)
+            ("\\.sexp\\'" . lisp-mode)
+            ("\\.sexpr\\'" . lisp-mode)
+            ("\\.sexps\\'" . lisp-mode))
+     :hook (lisp-mode . (lambda () (require 'slime-config))))
+    (lisply-config
+     :defer nil
+     :load-path ,(lambda () (get-config-path "etc"))
+     :config
+     (when (and start-lisply? (not skewed-emacs-docker-build?))
+       (require 'lisply-config)
+       (setq httpd-host "0.0.0.0")
+       (emacs-lisply-start-server)))))
 
 (load (concat emacs-config-directory "etc/load-and-compile.el"))
 (setup-packages-and-customizations emacs-config-directory)
 
 (defvar light-theme-options
-  '(("adwaita" . adwaita)
+  '(("doom-feather-light" . doom-feather-light)
+    ("adwaita" . adwaita)
     ("tsdh-light" . tsdh-light)
     ("light-blue" . light-blue)
     ("doom-one-light" . doom-one-light)
-    ("doom-feather-light" . doom-feather-light)
     ("doom-light" . doom-gruvbox-light))
   "List of light themes for `light-theme' function.")
 
 (defvar dark-theme-options
-  '(("doom-tokyo-night" . doom-tokyo-night)
-    ("doom-one" . doom-one)
-    ("doom-pine" . doom-pine)
+  '(("modus-vivendi" . modus-vivendi-deuteranopia)
     ("doom-purple" . doom-shades-of-purple)
+    ("doom-one" . doom-one)
+    ("doom-tokyo-night" . doom-tokyo-night)
+    ("doom-pine" . doom-pine)
     ("doom-gruvbox" . doom-gruvbox)
-    ("modus-vivendi" . modus-vivendi-deuteranopia)
     ("zenburn" . zenburn))
   "List of dark themes for `dark-theme' function.")
 
@@ -317,14 +307,6 @@ gendl-ccl/4200.")
   (save-some-buffers)
   (kill-emacs))
 
-;;(defun cycle-slime-repl-buffers ()
-;;  "Cycle through possible *slime-repl...* buffers."
-;;  (interactive)
-;;  (let ((buffers (buffer-list)))
-;;    (dolist (buffer buffers)
-;;      (if (string-match-p "\\*slime-repl.*\\*" (buffer-name buffer))
-;;          (switch-to-buffer buffer)))))
-
 (defun setup-terminal-keybindings-and-faces ()
   "Set up bindings for terminal."
   (interactive)
@@ -391,19 +373,17 @@ gendl-ccl/4200.")
   (set-cursor-color "#ff00ff"))
 
 (defun dark-theme (&optional theme-name)
-  "Load a dark theme, defaulting to `doom-tokyo-night."
+  "Load a dark theme, defaulting to `modus-vivendi."
   (interactive
    (list (completing-read "Select dark theme: "
                           (mapcar #'car dark-theme-options)
-                          nil t "doom-tokyo-night")))
-  (let* ((selected-theme (or theme-name "doom-tokyo-night"))
+                          nil t "modus-vivendi")))
+  (let* ((selected-theme (or theme-name "modus-vivendi"))
          (theme-symbol (cdr (assoc selected-theme dark-theme-options))))
     (unless theme-symbol
       (error "Unknown theme: %s" selected-theme))
     (clear-themes)
     (load-theme theme-symbol t)
-    ;; (unless (bound-and-true-p doom-modeline-mode)
-    ;;   (setup-modeline-contrast))
     (when (not (display-graphic-p))
       (send-string-to-terminal "\e]12;rgb:ff/00/ff\a"))
     (set-cursor-color "#ff00ff")
@@ -411,19 +391,17 @@ gendl-ccl/4200.")
     (message "Loaded dark theme: %s" selected-theme)))
 
 (defun light-theme (&optional theme-name)
-  "Load a light theme, defaulting to `adwaita`."
+  "Load a light theme, defaulting to `doom-feather-light`."
   (interactive
    (list (completing-read "Select light theme: "
                           (mapcar #'car light-theme-options)
-                          nil t "adwaita")))
-  (let* ((selected-theme (or theme-name "adwaita"))
+                          nil t "doom-feather-light")))
+  (let* ((selected-theme (or theme-name "doom-feather-light"))
          (theme-symbol (cdr (assoc selected-theme light-theme-options))))
     (unless theme-symbol
       (error "Unknown theme: %s" selected-theme))
     (clear-themes)
     (load-theme theme-symbol t)
-    ;; (unless (bound-and-true-p doom-modeline-mode)
-    ;;   (setup-modeline-contrast))
     (when (not (display-graphic-p))
       (send-string-to-terminal "\e]12;rgb:00/00/ff\a"))
     (set-cursor-color "#0000ff")
@@ -464,36 +442,10 @@ gendl-ccl/4200.")
     (set-frame-size-and-position frame)))
 
 
-;; (defun setup-modeline-contrast ()
-;;   "Fix modeline contrast for better visibility, adapting to current theme."
-;;   (interactive)
-;;   (let* ((bg (face-background 'default))
-;;          (fg (face-foreground 'default))
-;;          (is-dark (< (color-distance bg "black") (color-distance bg "white"))))
-;;     (if is-dark
-;;         ;; Dark theme colors - much more contrast from dark backgrounds
-;;         (custom-set-faces
-;;          '(mode-line ((t (:foreground "#ffffff" :background "#404040" :weight bold :box (:line-width 2 :color "#666666")))))
-;;          '(mode-line-inactive ((t (:foreground "#cccccc" :background "#303030" :box (:line-width 1 :color "#555555"))))))
-;;       ;; Light theme colors - much more contrast from light backgrounds
-;;       (custom-set-faces
-;;        '(mode-line ((t (:foreground "#000000" :background "#d0d0d0" :weight bold :box (:line-width 2 :color "#999999")))))
-;;        '(mode-line-inactive ((t (:foreground "#444444" :background "#e8e8e8" :box (:line-width 1 :color "#bbbbbb")))))))
-;;     (message "Modeline contrast improved for %s theme" (if is-dark "dark" "light"))))
-
-;; Automatically apply modeline contrast fix after any theme load
-
-
-;; (defadvice load-theme (after fix-modeline-contrast activate)
-;;   "Automatically fix modeline contrast after loading any theme."
-;;   (setup-modeline-contrast))
-
-
 (defun setup-themes ()
   "Set up my preferred default themes."
-  (dark-theme)
-  ;;(setup-modeline-contrast)
-  )
+  (dark-theme))
+
 
 (defun unfill-paragraph ()
   "Transform a filled paragraph into a single long line."
