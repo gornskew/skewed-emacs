@@ -1,8 +1,9 @@
 # Skewed Emacs: Containerized MCP Setup for Emacs Lisp and Common Lisp
 
-A containerized Emacs development environment with Model Context
-Protocol (MCP) integration, enabling AI agents to interact directly
-with Emacs and Common Lisp REPLs for automated development workflows.
+Skewed Emacs is a containerized Emacs development environment with
+Model Context Protocol (MCP) integration, enabling AI agents to
+interact directly with Emacs and other Lisp REPLs for automated
+development workflows.
 
 ![Skewed Emacs Logo](img/skewed-dash.jpg)
 
@@ -16,10 +17,11 @@ This Skewed Emacs repository houses essentially three things:
 
 1.  a ready-to-go Emacs configuration
    
-2.  a containerized emacs daemon version 
+2.  a containerized emacs server with pre-configured skewed emacs user 
 
 3.  a container orchestration to bring in supplemental compatible
-    backend container services.
+    backend container services for e.g. Model Context Protocol and
+    Knowledge Based Engineering.
 
 
 ## Features
@@ -42,16 +44,21 @@ This Skewed Emacs repository houses essentially three things:
     other helpful containers such as lisply-mcp for the Lisply-MCP compatible middleware.
 
 
-## Customizations for Windows
+## Windows Keyboard Tweaks for Emacs
 
-The Skewed Emacs repository also contains files to help setting up a
-Windows machine for Emacs (with or without WSL)
+Skewed-emacs uses the traditional Emacs keybindings by default, which
+make heavy use of the Control key ("C-" in emacs parlance). For this
+reason, it can be convenient to bind a more ergonomic key such as
+CapsLock to Control, on modern keyboards. (Older keyboards had Control
+in the place of current CapsLock). The Skewed Emacs repository
+contains [instructions](windows-keybindings/README.md) for mapping
+CapsLock to Control (with or without WSL) using a free program called
+SharpKeys.
 
-  - For using Emacs with modern keyboards, it is recommended to [map
-    CapsLock to Control](windows-keybindings/README.md).
-  - AutoHotkey (.ahk) configuration for Emacs-style keybindings across
-    Microsoft Edge, Chroms, Claude, and other applications as per your
-    specification. Just double click the file in File Explorer.
+If you enjoy the traditional emacs keychords and want more of them in
+your life, you can replicate those across most Windows programs using
+the free AutoHotkey program, for which we bundle a config, also
+described in the [instructions](windows-keybindings/README.md).
 
 
 ## Containerized Runnings (recommended)
@@ -60,6 +67,8 @@ This is the easiest way to get everything started.
 
 The steps below assume that you have access to a system with a
 [bash](https://www.gnu.org/software/bash/) shell and [docker](https://www.docker.com/get-started) available.
+
+### Initial Setup
 
 1. Make a `~/projects/` directory if you don't already have one:
 
@@ -105,16 +114,64 @@ host machine, you can quickly define thes aliases for yourself with
   
 ```
 
-Then can do `eskew` or `egskew` to get a client attached to the
+You can then do `eskew` or `egskew` to get a client attached to the
 containerized skewed emacs daemon.
 
 After you are in, see the "Getting Started" section near the top of
 the default landing dashboard.
 
+### Pulling Updates
+
+While the `./compose-dev up` will pull fresh container images, it will
+not automatically pull git updates to your local cloned skewed-emacs
+repository. To do that:
+
+```
+cd ~/projects/skewed-emacs
+./compose-dev down
+git pull
+./compose-dev up
+```
+
+As you can see, we bring down the docker composition before doing the
+git pull, just in case there is a change in docker compose
+configuration that might affect a shutdown.
+
+
+### Troubleshooting
+
+- *Dangling Containers*
+
+If all containers do not shut down cleanly for some reason, you can
+list them with
+
+```
+docker ps 
+```
+
+then forcibly remove one with
+
+```
+docker rm -f <container-name>
+```
+
+- *Dangling Network*
+
+Sometimes a docker network "skewed-network" or "skewed-emacs-network"
+can be left dangling, preventing a clean `./compose-dev up`. Such
+cases can be cleaned up with e.g.
+
+```
+cd ~/projects/skewed-emacs/
+./compose-dev down 
+docker network rm skewed-emacs # if for some reason necessary
+./compose-dev up 
+```
+
 
 ## Local Installation
 
-This section is for setting up the .emacs.d and other so-called "dot
+This section is for setting up the `.emacs.d` and other so-called "dot
 files" in your home directory. It does not download or install or run
 any of the systems discussed in the Containerized Runnings section
 above.
