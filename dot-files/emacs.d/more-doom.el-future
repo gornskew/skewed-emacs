@@ -1,0 +1,277 @@
+;;; Doom Package Additions for Skewed Emacs
+;;; Add these to your third-party-packages list in init.el
+
+;; ========================================
+;; HIGH PRIORITY - Navigation & Discovery
+;; ========================================
+
+(which-key
+ :demand t
+ :defer nil
+ :config 
+ (which-key-mode 1)
+ (setq which-key-idle-delay 0.5
+       which-key-popup-type 'side-window
+       which-key-side-window-location 'bottom
+       which-key-side-window-max-height 0.25))
+
+(avy
+ :bind (("C-;" . avy-goto-char-timer)
+        ("C-'" . avy-goto-line)
+        ("C-c j" . avy-goto-word-1))
+ :defer t
+ :config
+ (setq avy-timeout-seconds 0.3
+       avy-all-windows t))
+
+;; ========================================
+;; HIGH PRIORITY - Development Flow
+;; ========================================
+
+(yasnippet
+ :hook ((prog-mode . yas-minor-mode)
+        (org-mode . yas-minor-mode)
+        (lisp-mode . yas-minor-mode))
+ :defer (not skewed-emacs-docker-build?)
+ :config
+ (yas-reload-all)
+ (setq yas-snippet-dirs '("~/.emacs.d/snippets")))
+
+(smartparens
+ :hook ((prog-mode . smartparens-mode)
+        (lisp-mode . smartparens-strict-mode)
+        (emacs-lisp-mode . smartparens-strict-mode))
+ :defer (not skewed-emacs-docker-build?)
+ :config
+ (require 'smartparens-config) ; Default key bindings
+ (sp-use-paredit-bindings))
+
+(aggressive-indent
+ :hook ((emacs-lisp-mode . aggressive-indent-mode)
+        (lisp-mode . aggressive-indent-mode)
+        (css-mode . aggressive-indent-mode))
+ :defer (not skewed-emacs-docker-build?)
+ :config
+ (setq aggressive-indent-comments-too t))
+
+;; ========================================
+;; HIGH PRIORITY - Git Integration
+;; ========================================
+
+(diff-hl
+ :hook ((prog-mode . diff-hl-mode)
+        (dired-mode . diff-hl-dired-mode)
+        (magit-pre-refresh . diff-hl-magit-pre-refresh)
+        (magit-post-refresh . diff-hl-magit-post-refresh))
+ :defer (not skewed-emacs-docker-build?)
+ :config
+ (global-diff-hl-mode 1)
+ (diff-hl-flydiff-mode 1))
+
+(git-timemachine
+ :commands git-timemachine
+ :bind ("C-x v t" . git-timemachine)
+ :defer t)
+
+;; ========================================
+;; MEDIUM PRIORITY - File Management
+;; ========================================
+
+(treemacs
+ :commands (treemacs treemacs-select-window)
+ :bind (("C-x t t" . treemacs)
+        ("C-x t s" . treemacs-select-window))
+ :defer t
+ :config
+ (setq treemacs-width 30
+       treemacs-show-cursor nil
+       treemacs-follow-mode t
+       treemacs-filewatch-mode t
+       treemacs-fringe-indicator-mode 'always))
+
+(treemacs-projectile
+ :after (treemacs projectile)
+ :defer t)
+
+(treemacs-magit
+ :after (treemacs magit)
+ :defer t)
+
+;; ========================================
+;; MEDIUM PRIORITY - Better Help System
+;; ========================================
+
+(helpful
+ :bind (("C-h f" . helpful-callable)
+        ("C-h v" . helpful-variable)
+        ("C-h k" . helpful-key)
+        ("C-h x" . helpful-command)
+        ("C-h o" . helpful-symbol))
+ :defer t)
+
+;; ========================================
+;; LISP DEVELOPMENT ENHANCEMENTS
+;; ========================================
+
+(lispy
+ :hook ((emacs-lisp-mode . lispy-mode)
+        (lisp-mode . lispy-mode)
+        (scheme-mode . lispy-mode))
+ :defer (not skewed-emacs-docker-build?)
+ :config
+ (setq lispy-close-quotes-at-end-p t
+       lispy-safe-delete t))
+
+(highlight-quoted
+ :hook ((emacs-lisp-mode . highlight-quoted-mode)
+        (lisp-mode . highlight-quoted-mode))
+ :defer (not skewed-emacs-docker-build?))
+
+(elisp-demos
+ :defer t
+ :config
+ (advice-add 'helpful-update :after #'elisp-demos-advice-helpful-update))
+
+;; ========================================
+;; CONTAINER/DEVOPS TOOLS
+;; ========================================
+
+(dockerfile-mode
+ :mode "Dockerfile\\'"
+ :defer t)
+
+(docker
+ :commands docker
+ :bind ("C-c d" . docker)
+ :defer t)
+
+(yaml-mode
+ :mode ("\\.ya?ml\\'" . yaml-mode)
+ :defer t
+ :config
+ (add-hook 'yaml-mode-hook
+           (lambda () (define-key yaml-mode-map "\C-m" 'newline-and-indent))))
+
+(restclient
+ :mode ("\\.http\\'" . restclient-mode)
+ :defer t)
+
+;; ========================================
+;; ORG-MODE ENHANCEMENTS
+;; ========================================
+
+(org-modern
+ :hook (org-mode . org-modern-mode)
+ :defer (not skewed-emacs-docker-build?)
+ :config
+ (setq org-modern-checkbox nil
+       org-modern-table nil
+       org-modern-keyword nil
+       org-modern-block-name t))
+
+(org-bullets
+ :hook (org-mode . org-bullets-mode)
+ :defer (not skewed-emacs-docker-build?)
+ :config
+ (setq org-bullets-bullet-list '("◉" "○" "●" "○" "●" "○" "●")))
+
+;; ========================================
+;; VISUAL ENHANCEMENTS
+;; ========================================
+
+(highlight-indent-guides
+ :hook (prog-mode . highlight-indent-guides-mode)
+ :defer (not skewed-emacs-docker-build?)
+ :config
+ (setq highlight-indent-guides-method 'character
+       highlight-indent-guides-character ?\|
+       highlight-indent-guides-responsive 'top
+       highlight-indent-guides-auto-enabled nil))
+
+(hl-todo
+ :hook (prog-mode . hl-todo-mode)
+ :defer (not skewed-emacs-docker-build?)
+ :config
+ (setq hl-todo-keyword-faces
+       '(("TODO" . "#ff6c6b")
+         ("FIXME" . "#ff6c6b")  
+         ("DEBUG" . "#a9a1e1")
+         ("FLAG" . "#51afef")
+         ("HACK" . "#da8548")
+         ("NOTE" . "#98be65")
+         ("REVIEW" . "#c678dd"))))
+
+(rainbow-mode
+ :hook ((css-mode . rainbow-mode)
+        (html-mode . rainbow-mode)
+        (conf-mode . rainbow-mode))
+ :defer t)
+
+;; ========================================
+;; SEARCH & COMPLETION ENHANCEMENTS  
+;; ========================================
+
+(rg
+ :commands (rg rg-project)
+ :bind (("C-c s r" . rg-project)
+        ("C-c s s" . rg))
+ :defer t
+ :config
+ (setq rg-group-result t
+       rg-hide-command t
+       rg-show-columns nil
+       rg-show-header t))
+
+(consult
+ :bind (("C-s" . consult-line)
+        ("C-x b" . consult-buffer)
+        ("C-x 4 b" . consult-buffer-other-window)
+        ("M-y" . consult-yank-pop)
+        ("M-g g" . consult-goto-line)
+        ("M-g M-g" . consult-goto-line)
+        ("C-c s i" . consult-imenu))
+ :defer t
+ :config
+ (setq consult-preview-key "M-."))
+
+;; ========================================
+;; PRODUCTIVITY TOOLS
+;; ========================================
+
+(multiple-cursors
+ :bind (("C->" . mc/mark-next-like-this)
+        ("C-<" . mc/mark-previous-like-this)
+        ("C-c C-<" . mc/mark-all-like-this)
+        ("C-c m l" . mc/edit-lines))
+ :defer t)
+
+(expand-region
+ :bind ("C-=" . er/expand-region)
+ :defer t)
+
+(move-text
+ :bind (("M-<up>" . move-text-up)
+        ("M-<down>" . move-text-down))
+ :defer t)
+
+;; ========================================
+;; USAGE NOTES
+;; ========================================
+
+;; TO ADD TO YOUR CONFIG:
+;; 1. Copy the packages you want from above
+;; 2. Add them to your existing third-party-packages list in init.el
+;; 3. Rebuild your container
+;; 
+;; RECOMMENDED PRIORITY ORDER:
+;; 1. which-key, avy, yasnippet (immediate productivity boost)
+;; 2. diff-hl, smartparens (development workflow)
+;; 3. helpful, treemacs (navigation and discovery)
+;; 4. Visual enhancements as desired
+;; 
+;; KEY BINDINGS TO REMEMBER:
+;; - C-; : Jump to any character with avy
+;; - C-' : Jump to any line with avy  
+;; - C-x t t : Toggle treemacs
+;; - C-c d : Docker management
+;; - C-= : Expand region selection
