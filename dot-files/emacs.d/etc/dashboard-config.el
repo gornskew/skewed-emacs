@@ -251,7 +251,7 @@ Returns (:status OK|ERROR :time response-time-ms)."
                          map)
                'face 'button
                'help-echo "Connect to Gendl REPL (slime-connect)")
-   (propertize "• Claude Code: M-x eat, then `claudly`\n"
+   (propertize "• Claude Code: M-x claude-code\n"
                'keymap (let ((map (make-sparse-keymap))
 			     (function (lambda () (interactive)
 					 (eat))))
@@ -259,7 +259,7 @@ Returns (:status OK|ERROR :time response-time-ms)."
                          (define-key map [mouse-1] function)
                          map)
                'face 'button
-               'help-echo "Run eat and insert 'claudly'")
+               'help-echo "Run claude-code.el in a *eat* terminal'")
    (propertize "• M-x light-theme, dark-theme, load-theme\n"
                'keymap (let ((map (make-sparse-keymap)))
                          (define-key map (kbd "RET") 'load-theme)

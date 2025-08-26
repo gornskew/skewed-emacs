@@ -196,7 +196,7 @@ function egskew
 }
 
 
-function claudly
+function claudly (dir)
 {
     file=${1:-"."};
     
@@ -210,7 +210,7 @@ function claudly
     
     # Run Claude with the merged config
     echo "Starting Claude Code with MCP integration..."
-    docker exec -it --detach-keys "ctrl-^" lisply-mcp /home/node/.claude/local/claude --mcp-config /tmp/merged-mcp-config.json
+    docker exec -it --detach-keys "ctrl-^" lisply-mcp /home/node/.claude/local/claude --dir ${file} --mcp-config /tmp/merged-mcp-config.json
 }
 
 
