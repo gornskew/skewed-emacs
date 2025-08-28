@@ -158,15 +158,20 @@
      :defer (not skewed-emacs-docker-build?)
      :commands (claude-code)
      :vc (:url "https://github.com/stevemolitor/claude-code.el" :rev :newest)
-     :config
+     :init (setq claude-code-terminal-backend 'eat)
+     :config (setq claude-code-terminal-backend 'eat)
      (claude-code-mode)
      (setq claude-code-program (cond ((file-exists-p "/projects/skewed-emacs/scripts/claudely.sh")
 				      "/projects/skewed-emacs/scripts/claudely.sh")
-				     ((file-exists-p "~/projects/skewed-emacs/scripts/claudely.sh"))
-				     ((file-exists-p "~/skewed-emacs/scripts/claudely.sh"))
+				     ((file-exists-p (expand-file-name "~/projects/skewed-emacs/scripts/claudely.sh"))
+				      (expand-file-name "~/projects/skewed-emacs/scripts/claudely.sh"))
+				     ((file-exists-p (expand-file-name  "~/skewed-emacs/scripts/claudely.sh"))
+				      (expand-file-name  "~/skewed-emacs/scripts/claudely.sh"))
 				     (t (error "Claudely.sh program not found"))))
      :bind-keymap ("C-c c" . claude-code-command-map)
-     :bind (:repeat-map my-claude-code-map ("M" . claude-code-cycle-mode))))))
+     :bind (:repeat-map my-claude-code-map ("M" . claude-code-cycle-mode)))
+    
+    )))
 
 
  (setq

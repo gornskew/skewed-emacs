@@ -130,10 +130,6 @@ if [[ $- == *i* && -z "$DOT_BASH_PROFILE_WELCOME" ]]; then
     echo ""
     echo "Welcome to the 🦖 Skewed Emacs 🦖  Bash Profile"
 
-
-#     echo "Type 'e' to get a terminal-mode emacsclient on current directory."
-
-
     if [ -z "$INSIDE_EMACS" ]; then
 	echo "Type 'e' to get a terminal-mode emacsclient on current directory."
     else
@@ -196,7 +192,7 @@ function egskew
 }
 
 
-function claudly (dir)
+function claudly 
 {
     file=${1:-"."};
     
@@ -210,7 +206,7 @@ function claudly (dir)
     
     # Run Claude with the merged config
     echo "Starting Claude Code with MCP integration..."
-    docker exec -it --detach-keys "ctrl-^" lisply-mcp /home/node/.claude/local/claude --dir ${file} --mcp-config /tmp/merged-mcp-config.json
+    docker exec -it --detach-keys "ctrl-^" lisply-mcp /home/node/.claude/local/claude --mcp-config /tmp/merged-mcp-config.json
 }
 
 
