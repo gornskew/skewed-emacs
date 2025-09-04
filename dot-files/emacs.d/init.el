@@ -154,6 +154,15 @@
      )
 
 
+    (htmlize
+     :defer (not skewed-emacs-docker-build?)
+     :init
+     (setq htmlize-output-type 'inline-css
+	   htmlize-pre-style t
+	   htmlize-html-charset "utf-8")
+     )
+
+    
     (claude-code
      :defer (not skewed-emacs-docker-build?)
      :commands (claude-code)
@@ -214,7 +223,12 @@
      (when (and start-lisply? (not skewed-emacs-docker-build?))
        (require 'lisply-config)
        (setq httpd-host "0.0.0.0")
-       (emacs-lisply-start-server)))))
+       (emacs-lisply-start-server)))
+
+    (htmlize-config
+     :defer (not skewed-emacs-docker-build?)
+     :load-path ,(lambda () (get-config-path "etc"))
+     :config (require 'htmlize-config))))
 
 (load (concat emacs-config-directory "etc/load-and-compile.el"))
 (setup-packages-and-customizations emacs-config-directory)
@@ -264,10 +278,69 @@ gendl-ccl/4200.")
 
   )
 
+(defun my/is-theme-light-p ()
+  "Return t if the current theme has a light background, nil otherwise."
+  (let* ((bg (face-background 'default nil t))
+         (rgb (color-name-to-rgb bg)))
+    (if rgb
+        (let ((luminance (+ (* 0.299 (nth 0 rgb))
+                           (* 0.587 (nth 1 rgb))
+                           (* 0.114 (nth 2 rgb)))))
+          (> luminance 0.5)) ; Threshold for light vs dark
+      (eq frame-background-mode 'light))))
+
+
+(defvar my/dark-theme-colors
+  '((show-paren-match :background "#33E0E0" :foreground "#EEEEEE" :weight bold) 
+    (rainbow-delimiters-depth-1 :foreground "#FF3333") ; Bright red
+    (rainbow-delimiters-depth-2 :foreground "#33CC33") ; Lime green
+    (rainbow-delimiters-depth-3 :foreground "#8888FF") ; Bright blue
+    (rainbow-delimiters-depth-4 :foreground "#FF9933") ; Orange
+    (rainbow-delimiters-depth-5 :foreground "#CC33CC") ; Magenta
+    (rainbow-delimiters-depth-6 :foreground "#33CCCC") ; Cyan
+    (rainbow-delimiters-depth-7 :foreground "#CCCC33") ; Yellow
+    (rainbow-delimiters-depth-8 :foreground "#BB55EE") ; Purple
+    ) ; Light blue
+  "Colors for dark background themes.")
+
+(defvar my/light-theme-colors
+  '((show-paren-match :background "#22A0A0" :foreground "#EEEEEE" :weight bold)    (rainbow-delimiters-depth-1 :foreground "#A10000") ; Deep red
+    (rainbow-delimiters-depth-2 :foreground "#006600") ; Forest green
+    (rainbow-delimiters-depth-3 :foreground "#000099") ; Deep blue
+    (rainbow-delimiters-depth-4 :foreground "#CC6600") ; Burnt orange
+    (rainbow-delimiters-depth-5 :foreground "#660066") ; Deep purple
+    (rainbow-delimiters-depth-6 :foreground "#007070") ; Teal
+    (rainbow-delimiters-depth-7 :foreground "#666600") ; Olive
+    (rainbow-delimiters-depth-8 :foreground "#EB87E1") ; Magenta
+    ) 
+  "Colors for light background themes.")
+
+
+(defun my/update-paren-and-delimiter-faces ()
+  (interactive)
+  "Set show-paren-match and rainbow-delimiters faces based on theme background."
+  (let ((colors (if (my/is-theme-light-p)
+                    my/light-theme-colors
+                  my/dark-theme-colors)))
+    ;; Set show-paren-match
+    (apply 'set-face-attribute 'show-paren-match nil
+           (cdr (assoc 'show-paren-match colors)))
+    ;; Set rainbow-delimiters
+    (dolist (depth (number-sequence 1 9))
+      (let ((face (intern (format "rainbow-delimiters-depth-%d-face" depth))))
+        (apply 'set-face-attribute face nil
+               (cdr (assoc (intern (format "rainbow-delimiters-depth-%d" depth)) colors)))))))
+
 (defun set-default-settings ()
   "Set my personal preferred default settings."
   (interactive)
 
+
+  (set-face-attribute 'show-paren-match nil
+		      :background "#4A3728" ;
+		      :foreground "#FFFFFF" ;
+		      :weight 'bold)
+  
   (if (display-graphic-p)
       (setup-graphical-keybindings-and-faces)
     (setup-terminal-keybindings-and-faces))
@@ -404,6 +477,7 @@ gendl-ccl/4200.")
       (error "Unknown theme: %s" selected-theme))
     (clear-themes)
     (load-theme theme-symbol t)
+    (my/update-paren-and-delimiter-faces)
     (when (not (display-graphic-p))
       (send-string-to-terminal "\e]12;rgb:ff/00/ff\a"))
     (set-cursor-color "#ff00ff")
@@ -422,6 +496,7 @@ gendl-ccl/4200.")
       (error "Unknown theme: %s" selected-theme))
     (clear-themes)
     (load-theme theme-symbol t)
+    (my/update-paren-and-delimiter-faces)
     (when (not (display-graphic-p))
       (send-string-to-terminal "\e]12;rgb:00/00/ff\a"))
     (set-cursor-color "#0000ff")
@@ -458,6 +533,7 @@ gendl-ccl/4200.")
   "Configure settings for new FRAME."
   (select-frame frame)
   (set-default-settings)
+  (my/update-paren-and-delimiter-faces)
   (when (display-graphic-p frame)
     (set-frame-size-and-position frame)))
 
@@ -509,6 +585,7 @@ gendl-ccl/4200.")
       (load (file-name-sans-extension custom-file)))
     
     (setup-themes)
+    (my/update-paren-and-delimiter-faces)
 
     (let ((float-time (float-time)))
       (setq elapsed (- float-time curr-time))
