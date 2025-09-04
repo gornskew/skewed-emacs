@@ -41,3 +41,12 @@
       (write-file file))
     (kill-buffer html-buf)
     (message "Wrote %s" (expand-file-name file))))
+
+(defun dc/html-export-region-exact (beg end &optional file)
+  (interactive "r")
+  (require 'htmlize)
+  (when (fboundp 'font-lock-ensure) (font-lock-ensure beg end))
+  (let ((html-buf (htmlize-region beg end)))
+    (with-current-buffer html-buf
+      (write-file (or file "region.html")))
+    (kill-buffer html-buf)))
