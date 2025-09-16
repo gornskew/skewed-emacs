@@ -79,7 +79,9 @@
        (setq nerd-icons-font-family "Symbols Nerd Font Mono")))
 
     (rainbow-delimiters
-     :defer (not skewed-emacs-docker-build?)
+     ;;:defer (not skewed-emacs-docker-build?)
+     :demand t
+     :defer nil
      :hook ((prog-mode . rainbow-delimiters-mode)
             (emacs-lisp-mode . rainbow-delimiters-mode)
             (lisp-mode . rainbow-delimiters-mode)
@@ -585,7 +587,6 @@ gendl-ccl/4200.")
       (load (file-name-sans-extension custom-file)))
     
     (setup-themes)
-    (my/update-paren-and-delimiter-faces)
 
     (let ((float-time (float-time)))
       (setq elapsed (- float-time curr-time))
