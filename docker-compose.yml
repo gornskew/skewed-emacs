@@ -158,7 +158,7 @@ services:
     ports:
       - "3001:3000"
       - "8081:8080"
-      - "9001:9000"
+#     - "9001:9000"
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
