@@ -46,7 +46,41 @@
   (global-set-key "\C-x*" #'(lambda()(interactive) (switch-to-buffer "*inferior-lisp*"))))
 
 (defun customise-slime ()
-  (setq slime-autodoc-use-multiline-p t))
+  (setq slime-autodoc-use-multiline-p t)
+
+  (defvar my-slime-default-words-of-encouragement slime-words-of-encouragement
+    "Default SLIME connection messages for reference or restoration.")
+  
+  (defcustom slime-words-of-encouragement
+    '("Spin up the MCP (e.g. M-x claude-code), let the agents earn their keep."
+      "Buffers primed, backends wired. Ship it."
+      "Welcome to the real REPL (who wants to tell replit)?"
+      "Prepared to proceed in a Lisply manner."
+      "Try an MCP handshake (e.g. M-x claude-code), then delegate, iterate, elevate."
+      "Skewed and ready, sir. Let the yak-shaving commence."
+      "May your model match your intent."
+      "Define, Compile, regenerate, and let geometry tell the truth."
+      "KBE engaged. Prepared to redefine worlds."
+      "Gendl loaded: describe the system, immediately probe the solution."
+      "Input-slots in, insight out."
+      "Shape ideas, not just triangles."
+      "From spec to surface, tweak & repeat elegantly."
+      "Model once, tweak and reuse forever."
+      "read the fine manual, please. —Erik Naggum"
+      "common Lisp: you’re not in Kansas anymore. —Erik Naggum"
+      "optimization helps today; design helps tomorrow. —Erik Naggum"
+      "presentation is information. —Erik Naggum"
+      "distinguish good uses from bad. tools aren’t the sin. —Erik Naggum"
+      "learn, understand, extend the craft. —Erik Naggum"
+      "lisp lets adults get real work done. —Erik Naggum"
+      "Gorn-powered practicality: emit s-expressions, not excuses."
+      "Skew the defaults, batten down the hatches, center the craft."
+      "Small source files, big leverage."
+      "Today’s keystrokes are Tomorrow’s breakthrough.")
+    "List of motivational messages displayed on SLIME connection."
+    :type '(repeat string)
+    :group 'slime))
+
 
 (defun remove-dos-eol ()
   "Do not show ^M in files containing mixed UNIX and DOS line endings."
