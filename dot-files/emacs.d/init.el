@@ -618,6 +618,86 @@ gendl-ccl/4200.")
 
 (skewed-initialize)
 
+
+;; Custom Utility Functions callable via M-x
+
+
+(defun generate-dev-lisp (&optional policy include-locals)
+  "Generate a dev.lisp file based on Lisp-related files.
+Do this according to the specified policy and 
+optionally including locally modified/untracked files.
+POLICY can be 1 (latest commit only) or 2 (unpushed changes, default).
+INCLUDE-LOCALS is a boolean to include unstaged and untracked 
+local changes (default t)."
+  (interactive)
+  (require 'magit)
+  (require 'seq)
+  (let* ((policy (or policy 2))
+         (include-locals (if (null include-locals) t include-locals))
+         (repo-dir (magit-toplevel))
+         (current-branch (magit-get-current-branch))
+         (upstream (or (magit-get-upstream-branch)
+                       (format "origin/%s" current-branch)))
+         (changes (if (= policy 1)
+                      (magit-git-lines "diff-tree" "--no-commit-id" "--name-status" "-r" "HEAD")
+                    (magit-git-lines "diff" "--name-status" upstream "HEAD")))
+	 (strip-git-status
+	  (lambda (str)
+            (if (string-match "[ \t]*[AM][ \t]+" str)
+                (substring str (match-end 0))
+              (error "String does not start with uppercase letter followed by whitespace: %s" str))))
+         (lisp-files (seq-filter (lambda (line)
+                                   (when (string-match "^\\s-*\\([AMD]\\)\\s-+\\(.*\\)$" line)
+                                     (let ((status (match-string 1 line))
+                                           (file (match-string 2 line)))
+                                       (and (not (string= status "D"))
+                                            (string-match-p "\\.\\(lisp\\|gdl\\|gendl\\)$" file)
+                                            file))))
+                                 changes))
+         (lisp-files (mapcar strip-git-status lisp-files))
+         (local-changes (when include-locals
+                          (magit-git-lines "status" "--porcelain")))
+         (local-files (when include-locals
+                        (seq-filter (lambda (line)
+                                      (when (string-match "^\\(..\\) \\(.*\\)$" line)
+                                        (let* ((xy (match-string 1 line))
+                                               (x (substring xy 0 1))
+                                               (y (substring xy 1 2))
+                                               (file (match-string 2 line)))
+                                          (and (or (and (string= x "?") (string= y "?"))
+                                                   (string= y "M"))
+                                               (not (string= y "D"))
+                                               (string-match-p "\\.\\(lisp\\|gdl\\|gendl\\)$" file)
+                                               file))))
+                                    local-changes)))
+	 (local-files (mapcar strip-git-status local-files))
+         (lisp-files (if include-locals
+                         (append lisp-files local-files)
+                       lisp-files))
+         (dev-lisp-path (expand-file-name "dev.lisp" repo-dir))
+         (sexps `((in-package :gdl-user)
+
+                  (defparameter *gendl-source-dir*
+                                (make-pathname :defaults (glisp:source-pathname)
+                                               :name nil :type nil))
+
+
+                  (dolist (source-file '(,@lisp-files))
+                    (load (compile-file
+                           (merge-pathnames source-file
+                                            *gendl-source-dir*) :external-format :utf-8))))))
+    (unless repo-dir
+      (error "Not in a Git repository"))
+    (cl-block generate-dev-lisp
+      (when (null lisp-files)
+        (message "No relevant files found.")
+        (cl-return-from generate-dev-lisp))
+      (with-temp-file dev-lisp-path
+        (dolist (sexp sexps)
+          (pp sexp (current-buffer))))
+      (message "Generated %s with %d files." dev-lisp-path (length lisp-files)))))
+
+
 (provide 'init)
 
 ;;; init.el ends here
