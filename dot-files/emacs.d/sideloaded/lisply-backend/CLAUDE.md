@@ -1,5 +1,44 @@
 # Emacs Lisply Backend - Claude Usage Guide
 
+## ⚠️ CRITICAL WARNING: Shared Emacs Instance
+
+**You are connected to a SHARED Emacs instance with an active user!**
+
+### Key Risks and Safety Measures:
+
+1. **Shared Global Current Buffer**: You and the user share the same "current buffer" state
+   - When you do `(find-file "file.lisp")`, it changes the user's current buffer
+   - When the user switches buffers, it affects your operations
+   - **Solution**: ALWAYS use `(with-current-buffer "buffer-name" ...)` patterns
+
+2. **User Interference**: The user may switch buffers while you're working
+   - Your `(search-forward "text")` might search in the wrong buffer
+   - **Solution**: Use explicit buffer targeting for ALL operations
+
+3. **Cursor Position Conflicts**: Cursor movements affect both you and the user
+   - **Solution**: Use `(save-excursion ...)` to preserve positions
+
+### Safe MCP Patterns (REQUIRED):
+
+```elisp
+;; BAD: Relies on global state
+(find-file "/path/to/file.lisp")
+(search-forward "target")
+(insert "new-text")
+
+;; GOOD: Explicit buffer targeting
+(with-current-buffer (find-file-noselect "/path/to/file.lisp")
+  (save-excursion
+    (goto-char (point-min))
+    (search-forward "target")
+    (insert "new-text"))
+  (save-buffer))
+```
+
+**Always test operations with explicit buffer names, never rely on "current buffer"!**
+
+---
+
 ## Overview
 
 This Emacs Lisply Backend provides MCP (Model Context Protocol) integration that allows Claude to interact with a running Emacs instance by evaluating Emacs Lisp code. This enables powerful text processing, buffer manipulation, file operations, and access to the full Emacs ecosystem.
@@ -19,6 +58,44 @@ This Emacs Lisply Backend provides MCP (Model Context Protocol) integration that
 - **Main Development Guide**: See `/projects/CLAUDE.md` for complete development workflow
 - **Gendl Integration**: MCP service `mcp__genworks-gdl-smp__genworks-gdl-smp__lisp_eval` for Gendl REPL
 - **Container Environment**: See `/projects/skewed-emacs/CLAUDE.md` for Docker setup
+
+## Shared Buffer Footgun Examples
+
+### The Problem We Discovered
+During viewport menu development, we encountered this exact issue:
+
+```elisp
+;; Claude executed this:
+(find-file "/projects/gendl/gwl-graphics/gwl/source/viewport-html-div.lisp")
+(search-forward "Test Menu")  ; This failed!
+
+;; Why it failed: User had switched to *claude* buffer in between!
+;; The search happened in the wrong buffer
+```
+
+### The Solution: Always Use Explicit Buffer Targeting
+
+```elisp
+;; SAFE: Works regardless of what user is doing
+(with-current-buffer (find-file-noselect "/path/to/file.lisp")
+  (goto-char (point-min))
+  (search-forward "target-text")
+  (point))  ; Returns position found
+```
+
+### Buffer State Verification
+
+```python
+# Always verify you're in the right buffer
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(with-current-buffer "viewport-html-div.lisp"
+               (list :buffer-name (buffer-name)
+                     :buffer-size (buffer-size)
+                     :buffer-file (buffer-file-name)))'''
+)
+```
+
+---
 
 ## Basic MCP Usage Examples
 
@@ -120,34 +197,38 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(
 
 ### Safe Lisp Editing Workflow
 
-**Step-by-Step Safe Editing Pattern:**
+**Step-by-Step Safe Editing Pattern (Shared-Buffer-Safe):**
 ```python
-# 1. Open file and enable paredit
+# 1. Open file and enable paredit (SHARED-BUFFER-SAFE VERSION)
 mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='''(progn
-               (find-file "/path/to/file.el")
-               (when (fboundp 'paredit-mode)
-                 (paredit-mode 1))
-               "Ready for editing")'''
+    code='''(let ((buf (find-file-noselect "/path/to/file.el")))
+               (with-current-buffer buf
+                 (when (fboundp 'paredit-mode)
+                   (paredit-mode 1))
+                 "Ready for editing"))'''
 )
 
-# 2. Make edits using structural navigation
+# 2. Make edits using structural navigation (EXPLICIT BUFFER)
 mcp__skewed_emacs__skewed_emacs__lisp_eval(
     code='''(with-current-buffer "file.el"
-               (goto-char (point-min))
-               (search-forward "(defun old-name")
-               (backward-sexp)
-               (forward-char)
-               (forward-word)
-               (paredit-kill-word)
-               (insert "new-name"))'''
+               (save-excursion
+                 (goto-char (point-min))
+                 (search-forward "(defun old-name")
+                 (backward-sexp)
+                 (forward-char)
+                 (forward-word)
+                 (paredit-kill-word)
+                 (insert "new-name")))'''
 )
 
-# 3. Verify balance before saving
+# 3. Verify balance before saving (BUFFER-SAFE)
 mcp__skewed_emacs__skewed_emacs__lisp_eval(
     code='''(with-current-buffer "file.el"
-               (check-parens)
-               (save-buffer))'''
+               (condition-case err
+                   (progn (check-parens)
+                          (save-buffer)
+                          "File saved successfully")
+                 (error (format "Error: %s" err))))'''
 )
 ```
 
@@ -436,13 +517,13 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(
 5. **Undo/Redo**: Built-in change tracking
 6. **Error Recovery**: Better state management
 
-### Safe File Editing Pattern for Automation
+### Safe File Editing Pattern for Automation (Shared-Buffer-Safe)
 
 ```python
-# Avoid interactive prompts in automated contexts
+# UPDATED: Avoid interactive prompts AND shared buffer conflicts
 mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='''(defun safe-edit-file-automated (filepath edit-function)
-               "Edit file safely for automated operations"
+    code='''(defun safe-edit-file-automated-shared-safe (filepath edit-function)
+               "Edit file safely for automated operations with shared buffer protection"
                (let ((original-revert-without-query revert-without-query))
                  (unwind-protect
                      (progn
@@ -453,12 +534,12 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(
                          (when buf
                            (with-current-buffer buf
                              (revert-buffer t t t))))
-                       ;; Perform edit
-                       (find-file filepath)
-                       (with-current-buffer (file-name-nondirectory filepath)
-                         (funcall edit-function)
-                         (save-buffer)
-                         t))
+                       ;; SHARED-BUFFER-SAFE: Use find-file-noselect + explicit buffer
+                       (let ((buffer (find-file-noselect filepath)))
+                         (with-current-buffer buffer
+                           (funcall edit-function)
+                           (save-buffer)
+                           t)))
                    ;; Cleanup
                    (setq revert-without-query original-revert-without-query))))'''
 )

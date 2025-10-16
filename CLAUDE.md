@@ -160,189 +160,37 @@ docker logs -f gendl-ccl
 # Or from within Emacs, watch the *Messages* buffer for API calls
 ```
 
-## File Editing with MCP Services
+## MCP API Usage
 
-### Key Capabilities via MCP
+For detailed MCP API documentation, examples, and best practices, see:
+**`dot-files/emacs.d/sideloaded/lisply-backend/CLAUDE.md`**
 
-**1. Basic Emacs Lisp Evaluation:**
+### Quick MCP API Reference
 ```python
-# Simple arithmetic
+# Basic evaluation
 mcp__skewed_emacs__skewed_emacs__lisp_eval(code="(+ 1 2 3)")
-# Returns: {"Result": "6", "Stdout": ""}
 
-# List operations
-mcp__skewed_emacs__skewed_emacs__lisp_eval(code="(list 1 2 3)")
-# Returns: {"Result": "(1 2 3)", "Stdout": ""}
+# File editing (see lisply-backend docs for detailed patterns)
+mcp__skewed_emacs__skewed_emacs__lisp_eval(code='(find-file "/path/to/file.lisp")')
+
+# Test connectivity
+mcp__skewed_emacs__skewed_emacs__ping_lisp()
 ```
 
-**2. Buffer Operations:**
-```python
-# List all open buffers
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='(mapcar (lambda (buf) (buffer-name buf)) (buffer-list))'
-)
+**⚠️ CRITICAL WARNING**: When using MCP file editing, you share the **global current buffer** with the user. Always use `with-current-buffer` patterns to avoid conflicts. See lisply-backend documentation for safe practices.
 
-# Get buffer contents
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='(with-current-buffer "*Messages*" (buffer-string))'
-)
+## File Editing via MCP
 
-# Switch to a buffer
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='(switch-to-buffer "buffer-name")'
-)
-```
+**For comprehensive file editing documentation, see:**
+**`dot-files/emacs.d/sideloaded/lisply-backend/CLAUDE.md`**
 
-**3. File Operations:**
-```python
-# Read file contents
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='(with-temp-buffer (insert-file-contents "/path/to/file") (buffer-string))'
-)
-
-# Write to file
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='(with-temp-file "/path/to/file" (insert "content to write"))'
-)
-
-# Check if file exists
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='(file-exists-p "/path/to/file")'
-)
-```
-
-**4. Directory Operations:**
-```python
-# List directory contents
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='(directory-files "/path/to/directory")'
-)
-
-# Get current directory
-mcp__skewed_emacs__skewed_emacs__lisp_eval(code='(pwd)')
-```
-
-**5. Text Processing:**
-```python
-# Search and replace in buffer
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='''(with-current-buffer "buffer-name" 
-               (goto-char (point-min)) 
-               (while (search-forward "old" nil t) 
-                 (replace-match "new")))'''
-)
-
-# Count lines in buffer
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='(with-current-buffer "buffer-name" (count-lines (point-min) (point-max)))'
-)
-```
-
-## File Editing Best Practices for AI Agents
-
-### Understanding Buffer Operations vs String Manipulation
-
-**The Right Way: Buffer-Based Editing (Recommended)**
-```python
-# This is the efficient, Emacs-native approach
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='''(progn
-               (find-file "/path/to/file.js")
-               (with-current-buffer "file.js"
-                 (goto-char (point-min))
-                 (search-forward "old-code")
-                 (replace-match "new-code")
-                 (save-buffer)))'''
-)
-```
-
-**The Inefficient Way: String Manipulation (Not Recommended)**
-```python
-# This approach wastes memory and CPU by duplicating Emacs's work
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='''(let ((content (with-temp-buffer
-                             (insert-file-contents "/path/to/file.js")
-                             (buffer-string))))
-               (setq modified-content 
-                     (replace-regexp-in-string "old-code" "new-code" content))
-               (with-temp-file "/path/to/file.js"
-                 (insert modified-content)))'''
-)
-```
-
-### Why Buffer Operations Are Superior
-
-1. **Memory Efficiency**: Emacs manages buffers in optimized C code, rather than creating large Lisp strings
-2. **Incremental Changes**: Make small, targeted edits instead of reprocessing entire files
-3. **Native Features**: Access syntax highlighting, indentation, auto-formatting, and language-specific features
-4. **Performance**: Buffer operations are optimized; string manipulation in Elisp is comparatively slow
-5. **Undo/Redo**: Built-in change tracking and history
-6. **Error Recovery**: Better error handling and state management
-
-### Proper Buffer Editing Workflow
-
-The key is following Emacs conventions properly:
-
-```python
-# Demonstrate correct buffer-based file editing via MCP
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='''(defun edit-file-properly (filepath search-term replacement)
-               "Demonstrate correct buffer-based file editing"
-               (progn
-                 ;; Open file in buffer (creates buffer if needed)
-                 (find-file filepath)
-                 ;; Ensure we're working in the file buffer
-                 (with-current-buffer (file-name-nondirectory filepath)
-                   ;; Make changes
-                   (goto-char (point-min))
-                   (while (search-forward search-term nil t)
-                     (replace-match replacement))
-                   ;; Verify buffer is marked as modified
-                   (when (buffer-modified-p)
-                     ;; Save changes to disk
-                     (save-buffer)
-                     ;; Confirm save completed
-                     (not (buffer-modified-p))))))'''
-)
-```
-
-### Avoiding Interactive Prompts in Automated Operations
-
-When using MCP services programmatically (especially via Claude or other AI agents), it's crucial to avoid operations that trigger interactive prompts.
-
-**Safe File Editing Pattern for AI Agents:**
-```python
-mcp__skewed_emacs__skewed_emacs__lisp_eval(
-    code='''(defun safe-edit-file-automated (filepath edit-function)
-               "Edit file safely for automated operations, avoiding interactive prompts"
-               (let ((original-revert-without-query revert-without-query))
-                 (unwind-protect
-                     (progn
-                       ;; Add this file to revert-without-query to avoid prompts
-                       (add-to-list 'revert-without-query (file-name-nondirectory filepath))
-                       ;; Check if buffer exists and revert if needed
-                       (let ((buf (get-file-buffer filepath)))
-                         (when buf
-                           (with-current-buffer buf
-                             (revert-buffer t t t)))) ; ignore-auto, noconfirm, preserve-modes
-                       ;; Now do the edit
-                       (find-file filepath)
-                       (with-current-buffer (file-name-nondirectory filepath)
-                         (funcall edit-function)
-                         (save-buffer)
-                         t))
-                   ;; Cleanup: restore original revert-without-query
-                   (setq revert-without-query original-revert-without-query))))'''
-)
-```
-
-### Key Principles for AI Agents
-
-1. **Always handle file conflicts gracefully** - Use `revert-without-query` or string manipulation
-2. **Prefer deterministic operations** - Avoid functions that might prompt for user input
-3. **Use `unwind-protect`** - Ensure cleanup happens even if operations fail
-4. **Test buffer state** - Check if files are already open before operations
-5. **Wrap complex operations** - Use helper functions like `safe-edit-file-automated`
+That documentation includes:
+- Detailed MCP API patterns
+- Paredit mode instructions for Lisp editing
+- Safe buffer operations vs string manipulation
+- Interactive prompt avoidance
+- Error recovery patterns
+- **Shared buffer footgun warnings**
 
 ## Network Architecture
 
@@ -490,104 +338,28 @@ result = mcp__gendl__gendl__lisp_eval(code='(ql:quickload :my-project)')
 - **MCP Migration**: Transitioned from raw HTTP to MCP services for better integration
 
 
-## AI Agent Development Lessons Learned
+## Development Lessons Learned
 
-### String Escaping and Code Generation Best Practices
+**For detailed lessons learned including:**
+- **Shared current buffer footgun and solutions**
+- String escaping and code generation best practices
+- Interactive prompt handling
+- Successful MCP file editing workflows
+- Paredit mode workflows
+- Error recovery patterns
 
-**Problem**: When AI agents generate Emacs Lisp code, over-escaping quotes can cause parsing errors.
+**See: `dot-files/emacs.d/sideloaded/lisply-backend/CLAUDE.md`**
 
-**Incorrect (over-escaped):**
+### Key Takeaway: Shared Buffer State
+When using MCP file editing, remember that you **share the global current buffer** with the user. This was discovered during viewport menu development when buffer switching conflicts occurred. Always use explicit buffer targeting with `with-current-buffer` patterns.
+
+### Quick Reference: Safe Patterns
 ```elisp
-(insert \"    [OK] example\\n\")
+;; BAD: Relies on global current buffer
+(search-forward "target")
+
+;; GOOD: Explicit buffer targeting
+(with-current-buffer "specific-file.lisp"
+  (search-forward "target"))
 ```
-
-**Correct (clean Lisp):**
-```elisp
-(insert "    [OK] example\n")
-```
-
-**Key Lesson**: When evaluating Lisp directly via MCP, write actual Lisp code, not escaped strings. Only escape when writing code to files as string literals.
-
-### Temporary Emacs Buffers for Code Sharing
-
-**Best Practice**: Use temporary Emacs buffers to share code artifacts with users instead of external files.
-
-```elisp
-(with-current-buffer (get-buffer-create "*code-additions*")
-  (erase-buffer)
-  (insert ";; Clean code here")
-  (emacs-lisp-mode)
-  (goto-char (point-min))
-  (switch-to-buffer "*code-additions*"))
-```
-
-**Benefits**:
-- Integrated with user's workflow
-- No file system clutter
-- Syntax highlighting available
-- Easy copy/paste workflow
-
-### General Error Handling for Lisp Evaluation
-
-**Robust Pattern for MCP Operations**:
-```elisp
-(defun safe-lisp-operation ()
-  "Example of proper error handling in Lisp evaluation"
-  (condition-case err
-      (let ((result (potentially-failing-function)))
-        (if result
-            (format "Success: %s" result)
-          "Operation completed but returned nil"))
-    (error (format "Error: %s" (error-message-string err)))))
-```
-
-**Key Points**:
-- Always wrap potentially failing operations in `condition-case`
-- Provide meaningful error messages
-- Handle both errors and nil results appropriately
-- Use `error-message-string` for clean error reporting
-
-## Lessons Learned: Programmatic File Editing
-
-### Interactive Prompts and Minibuffer Conflicts
-*Date: July 19, 2025 - Dashboard optimization work*
-
-**Issue encountered:** When using `(save-buffer)` programmatically via MCP Emacs Lisp evaluation, **unintentional** interactive prompts for file confirmation can cause "Command attempted to use minibuffer while in minibuffer" errors.
-
-**Root cause:** The MCP evaluation context is already using the minibuffer, so nested interactive prompts fail.
-
-**Key distinction - Two scenarios:**
-
-1. **Unintentional prompts (problematic):** When you're trying to automate something but accidentally trigger user interaction
-   - Example: `(save-buffer)` unexpectedly asking where to save a file
-   - Solution: Use non-interactive alternatives
-
-2. **Intentional prompts (perfectly fine):** When you specifically want user input and communicate this
-   - Example: "I'm going to call `(find-file)` - please choose your file in the minibuffer prompt"
-   - This is often the most efficient way to let users pick files, directories, etc.
-
-**Solutions for avoiding unintentional prompts:**
-1. **Use `write-file` with explicit paths** instead of `save-buffer`
-2. **Use `write-region`** to write content directly to specific files
-3. **Ensure proper buffer-file associations** before attempting saves
-4. **Use `with-temp-file` for new content creation**
-
-**Example of safe programmatic file writing:**
-```elisp
-;; Instead of:
-;; (save-buffer)  ; Can trigger unexpected prompts
-
-;; Use:
-(write-region (point-min) (point-max) "/path/to/file.el")
-;; or
-(with-temp-file "/path/to/file.el"
-  (insert content-string))
-```
-
-**When intentional prompts are good:**
-- "Let me call `(find-file)` so you can choose which config file to edit"
-- "I'll run `(query-replace)` so you can approve each replacement"
-- Any time user choice/confirmation genuinely improves the workflow
-
-This lesson was learned during dashboard-config.el optimization where an unintentional prompt interrupted the automated editing process
 
