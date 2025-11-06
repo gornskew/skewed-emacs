@@ -1,6 +1,4 @@
 # Skewed Emacs Dockerfile -
-# was using Debian testing for Emacs 30.1 support.
-#FROM debian:testing-slim
 FROM debian:stable-slim
 
 ARG DEBIAN_FRONTEND=noninteractive

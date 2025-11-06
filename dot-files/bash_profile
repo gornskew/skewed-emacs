@@ -210,6 +210,22 @@ function claudly
 }
 
 
+function geminly 
+{
+    file=${1:-"."};
+    
+    # First, merge the MCP configs inside the lisply-mcp container
+    echo "Merging MCP configurations..."
+    docker exec lisply-mcp node /app/scripts/merge-mcp-config.js >/dev/null 2>&1
+    docker exec lisply-mcp cp /tmp/merged-mcp-config.json /home/node/.gemini/settings.json >/dev/null 2>&1
+    
+    # Run Gemini with the merged config
+    echo "Starting Gemini CLI with MCP integration..."
+    docker exec -it --detach-keys "ctrl-^" lisply-mcp /home/node/.gemini/local/gemini 
+}
+
+
+
 function gendl-run-container {
     local impl="ccl"
     local offset=1
