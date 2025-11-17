@@ -1,0 +1,25 @@
+[Unit]
+Description=Skewed Emacs + Gendl Containerized Development Environment
+Documentation=https://github.com/gornskew/skewed-emacs
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=dcooper8
+Group=docker
+WorkingDirectory=/home/dcooper8/projects/skewed-emacs
+Environment=HOME=/home/dcooper8
+ExecStartPre=/home/dcooper8/projects/skewed-emacs/compose-dev init
+ExecStart=/home/dcooper8/projects/skewed-emacs/compose-dev up
+ExecStop=/home/dcooper8/projects/skewed-emacs/compose-dev down
+ExecReload=/home/dcooper8/projects/skewed-emacs/compose-dev restart
+TimeoutStartSec=300
+TimeoutStopSec=60
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target
