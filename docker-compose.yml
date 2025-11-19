@@ -34,8 +34,8 @@ services:
       - START_SWANK=false
       - SWANK_PORT=4200
       - DISPLAY=${DISPLAY:-:0}
-      - TERM=${TERM}
-      - COLORTERM=${COLORTERM}
+      - TERM=xterm-256color
+      - COLORTERM=truecolor
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}

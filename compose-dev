@@ -214,50 +214,55 @@ connect_emacs() {
 }
 
 test_apis() {
-    log_info "Testing HTTP APIs..."
+    log_info "Testing HTTP APIs and SWANK ports (host-facing)..."
 
-    # Test skewed-emacs API
-    printf "Skewed Emacs API (port %s): " "${EMACS_HTTP_HOST_PORT:-7081}"
-    if curl -s -f "http://localhost:${EMACS_HTTP_HOST_PORT:-7081}/lisply/ping-lisp" > /dev/null 2>&1; then
-        printf "%b\n" "${GREEN}OK${NC}"
-    else
-        printf "%b\n" "${RED}FAILED${NC}"
-    fi
+    local timeout_sec=10   # generous but still fast feedback
 
-    # Test Gendl API
-    printf "Gendl API (port %s): " "${GENDL_HTTP_HOST_PORT:-9081}"
-    if curl -s -f "http://localhost:${GENDL_HTTP_HOST_PORT:-9081}/lisply/ping-lisp" > /dev/null 2>&1; then
-        printf "%b\n" "${GREEN}OK${NC}"
-    else
-        printf "%b\n" "${RED}FAILED${NC}"
-    fi
-
-    # Test Genworks GDL API (if present)
-    if $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" ps -q genworks-gdl > /dev/null 2>&1; then
-        printf "Genworks GDL API (port %s): " "${GDL_HTTP_HOST_PORT:-9089}"
-        if curl -s -f "http://localhost:${GDL_HTTP_HOST_PORT:-9089}/lisply/ping-lisp" > /dev/null 2>&1; then
+    # Helper to test HTTP /lisply/ping-lisp endpoint
+    test_http() {
+        local name="$1"
+        local port="${2:-7081}"
+        printf "%-30s (port %s): " "$name" "$port"
+        if curl -s -f --connect-timeout 5 "http://localhost:${port}/lisply/ping-lisp" > /dev/null 2>&1; then
             printf "%b\n" "${GREEN}OK${NC}"
         else
             printf "%b\n" "${RED}FAILED${NC}"
         fi
-    fi
+    }
 
-    # Test Gendl SWANK
-    printf "Gendl SWANK (port %s): " "${GENDL_SWANK_HOST_PORT:-4201}"
-    if timeout 2 bash -c "echo '' | nc localhost ${GENDL_SWANK_HOST_PORT:-4201}" > /dev/null 2>&1; then
-        printf "%b\n" "${GREEN}OK${NC}"
-    else
-        printf "%b\n" "${RED}FAILED${NC}"
-    fi
-
-    # Test Genworks GDL SWANK (if present)
-    if $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" ps -q genworks-gdl > /dev/null 2>&1; then
-        printf "Genworks GDL SWANK (port %s): " "${GDL_SWANK_HOST_PORT:-4209}"
-        if timeout 2 bash -c "echo '' | nc localhost ${GDL_SWANK_HOST_PORT:-4209}" > /dev/null 2>&1; then
+    # Helper to test SWANK with nc -zv (verbose + zero-io mode)
+    test_swank() {
+        local name="$1"
+        local port="$2"
+        printf "%-30s (port %s): " "$name" "$port"
+        if nc -zv localhost "$port" > /dev/null 2>&1; then
             printf "%b\n" "${GREEN}OK${NC}"
         else
             printf "%b\n" "${RED}FAILED${NC}"
         fi
+    }
+
+    # 1. skewed-emacs (only HTTP)
+    test_http "Skewed Emacs API" "${EMACS_HTTP_HOST_PORT:-7081}"
+
+    # 2. Gendl CCL
+    test_http "Gendl CCL API"      "${GENDL_HTTP_HOST_PORT:-9081}"
+    test_swank "Gendl CCL SWANK"   "${GENDL_SWANK_HOST_PORT:-4201}"
+
+    # 3. Gendl SBCL
+    test_http "Gendl SBCL API"     "${GENDL_SBCL_HTTP_HOST_PORT:-9091}"
+    test_swank "Gendl SBCL SWANK"  "${GENDL_SBCL_SWANK_HOST_PORT:-4211}"
+
+    # 4. Genworks GDL non-SMP (only if container exists)
+    if $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" ps -q genworks-gdl-non-smp >/dev/null 2>&1; then
+        test_http "Genworks GDL non-SMP API"  "${GDL_NON_SMP_HTTP_HOST_PORT:-9089}"
+        test_swank "Genworks GDL non-SMP SWANK" "${GDL_NON_SMP_SWANK_HOST_PORT:-4209}"
+    fi
+
+    # 5. Genworks GDL SMP (only if container exists)
+    if $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" ps -q genworks-gdl-smp >/dev/null 2>&1; then
+        test_http "Genworks GDL SMP API"      "${GDL_SMP_HTTP_HOST_PORT:-9099}"
+        test_swank "Genworks GDL SMP SWANK"   "${GDL_SMP_SWANK_HOST_PORT:-4219}"
     fi
 }
 

@@ -40,6 +40,8 @@ NODE_IMAGE_BASE=lisply-mcp
 
 # Network name
 DOCKER_NETWORK_NAME=skewed-network
+TERM=xterm-256color
+COLORTERM=truecolor
 EOF
 
 echo ""
