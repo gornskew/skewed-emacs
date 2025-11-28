@@ -2,6 +2,7 @@
 FROM debian:stable-slim
 
 ARG DEBIAN_FRONTEND=noninteractive
+ARG DOCKER_CLI_VERSION=29.0.2
 
 # Install runtime dependencies including GUI Emacs
 RUN apt-get -y update && apt-get -y install --no-install-recommends \
@@ -32,7 +33,7 @@ RUN apt-get -y update && apt-get -y install --no-install-recommends \
     fc-cache -fv && \
     fc-list | grep "Symbols Nerd Font" || echo "ERROR: Nerd Fonts not found in fc-list" && \
     # Install Docker CLI
-    curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-24.0.7.tgz | tar xz --strip-components=1 -C /usr/local/bin docker/docker && \
+    curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz | tar xz --strip-components=1 -C /usr/local/bin docker/docker && \
     chmod +x /usr/local/bin/docker && \
     # Create user and directories
     groupadd -g 1000 emacs-user && \

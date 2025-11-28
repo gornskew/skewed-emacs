@@ -13,9 +13,6 @@ Group=docker
 WorkingDirectory=/home/dcooper8/projects/skewed-emacs
 Environment=HOME=/home/dcooper8
 
-Environment=TERM=xterm-256color
-Environment=COLORTERM=truecolor
-
 ExecStartPre=/home/dcooper8/projects/skewed-emacs/compose-dev init
 ExecStart=/home/dcooper8/projects/skewed-emacs/compose-dev up
 ExecStop=/home/dcooper8/projects/skewed-emacs/compose-dev down

@@ -16,6 +16,12 @@
 				       (getenv "SKEWED_EMACS_DOCKER_BUILD")))
 
 
+(defconst my/on-android-p   (eq system-type 'android))
+(defconst my/in-docker-p    (getenv "SKEWED_EMACS_CONTAINER"))
+(defconst my/docker-build-p (getenv "SKEWED_EMACS_DOCKER_BUILD"))
+(message "Environment – Android: %s | Docker container: %s | Docker build: %s"
+         my/on-android-p my/in-docker-p my/docker-build-p)
+
 ;; Redirect custom settings to a separate file
 (setq custom-file (concat emacs-config-directory "custom.el"))
 
@@ -58,7 +64,7 @@
       :config (when (and (display-graphic-p)
 			 (not (find-font
 			       (font-spec :name "Symbols Nerd Font Mono"))))
-		(nerd-icons-install-fonts t)))
+		(nerd-icons-install-fonts :quiet)))
     
     (doom-modeline
      :demand t
@@ -144,11 +150,13 @@
 
     ,(unless (eql system-type 'android)
        `(pdf-tools
-	 :defer (not skewed-emacs-docker-build?)
-	 :mode ("\\.pdf\\'". pdf-view-mode)
-	 :config
-	 (when skewed-emacs-docker-build?
-	   (pdf-tools-install))))
+         :mode ("\\.pdf\\'" . pdf-view-mode)
+         :config
+         (when skewed-emacs-docker-build?
+           (message "pdf-tools: building epdfinfo server non-interactively...")
+           (pdf-tools-install :no-query t)
+         (pdf-loader-install))))
+    
     (org
      :defer (not skewed-emacs-docker-build?)
      :commands (org-mode org-agenda)
@@ -166,71 +174,78 @@
 
     
     (claude-code
+     :straight (claude-code
+		:type git
+		:host github
+		:repo "stevemolitor/claude-code.el"
+		:files ("*.el"))
      :defer (not skewed-emacs-docker-build?)
      :commands (claude-code)
-     :vc (:url "https://github.com/stevemolitor/claude-code.el" :rev :newest)
-     :init (setq claude-code-terminal-backend 'eat)
-     :config (setq claude-code-terminal-backend 'eat)
-     (claude-code-mode)
-     (setq claude-code-program (cond ((file-exists-p "/projects/skewed-emacs/scripts/claudely.sh")
-				      "/projects/skewed-emacs/scripts/claudely.sh")
-				     ((file-exists-p (expand-file-name "~/projects/skewed-emacs/scripts/claudely.sh"))
-				      (expand-file-name "~/projects/skewed-emacs/scripts/claudely.sh"))
-				     ((file-exists-p (expand-file-name  "~/skewed-emacs/scripts/claudely.sh"))
-				      (expand-file-name  "~/skewed-emacs/scripts/claudely.sh"))
-				     (t (error "Claudely.sh program not found"))))
-     :bind-keymap ("C-c c" . claude-code-command-map)
-     :bind (:repeat-map my-claude-code-map ("M" . claude-code-cycle-mode)))
-    
+     :init
+     (setq claude-code-terminal-backend 'eat)
+     :config
+     (unless skewed-emacs-docker-build?
+       (claude-code-mode)
+       (setq claude-code-program
+             (or (when (file-exists-p "/projects/skewed-emacs/scripts/claudely.sh")
+		   "/projects/skewed-emacs/scripts/claudely.sh")
+		 (when (file-exists-p "~/projects/skewed-emacs/scripts/claudely.sh")
+		   (expand-file-name "~/projects/skewed-emacs/scripts/claudely.sh"))
+		 (when (file-exists-p "~/skewed-emacs/scripts/claudely.sh")
+		   (expand-file-name "~/skewed-emacs/scripts/claudely.sh"))
+		 (message "claude-code: claudely.sh not found – disabled")
+		 nil)))
+     :bind-keymap ("C-c c" . claude-code-command-map))
+
+
     )))
 
+(setq
+ second-party-packages
+ `((org-config
+    :defer (not skewed-emacs-docker-build?)
+    :load-path ,(lambda () (get-config-path "etc"))
+    :hook (org-mode . (lambda () (require 'org-config))))
+   (sa-translit-config
+    :defer nil
+    :load-path ,(lambda () (get-config-path "etc")))
+   (dashboard-config
+    :defer nil
+    :load-path ,(lambda () (get-config-path "etc"))
+    :config
+    (require 'dashboard-config)
+    (generate-skewed-dashboard-banner))
+   (impatient-markdown-config
+    :defer (not skewed-emacs-docker-build?)
+    :load-path ,(lambda () (get-config-path "etc")))
+   (slime-config
+    :defer (not skewed-emacs-docker-build?)
+    :load-path ,(lambda () (get-config-path "etc"))
+    :commands (slime slime-connect slime-repl slime-selector
+		     load-and-or-start-gendl set-slime-shortcuts)
+    :mode (("\\.lisp\\'" . lisp-mode)
+           ("\\.cl\\'" . lisp-mode)
+           ("\\.gdl\\'" . lisp-mode)
+           ("\\.gendl\\'" . lisp-mode)
+           ("\\.lhtm\\'" . lisp-mode)
+           ("\\.lhtml\\'" . lisp-mode)
+           ("\\.sexp\\'" . lisp-mode)
+           ("\\.sexpr\\'" . lisp-mode)
+           ("\\.sexps\\'" . lisp-mode))
+    :hook (lisp-mode . (lambda () (require 'slime-config))))
+   (lisply-config
+    :defer nil
+    :load-path ,(lambda () (get-config-path "etc"))
+    :config
+    (when (and start-lisply? (not skewed-emacs-docker-build?))
+      (require 'lisply-config)
+      (setq httpd-host "0.0.0.0")
+      (emacs-lisply-start-server)))
 
- (setq
-  second-party-packages
-  `((org-config
-     :defer (not skewed-emacs-docker-build?)
-     :load-path ,(lambda () (get-config-path "etc"))
-     :hook (org-mode . (lambda () (require 'org-config))))
-    (sa-translit-config
-     :defer nil
-     :load-path ,(lambda () (get-config-path "etc")))
-    (dashboard-config
-     :defer nil
-     :load-path ,(lambda () (get-config-path "etc"))
-     :config
-     (require 'dashboard-config)
-     (generate-skewed-dashboard-banner))
-    (impatient-markdown-config
-     :defer (not skewed-emacs-docker-build?)
-     :load-path ,(lambda () (get-config-path "etc")))
-    (slime-config
-     :defer (not skewed-emacs-docker-build?)
-     :load-path ,(lambda () (get-config-path "etc"))
-     :commands (slime slime-connect slime-repl slime-selector
-		      load-and-or-start-gendl set-slime-shortcuts)
-     :mode (("\\.lisp\\'" . lisp-mode)
-            ("\\.cl\\'" . lisp-mode)
-            ("\\.gdl\\'" . lisp-mode)
-            ("\\.gendl\\'" . lisp-mode)
-            ("\\.lhtm\\'" . lisp-mode)
-            ("\\.lhtml\\'" . lisp-mode)
-            ("\\.sexp\\'" . lisp-mode)
-            ("\\.sexpr\\'" . lisp-mode)
-            ("\\.sexps\\'" . lisp-mode))
-     :hook (lisp-mode . (lambda () (require 'slime-config))))
-    (lisply-config
-     :defer nil
-     :load-path ,(lambda () (get-config-path "etc"))
-     :config
-     (when (and start-lisply? (not skewed-emacs-docker-build?))
-       (require 'lisply-config)
-       (setq httpd-host "0.0.0.0")
-       (emacs-lisply-start-server)))
-
-    (htmlize-config
-     :defer (not skewed-emacs-docker-build?)
-     :load-path ,(lambda () (get-config-path "etc"))
-     :config (require 'htmlize-config))))
+   (htmlize-config
+    :defer (not skewed-emacs-docker-build?)
+    :load-path ,(lambda () (get-config-path "etc"))
+    :config (require 'htmlize-config))))
 
 (load (concat emacs-config-directory "etc/load-and-compile.el"))
 (setup-packages-and-customizations emacs-config-directory)
@@ -570,11 +585,20 @@ gendl-ccl/4200.")
   "Main initialize."
   (let ((start-time (float-time)) curr-time elapsed)
     (setq curr-time start-time)
+
+    (message "Starting skewed-initialize at %s."
+	     start-time)
     
     (when (file-exists-p "~/.emacs-local-early")
       (load-file "~/.emacs-local-early"))
+
+    (message "Calling main-setup at %s."
+	     start-time)
     
     (main-setup)
+
+    (message "Returned from main-setup at %s."
+	     start-time)
 
     (let ((float-time (float-time)))
       (setq elapsed (- float-time curr-time))

@@ -169,6 +169,8 @@ services:
       - ${USER_CONFIG_DIR}:/home/node/.config
     environment:
       - HOST_EMACS_URL=http://host.docker.internal:7080
+      - TERM=xterm-256color
+      - COLORTERM=truecolor
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
     extra_hosts:
