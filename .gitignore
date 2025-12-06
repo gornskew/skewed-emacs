@@ -40,6 +40,9 @@ dot-files/emacs.d/.dap-breakpoints
 dot-files/emacs.d/workspace/
 dot-files/emacs.d/semanticdb/
 
+
+dot-files/emacs.d/sideloaded/claude-code/
+
 .cache
 node_modules/
 .vscode/

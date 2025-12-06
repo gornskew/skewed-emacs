@@ -4,6 +4,7 @@
 set -e
 
 cd "$(dirname "$0")"
+docker_dir=$(pwd)
 
 # Parse command line arguments
 PUSH_TO_HUB=true
@@ -47,9 +48,26 @@ else
     branch=${CI_COMMIT_REF_NAME//\/\/\/--}
 fi
 
+
+echo "Updating Steve Molitor's claude-code in sideloaded directory..."
+cd ../dot-files/emacs.d/sideloaded
+if [ -d "claude-code" ]; then
+    echo "claude-code directory exists, pulling latest changes..."
+    cd claude-code
+    git pull
+    cd ..
+else
+    echo "claude-code directory not found, cloning..."
+    git clone --depth 1 https://github.com/stevemolitor/claude-code.el claude-code
+fi
+cd "${docker_dir}"
+
+echo "Done updating Steve Molitor's claude-code."
+
+
 echo "Building with branch tag: ${branch}"
 
-docker build --progress=plain -t gornskew/skewed-emacs:${branch} -f Dockerfile ..
+DOCKER_BUILDKIT=1 docker build --progress=plain -t gornskew/skewed-emacs:${branch} -f Dockerfile ..
 docker tag gornskew/skewed-emacs:${branch} gornskew/skewed-emacs:latest
 
 echo ""

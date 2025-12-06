@@ -34,6 +34,13 @@
   (display-graphic-p))
 
 
+;;
+;; Pretend vterm is loaded so it won't try to compile it.
+;; We will use eat instead of vterm so we don't need vterm. 
+;;
+(unless (featurep 'vterm)
+  (provide 'vterm))
+
 (setq
  third-party-packages
  (remove
@@ -60,11 +67,11 @@
      )
 
     (nerd-icons
-      :demand t
-      :config (when (and (display-graphic-p)
-			 (not (find-font
-			       (font-spec :name "Symbols Nerd Font Mono"))))
-		(nerd-icons-install-fonts :quiet)))
+     :demand t
+     :config (when (and (display-graphic-p)
+			(not (find-font
+			      (font-spec :name "Symbols Nerd Font Mono"))))
+	       (nerd-icons-install-fonts :quiet)))
     
     (doom-modeline
      :demand t
@@ -129,8 +136,8 @@
     (ellama
      :commands ellama
      :defer (not skewed-emacs-docker-build?))
-    (json
-     :mode ("\\.json\\'". json-mode)
+    (json-mode
+     :mode ("\\.json\\'" . json-mode)
      :defer nil)
     (simple-httpd
      :commands httpd-start
@@ -155,12 +162,12 @@
          (when skewed-emacs-docker-build?
            (message "pdf-tools: building epdfinfo server non-interactively...")
            (pdf-tools-install :no-query t)
-         (pdf-loader-install))))
+           (pdf-loader-install))))
     
     (org
+     :ensure nil
      :defer (not skewed-emacs-docker-build?)
      :commands (org-mode org-agenda)
-     :hook (org-mode . org-config-setup)
      )
 
 
@@ -172,20 +179,25 @@
 	   htmlize-html-charset "utf-8")
      )
 
+    (inheritenv :ensure t :defer t)
     
-    (claude-code
-     :straight (claude-code
-		:type git
-		:host github
-		:repo "stevemolitor/claude-code.el"
-		:files ("*.el"))
+    
+
+
+    )))
+
+(setq
+ second-party-packages
+ `((claude-code
+     :load-path ,(lambda () (get-config-path "sideloaded/claude-code"))
+     :ensure nil		    ; Don't try to download from MELPA
      :defer (not skewed-emacs-docker-build?)
-     :commands (claude-code)
+     :commands (claude-code claude-code-transient claude-code-mode)
      :init
      (setq claude-code-terminal-backend 'eat)
      :config
      (unless skewed-emacs-docker-build?
-       (claude-code-mode)
+       (claude-code-mode 1)
        (setq claude-code-program
              (or (when (file-exists-p "/projects/skewed-emacs/scripts/claudely.sh")
 		   "/projects/skewed-emacs/scripts/claudely.sh")
@@ -197,28 +209,28 @@
 		 nil)))
      :bind-keymap ("C-c c" . claude-code-command-map))
 
-
-    )))
-
-(setq
- second-party-packages
- `((org-config
+   (org-config
+    :ensure nil
     :defer (not skewed-emacs-docker-build?)
     :load-path ,(lambda () (get-config-path "etc"))
     :hook (org-mode . (lambda () (require 'org-config))))
    (sa-translit-config
+    :ensure nil
     :defer nil
     :load-path ,(lambda () (get-config-path "etc")))
    (dashboard-config
+    :ensure nil
     :defer nil
     :load-path ,(lambda () (get-config-path "etc"))
     :config
     (require 'dashboard-config)
     (generate-skewed-dashboard-banner))
    (impatient-markdown-config
+    :ensure nil
     :defer (not skewed-emacs-docker-build?)
     :load-path ,(lambda () (get-config-path "etc")))
    (slime-config
+    :ensure nil
     :defer (not skewed-emacs-docker-build?)
     :load-path ,(lambda () (get-config-path "etc"))
     :commands (slime slime-connect slime-repl slime-selector
@@ -234,6 +246,7 @@
            ("\\.sexps\\'" . lisp-mode))
     :hook (lisp-mode . (lambda () (require 'slime-config))))
    (lisply-config
+    :ensure nil
     :defer nil
     :load-path ,(lambda () (get-config-path "etc"))
     :config
@@ -243,6 +256,7 @@
       (emacs-lisply-start-server)))
 
    (htmlize-config
+    :ensure nil
     :defer (not skewed-emacs-docker-build?)
     :load-path ,(lambda () (get-config-path "etc"))
     :config (require 'htmlize-config))))

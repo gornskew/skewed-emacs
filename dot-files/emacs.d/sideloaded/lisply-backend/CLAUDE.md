@@ -639,6 +639,35 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(
 - Make large block replacements in Lisp code
 - Skip `check-parens` validation
 - Use `find-file` + `save-buffer` without prompt handling
+- Use `with-temp-buffer` then call org-mode functions (causes warnings)
+
+## Org-Mode Buffer Considerations
+
+When working with `.org` files, be careful about using `with-temp-buffer` combined with org functions:
+
+**â BAD: Causes warnings in *Warnings* buffer**
+```elisp
+(with-temp-buffer
+  (insert-file-contents "/path/to/file.org")
+  (org-end-of-subtree t)  ; ERROR: temp buffer is in fundamental-mode
+  ...)
+```
+
+**â GOOD: Use the actual org buffer**
+```elisp
+(with-current-buffer (find-file-noselect "/path/to/file.org")
+  (save-excursion
+    (goto-char (point-min))
+    (search-forward "some heading")
+    (org-end-of-subtree t)  ; Works: buffer is in org-mode
+    ...))
+```
+
+**Why this matters:** Org functions like `org-end-of-subtree`, `org-entry-get`, `org-map-entries`, etc. require the buffer to be in `org-mode`. Temp buffers default to `fundamental-mode`, causing `'org-element-at-point' cannot be used in non-Org buffer` warnings.
+
+**Simple rule:** 
+- For **reading** file contents only â `with-temp-buffer` + `insert-file-contents` is fine
+- For **org structural navigation** â use `find-file-noselect` and work in the real buffer
 
 ## Error Recovery
 
