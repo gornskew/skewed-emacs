@@ -644,14 +644,14 @@ gendl-ccl/4200.")
     ;; bump this to load-and-compile
     (load-ai-tools)
 
+
+    (require 'org) (require 'org-config)
     
     (when (file-exists-p "~/.emacs-local")
       (load-file "~/.emacs-local"))
 
     (message "Done with skewed-initialize in %s seconds."
-	     (- (float-time) start-time))
-
-    ))
+	     (- (float-time) start-time))))
 
 
 (skewed-initialize)
