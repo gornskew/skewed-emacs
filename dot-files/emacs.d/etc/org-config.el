@@ -15,6 +15,11 @@
 
 (defvar org-todo-keywords)
 
+
+(require 'org-habit)
+(add-to-list 'org-modules 'org-habit)
+
+
 (setq org-todo-keywords
       (quote ((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d)")
               (sequence "WAITING(w@/!)" "HOLD(h@/!)" "|" "CANCELLED(c@/!)" "PHONE" "MEETING"))))
@@ -90,12 +95,25 @@
 (setq org-agenda-files
       '("~/projects/org/projects.org"))
 
-;; Capture: quick TODOS into future.org, journal into journal.org
 (setq org-capture-templates
-      '(("t" "Todo (Inbox)" entry (file+headline "~/projects/org/future.org" "Inbox")
+      '(("t" "Todo (Inbox)" entry
+         (file+headline "~/projects/org/future.org" "Inbox")
          "** TODO %?\n   :PROPERTIES:\n   :CREATED: %U\n   :END:\n")
-        ("j" "Journal" entry (file+olp+datetree "~/projects/org/journal.org")
-         "* %U\n%?\n" :tree-type month)))
+
+        ("d" "Daily journal with clock summary" entry
+         (file+olp+datetree "~/projects/org/journal.org")
+         "* %<%Y-%m-%d %A>\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n\
+** Daily Notes\n%?\n\n\
+** Time Summary\n\
+#+BEGIN: clocktable :scope (\"~/projects/org/projects.org\" \"~/projects/org/future.org\") :maxlevel 3 :block %<%Y-%m-%d> :link t :compact t :narrow 40!\n\
+#+END:\n"
+         :tree-type month)
+
+        ("j" "Journal" entry
+         (file+olp+datetree "~/projects/org/journal.org")
+         "* %U\n%?\n"
+         :tree-type month)))
+
 
 ;; Refile targets - allow refiling to any heading up to level 2 in projects.org
 (setq org-refile-targets '((org-agenda-files :maxlevel . 2)
