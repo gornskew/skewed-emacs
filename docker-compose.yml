@@ -36,6 +36,7 @@ services:
       - DISPLAY=${DISPLAY:-:0}
       - TERM=xterm-256color
       - COLORTERM=truecolor
+      - TZ=${TZ:-Etc/UTC}
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
@@ -81,6 +82,7 @@ services:
       - START_TELNET=false
       - GENDL_MODE=default
       - HOST_USER_UID=${HOST_USER_UID:-1000}
+      - TZ=${TZ:-Etc/UTC}
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
@@ -127,6 +129,7 @@ services:
       - START_TELNET=false
       - GENDL_MODE=default
       - HOST_USER_UID=${HOST_USER_UID:-1000}
+      - TZ=${TZ:-Etc/UTC}
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
@@ -158,7 +161,6 @@ services:
     ports:
       - "3001:3000"
       - "8081:8080"
-#     - "9001:9000"
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
@@ -171,6 +173,7 @@ services:
       - HOST_EMACS_URL=http://host.docker.internal:7080
       - TERM=xterm-256color
       - COLORTERM=truecolor
+      - TZ=${TZ:-Etc/UTC}
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
     extra_hosts:
@@ -179,8 +182,3 @@ services:
       - skewed-network
     working_dir: /projects
 
-# 
-# volumes:
-#   emacs-cache:
-#   gendl-cache:
-#   

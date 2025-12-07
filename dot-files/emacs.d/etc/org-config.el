@@ -8,6 +8,7 @@
 
 ;;
 ;; Standard key bindings
+;;
 (global-set-key "\C-cl" 'org-store-link)
 (global-set-key "\C-ca" 'org-agenda)
 (global-set-key "\C-cc" 'org-capture)
@@ -15,35 +16,37 @@
 
 (defvar org-todo-keywords)
 
-
 (require 'org-habit)
 (add-to-list 'org-modules 'org-habit)
 
-
+;; -------------------------------------------------------------------
+;; TODO keywords and faces
+;; -------------------------------------------------------------------
 (setq org-todo-keywords
-      (quote ((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d)")
-              (sequence "WAITING(w@/!)" "HOLD(h@/!)" "|" "CANCELLED(c@/!)" "PHONE" "MEETING"))))
+      '((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d)")
+        (sequence "WAITING(w@/!)" "HOLD(h@/!)" "|"
+                  "CANCELLED(c@/!)" "PHONE" "MEETING")))
 
 (defvar org-todo-keyword-faces)
 (setq org-todo-keyword-faces
-      (quote (("TODO" :foreground "red" :weight bold)
-              ("NEXT" :foreground "blue" :weight bold)
-              ("DONE" :foreground "forest green" :weight bold)
-              ("WAITING" :foreground "orange" :weight bold)
-              ("HOLD" :foreground "magenta" :weight bold)
-              ("CANCELLED" :foreground "forest green" :weight bold)
-              ("MEETING" :foreground "forest green" :weight bold)
-              ("PHONE" :foreground "forest green" :weight bold))))
+      '(("TODO"      :foreground "red"          :weight bold)
+        ("NEXT"      :foreground "blue"         :weight bold)
+        ("DONE"      :foreground "forest green" :weight bold)
+        ("WAITING"   :foreground "orange"       :weight bold)
+        ("HOLD"      :foreground "magenta"      :weight bold)
+        ("CANCELLED" :foreground "forest green" :weight bold)
+        ("MEETING"   :foreground "forest green" :weight bold)
+        ("PHONE"     :foreground "forest green" :weight bold)))
 
 (defvar org-todo-state-tags-triggers)
 (setq org-todo-state-tags-triggers
-      (quote (("CANCELLED" ("CANCELLED" . t))
-              ("WAITING" ("WAITING" . t))
-              ("HOLD" ("WAITING") ("HOLD" . t))
-              (done ("WAITING") ("HOLD"))
-              ("TODO" ("WAITING") ("CANCELLED") ("HOLD"))
-              ("NEXT" ("WAITING") ("CANCELLED") ("HOLD"))
-              ("DONE" ("WAITING") ("CANCELLED") ("HOLD")))))
+      '(("CANCELLED" ("CANCELLED" . t))
+        ("WAITING"   ("WAITING"   . t))
+        ("HOLD"      ("WAITING") ("HOLD" . t))
+        (done        ("WAITING") ("HOLD"))
+        ("TODO"      ("WAITING") ("CANCELLED") ("HOLD"))
+        ("NEXT"      ("WAITING") ("CANCELLED") ("HOLD"))
+        ("DONE"      ("WAITING") ("CANCELLED") ("HOLD"))))
 
 ;; -------------------------------------------------------------------
 ;; Tags: make must/should/could mutually exclusive, plus meta/urgent
@@ -54,29 +57,31 @@
         ("should" . ?s)
         ("could"  . ?c)
         (:endgroup)
-        ("meta"   . ?M)
-        ("urgent" . ?u)
-        ("website"       . ?w)
-        ("skewed_emacs"  . ?k)
-        ("infra"         . ?i)))
+        ("meta"         . ?M)
+        ("urgent"       . ?u)
+        ("website"      . ?w)
+        ("skewed_emacs" . ?k)
+        ("infra"        . ?i)))
 
 (setq org-use-fast-todo-selection t)
 (setq org-treat-S-cursor-todo-selection-as-state-change nil)
 (setq org-log-done 'time)
 (setq org-log-note-clock-out t)
+
 (defvar org-clock-out-when-done)
 (setq org-clock-out-when-done t)
-;;(setq org-clock-persistence t)
+
 (defvar org-clock-persist)
 (setq org-clock-persist 'history)
 (org-clock-persistence-insinuate)
 
 (defun org-find-dangling-clock ()
-  "Find a dangling clock entry in an org-mode buffer"
+  "Find a dangling clock entry in an org-mode buffer."
   (interactive)
   (re-search-forward "CLOCK: \\[[^]]*\\] *$"))
 
 (defun org-archive-done-tasks ()
+  "Archive all DONE tasks in current tree."
   (interactive)
   (org-map-entries
    (lambda ()
@@ -84,76 +89,135 @@
      (setq org-map-continue-from (outline-previous-heading)))
    "/DONE" 'tree))
 
-(setq org-directory "~/projects/org")
+;; -------------------------------------------------------------------
+;; Org root bootstrap:
+;;   1. ~/projects/org   (host)
+;;   2. /projects/org    (container bind mount)
+;;   3. nil              (build-time / no org repo yet)
+;; -------------------------------------------------------------------
+(defvar my/org-root
+  (cond
+   ((file-directory-p "~/projects/org")
+    (expand-file-name "~/projects/org"))
+   ((file-directory-p "/projects/org")
+    "/projects/org")
+   (t nil))
+  "Root directory for personal Org files, or nil if not available.")
 
+(defvar my/org-projects-file
+  (when my/org-root (expand-file-name "projects.org" my/org-root)))
+(defvar my/org-future-file
+  (when my/org-root (expand-file-name "future.org" my/org-root)))
+(defvar my/org-journal-file
+  (when my/org-root (expand-file-name "journal.org" my/org-root)))
+
+;; -------------------------------------------------------------------
+;; Agenda basics
+;; -------------------------------------------------------------------
 ;; Show 21 days in agenda by default (3 weeks) so upcoming deadlines are visible
 (setq org-agenda-span 21)
 ;; Start agenda on today, not Monday
 (setq org-agenda-start-on-weekday nil)
 
-;; Only projects.org drives normal agenda views
-(setq org-agenda-files
-      '("~/projects/org/projects.org"))
+(when my/org-root
+  (setq org-directory my/org-root)
+  ;; Only projects.org drives normal agenda views
+  (setq org-agenda-files
+        (delq nil (list my/org-projects-file))))
 
-(setq org-capture-templates
-      '(("t" "Todo (Inbox)" entry
-         (file+headline "~/projects/org/future.org" "Inbox")
-         "** TODO %?\n   :PROPERTIES:\n   :CREATED: %U\n   :END:\n")
+;; -------------------------------------------------------------------
+;; Capture templates (built conditionally so build-time is safe)
+;; -------------------------------------------------------------------
+(let ((templates nil))
+  ;; Inbox TODOs -> future.org / "Inbox"
+  (when my/org-future-file
+    (push
+     `("t" "Todo (Inbox)" entry
+       (file+headline ,my/org-future-file "Inbox")
+       "** TODO %?\n   :PROPERTIES:\n   :CREATED: %U\n   :END:\n")
+     templates))
 
-        ("d" "Daily journal with clock summary" entry
-         (file+olp+datetree "~/projects/org/journal.org")
-         "* %<%Y-%m-%d %A>\n:PROPERTIES:\n:CREATED: %U\n:END:\n\n\
-** Daily Notes\n%?\n\n\
-** Time Summary\n\
-#+BEGIN: clocktable :scope (\"~/projects/org/projects.org\" \"~/projects/org/future.org\") :maxlevel 3 :block %<%Y-%m-%d> :link t :compact t :narrow 40!\n\
-#+END:\n"
-         :tree-type month)
+  ;; Daily journal with clock summary across projects + future
+  (when (and my/org-journal-file my/org-projects-file my/org-future-file)
+    (push
+     `("d" "Daily journal with clock summary" entry
+       (file+olp+datetree ,my/org-journal-file)
+       ,(format
+         (concat
+          "* %%<%%Y-%%m-%%d %%A>\n:PROPERTIES:\n:CREATED: %%U\n:END:\n\n"
+          "** Daily Notes\n%%?\n\n"
+          "** Time Summary\n"
+          "#+BEGIN: clocktable :scope (\"%s\" \"%s\") :maxlevel 3 :block %%<%%Y-%%m-%%d> :link t :compact t :narrow 40!\n"
+          "#+END:\n")
+         my/org-projects-file
+         my/org-future-file)
+       :tree-type month)
+     templates))
 
-        ("j" "Journal" entry
-         (file+olp+datetree "~/projects/org/journal.org")
-         "* %U\n%?\n"
-         :tree-type month)))
+  ;; Simple freeform journal entry
+  (when my/org-journal-file
+    (push
+     `("j" "Journal" entry
+       (file+olp+datetree ,my/org-journal-file)
+       "* %U\n%?\n"
+       :tree-type month)
+     templates))
 
+  (setq org-capture-templates (nreverse templates)))
 
-;; Refile targets - allow refiling to any heading up to level 2 in projects.org
-(setq org-refile-targets '((org-agenda-files :maxlevel . 2)
-                           ("~/projects/org/projects.org" :maxlevel . 2)))
+;; -------------------------------------------------------------------
+;; Refile targets (only if projects.org exists)
+;; -------------------------------------------------------------------
+(when my/org-projects-file
+  ;; Refile targets - allow refiling to any heading up to level 2 in projects.org
+  (setq org-refile-targets
+        `((org-agenda-files :maxlevel . 2)
+          (,my/org-projects-file :maxlevel . 2))))
 (setq org-refile-use-outline-path 'file)
 (setq org-outline-path-complete-in-steps nil)
 
 ;; -------------------------------------------------------------------
 ;; Helper: detect if future.org has any :urgent: items
-;; Used so the "⚡ Urgent (from Inbox)" header only appears when needed
+;; Used so the "⚡ Urgent (from Inbox)" header only appears when needed.
+;; Safe if the file doesn't exist (e.g. Docker build).
 ;; -------------------------------------------------------------------
 (defun my/org-has-urgent-inbox-p ()
   "Return non-nil if there are any TODOs tagged :urgent: in future.org."
-  (let ((files '("~/projects/org/future.org"))
-        (found nil))
-    (org-agenda-prepare-buffers files)
-    (org-map-entries
-     (lambda () (setq found t))
-     "urgent"
-     files)
-    found))
+  (when (and my/org-future-file
+             (file-exists-p my/org-future-file))
+    (let ((files (list my/org-future-file))
+          (found nil))
+      (org-agenda-prepare-buffers files)
+      (org-map-entries
+       (lambda () (setq found t))
+       "urgent"
+       files)
+      found)))
 
+;; -------------------------------------------------------------------
 ;; Custom agenda views
 ;;
-;; Daily Focus (C-c a d): Your routine daily view
+;; Daily Focus (C-c a d): Routine daily view
 ;;   - Today's scheduled/deadline items from projects.org
 ;;   - Urgent items from inbox (tagged :urgent: in future.org)
-;;   - Must/Should/Could priority buckets from projects.org
-;;   - Excludes :meta: tasks (system/planning work)
+;;   - Must/Should/Could buckets from projects.org
+;;   - Excludes :meta: tasks
 ;;
 ;; Inbox Review (C-c a i): Weekly review of captured items in future.org
 ;; Meta Tasks (C-c a m): System and planning tasks in projects.org
 ;; Full Backlog (C-c a p): All TODOs from projects.org
+;; -------------------------------------------------------------------
 (setq org-agenda-custom-commands
-      '(("d" "Daily Focus"
+      `(("d" "Daily Focus"
          ((agenda ""
                   ((org-agenda-span 'day)
-                   (org-agenda-start-day "today")))
+                   (org-agenda-start-day "today")
+		   (org-agenda-skip-scheduled-if-done t)
+		   (org-agenda-skip-deadline-if-done t)
+		   (org-agenda-skip-timestamp-if-done t)))
           (tags-todo "urgent"
-                     ((org-agenda-files '("~/projects/org/future.org"))
+                     ((org-agenda-files ',(when my/org-future-file
+                                            (list my/org-future-file)))
                       ;; Only show the visible header when there are urgent items.
                       ;; Otherwise, override with an empty string so the default
                       ;; "Tags search" header doesn’t appear.
@@ -167,22 +231,25 @@
                      ((org-agenda-overriding-header "Should Do")))
           (tags-todo "could"
                      ((org-agenda-overriding-header "Could Do"))))
-         ;; Hide :meta: tasks from this Daily Focus view
-         ((org-agenda-tag-filter-preset '("-meta"))))
+        ;; Hide :meta: tasks from this Daily Focus view
+        ((org-agenda-tag-filter-preset '("-meta"))))
 
-        ("i" "Inbox Review"
-         ((alltodo ""
-                   ((org-agenda-files '("~/projects/org/future.org"))
-                    (org-agenda-overriding-header "Inbox - Review & Refile")
-                    (org-agenda-sorting-strategy
-                     '(priority-down time-up scheduled-up))))))
+      ("i" "Inbox Review"
+       ((alltodo ""
+                 ((org-agenda-files ',(when my/org-future-file
+                                        (list my/org-future-file)))
+                  (org-agenda-overriding-header "Inbox - Review & Refile")
+                  (org-agenda-sorting-strategy
+                   '(priority-down time-up scheduled-up))))))
 
-        ("m" "Meta / Planning Tasks"
-         ((tags-todo "meta"
-                     ((org-agenda-overriding-header "System & Planning Tasks")))))
+      ("m" "Meta / Planning Tasks"
+       ((tags-todo "meta"
+                   ((org-agenda-overriding-header "System & Planning Tasks")))))
 
-        ("p" "Full Backlog"
-         ((todo ""
-                ((org-agenda-overriding-header "Complete Backlog (all TODOs)")))))))
+      ("p" "Full Backlog"
+       ((todo ""
+              ((org-agenda-overriding-header "Complete Backlog (all TODOs)")))))))
 
 (provide 'org-config)
+
+;;; org-config.el ends here

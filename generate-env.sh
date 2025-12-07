@@ -16,6 +16,14 @@ HOST_USER_UID=$(id -u)
 DOCKER_GROUP_ID=$(getent group docker | cut -d: -f3 || echo 999)
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD || echo "master")
 
+# Detect host timezone (best-effort)
+HOST_TZ=$(
+  timedatectl show -p Timezone --value 2>/dev/null || \
+  cat /etc/timezone 2>/dev/null || \
+  echo "Etc/UTC"
+)
+
+
 # Create .env file
 cat > .env << EOF
 # Docker Compose Environment Variables
@@ -42,6 +50,10 @@ NODE_IMAGE_BASE=lisply-mcp
 DOCKER_NETWORK_NAME=skewed-network
 TERM=xterm-256color
 COLORTERM=truecolor
+
+# Timezone (detected from host)
+TZ=$HOST_TZ
+
 EOF
 
 echo ""
