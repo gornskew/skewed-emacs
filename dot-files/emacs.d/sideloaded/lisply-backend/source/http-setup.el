@@ -64,8 +64,10 @@
       (message "[EMACS-LISPLY] %s" msg))))
 
 (defun emacs-lisply-get-request-body ()
-  "Get the body of the current HTTP request as a string."
-  (cadr (assoc "Content" httpd-request)))
+  "Get the body of the current HTTP request as a UTF-8 string."
+  (let ((raw-body (cadr (assoc "Content" httpd-request))))
+    (when raw-body
+      (decode-coding-string raw-body 'utf-8))))
 
 (defun emacs-lisply-parse-json-body ()
   "Parse the JSON body from the current HTTP request."

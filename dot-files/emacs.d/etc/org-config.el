@@ -250,6 +250,36 @@
        ((todo ""
               ((org-agenda-overriding-header "Complete Backlog (all TODOs)")))))))
 
+;; -------------------------------------------------------------------
+;; D-Bus notification fallback for containers
+;; -------------------------------------------------------------------
+;; In container environments (no desktop), D-Bus session bus is unavailable.
+;; This suppresses the error and provides minibuffer + modeline flash instead.
+
+(when my/in-docker-p
+  ;; Suppress D-Bus :session errors silently
+  (defvar skewed-emacs-dbus-session-available nil
+    "D-Bus session bus not available in container.")
+
+  (defun skewed-emacs--dbus-suppress-session (orig-fun bus &rest args)
+    "Suppress D-Bus :session calls when session bus unavailable."
+    (if (and (eq bus :session) (not skewed-emacs-dbus-session-available))
+        nil
+      (apply orig-fun bus args)))
+
+  (advice-add 'dbus-call-method :around #'skewed-emacs--dbus-suppress-session)
+
+  ;; Provide alternative notification via minibuffer + modeline flash
+  (setq org-show-notification-handler
+        (lambda (msg)
+          (message "🔔 Org: %s" msg)
+          (let ((orig-face (face-attribute 'mode-line :background)))
+            (set-face-attribute 'mode-line nil :background "DarkOrange")
+            (run-with-timer 0.5 nil
+                            (lambda (bg)
+                              (set-face-attribute 'mode-line nil :background bg))
+                            orig-face)))))
+
 (provide 'org-config)
 
 ;;; org-config.el ends here
