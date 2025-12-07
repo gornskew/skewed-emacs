@@ -40,10 +40,13 @@
 
 (defvar org-todo-state-tags-triggers)
 (setq org-todo-state-tags-triggers
-      '(("CANCELLED" ("CANCELLED" . t))
-        ("WAITING"   ("WAITING"   . t))
-        ("HOLD"      ("WAITING") ("HOLD" . t))
+      '(;; Blocked states: add state tag, remove priority tags
+        ("CANCELLED" ("CANCELLED" . t) ("must") ("should") ("could"))
+        ("WAITING"   ("WAITING"   . t) ("must") ("should") ("could"))
+        ("HOLD"      ("WAITING") ("HOLD" . t) ("must") ("should") ("could"))
+        ;; Completion: remove blocking tags
         (done        ("WAITING") ("HOLD"))
+        ;; Active states: remove blocking tags (priority tags stay)
         ("TODO"      ("WAITING") ("CANCELLED") ("HOLD"))
         ("NEXT"      ("WAITING") ("CANCELLED") ("HOLD"))
         ("DONE"      ("WAITING") ("CANCELLED") ("HOLD"))))
@@ -279,6 +282,36 @@
                             (lambda (bg)
                               (set-face-attribute 'mode-line nil :background bg))
                             orig-face)))))
+
+;; -------------------------------------------------------------------
+;; Auto-save org files on clock/state changes
+;; -------------------------------------------------------------------
+;; Save the current org buffer after clocking or state changes.
+;; This ensures work is persisted before stepping away from keyboard.
+
+(defun my/org-save-current-buffer ()
+  "Save the current buffer if it's an org file visiting a file."
+  (when (and (derived-mode-p 'org-mode)
+             (buffer-file-name))
+    (save-buffer)))
+
+(defun my/org-save-all-org-buffers ()
+  "Save all org buffers that are visiting files."
+  (org-save-all-org-buffers))
+
+;; Clock hooks
+(add-hook 'org-clock-in-hook #'my/org-save-all-org-buffers)
+(add-hook 'org-clock-out-hook #'my/org-save-all-org-buffers)
+(add-hook 'org-clock-cancel-hook #'my/org-save-all-org-buffers)
+
+;; State change hook (TODO state transitions)
+(add-hook 'org-after-todo-state-change-hook #'my/org-save-current-buffer)
+
+;; Tag change hook
+(add-hook 'org-after-tags-change-hook #'my/org-save-current-buffer)
+
+;; Refile hook (when moving items between files/headings)
+(add-hook 'org-after-refile-insert-hook #'my/org-save-all-org-buffers)
 
 (provide 'org-config)
 
