@@ -1,33 +1,33 @@
-;;; org-config -*- lexical-binding: nil -*- --- Org Mode
-;;; customizations.  Commentary: Org Mode customizations.  Assumes
-;;; this is lazily loaded by a hook such that org is guaranteed
-;;; already required by now.
-;;;
-;;; Code:
+;;; org-config.el --- Org Mode customizations -*- lexical-binding: t -*-
 ;;
+;; Loaded lazily via hook; assumes org is already required.
 
-;;
-;; Standard key bindings
-;;
+;;; Code:
+
+(require 'org-habit)
+(setq org-habit-completed-glyph ?✓
+      org-habit-today-glyph ?📿)
+(set-face-attribute 'org-habit-alert-face nil :background "#2d6a6a")
+(add-to-list 'org-modules 'org-habit)
+
+;; ============================================================================
+;; Key bindings
+;; ============================================================================
+
 (global-set-key "\C-cl" 'org-store-link)
 (global-set-key "\C-ca" 'org-agenda)
 (global-set-key "\C-cc" 'org-capture)
 (global-set-key "\C-cb" 'org-iswitchb)
 
-(defvar org-todo-keywords)
+;; ============================================================================
+;; TODO keywords and state transitions
+;; ============================================================================
 
-(require 'org-habit)
-(add-to-list 'org-modules 'org-habit)
-
-;; -------------------------------------------------------------------
-;; TODO keywords and faces
-;; -------------------------------------------------------------------
 (setq org-todo-keywords
       '((sequence "TODO(t)" "NEXT(n)" "|" "DONE(d)")
         (sequence "WAITING(w@/!)" "HOLD(h@/!)" "|"
                   "CANCELLED(c@/!)" "PHONE" "MEETING")))
 
-(defvar org-todo-keyword-faces)
 (setq org-todo-keyword-faces
       '(("TODO"      :foreground "red"          :weight bold)
         ("NEXT"      :foreground "blue"         :weight bold)
@@ -38,22 +38,19 @@
         ("MEETING"   :foreground "forest green" :weight bold)
         ("PHONE"     :foreground "forest green" :weight bold)))
 
-(defvar org-todo-state-tags-triggers)
 (setq org-todo-state-tags-triggers
-      '(;; Blocked states: add state tag, remove priority tags
-        ("CANCELLED" ("CANCELLED" . t) ("must") ("should") ("could"))
+      '(("CANCELLED" ("CANCELLED" . t) ("must") ("should") ("could"))
         ("WAITING"   ("WAITING"   . t) ("must") ("should") ("could"))
         ("HOLD"      ("WAITING") ("HOLD" . t) ("must") ("should") ("could"))
-        ;; Completion: remove blocking tags
         (done        ("WAITING") ("HOLD"))
-        ;; Active states: remove blocking tags (priority tags stay)
         ("TODO"      ("WAITING") ("CANCELLED") ("HOLD"))
         ("NEXT"      ("WAITING") ("CANCELLED") ("HOLD"))
         ("DONE"      ("WAITING") ("CANCELLED") ("HOLD"))))
 
-;; -------------------------------------------------------------------
-;; Tags: make must/should/could mutually exclusive, plus meta/urgent
-;; -------------------------------------------------------------------
+;; ============================================================================
+;; Tags
+;; ============================================================================
+
 (setq org-tag-alist
       '((:startgroup)
         ("must"   . ?m)
@@ -66,20 +63,21 @@
         ("skewed_emacs" . ?k)
         ("infra"        . ?i)))
 
-(setq org-use-fast-todo-selection t)
-(setq org-treat-S-cursor-todo-selection-as-state-change nil)
-(setq org-log-done 'time)
-(setq org-log-note-clock-out t)
+;; ============================================================================
+;; Clocking
+;; ============================================================================
 
-(defvar org-clock-out-when-done)
-(setq org-clock-out-when-done t)
+(setq org-use-fast-todo-selection t
+      org-treat-S-cursor-todo-selection-as-state-change nil
+      org-log-done 'time
+      org-log-note-clock-out t
+      org-clock-out-when-done t
+      org-clock-persist 'history)
 
-(defvar org-clock-persist)
-(setq org-clock-persist 'history)
 (org-clock-persistence-insinuate)
 
 (defun org-find-dangling-clock ()
-  "Find a dangling clock entry in an org-mode buffer."
+  "Find a dangling clock entry."
   (interactive)
   (re-search-forward "CLOCK: \\[[^]]*\\] *$"))
 
@@ -92,230 +90,257 @@
      (setq org-map-continue-from (outline-previous-heading)))
    "/DONE" 'tree))
 
-;; -------------------------------------------------------------------
-;; Org root bootstrap:
-;;   1. ~/projects/org   (host)
-;;   2. /projects/org    (container bind mount)
-;;   3. nil              (build-time / no org repo yet)
-;; -------------------------------------------------------------------
+;; ============================================================================
+;; Org file paths
+;; ============================================================================
+
 (defvar my/org-root
-  (cond
-   ((file-directory-p "~/projects/org")
-    (expand-file-name "~/projects/org"))
-   ((file-directory-p "/projects/org")
-    "/projects/org")
-   (t nil))
-  "Root directory for personal Org files, or nil if not available.")
+  (cond ((file-directory-p "~/projects/org") (expand-file-name "~/projects/org"))
+        ((file-directory-p "/projects/org") "/projects/org")
+        (t nil))
+  "Root directory for Org files, or nil if unavailable.")
 
-(defvar my/org-projects-file
-  (when my/org-root (expand-file-name "projects.org" my/org-root)))
-(defvar my/org-future-file
-  (when my/org-root (expand-file-name "future.org" my/org-root)))
-(defvar my/org-journal-file
-  (when my/org-root (expand-file-name "journal.org" my/org-root)))
-
-;; -------------------------------------------------------------------
-;; Agenda basics
-;; -------------------------------------------------------------------
-;; Show 21 days in agenda by default (3 weeks) so upcoming deadlines are visible
-(setq org-agenda-span 21)
-;; Start agenda on today, not Monday
-(setq org-agenda-start-on-weekday nil)
+(defvar my/org-projects-file (when my/org-root (expand-file-name "projects.org" my/org-root)))
+(defvar my/org-future-file   (when my/org-root (expand-file-name "future.org" my/org-root)))
+(defvar my/org-journal-file  (when my/org-root (expand-file-name "journal.org" my/org-root)))
 
 (when my/org-root
-  (setq org-directory my/org-root)
-  ;; Only projects.org drives normal agenda views
-  (setq org-agenda-files
-        (delq nil (list my/org-projects-file))))
+  (setq org-directory my/org-root
+        org-agenda-files (delq nil (list my/org-projects-file))))
 
-;; -------------------------------------------------------------------
-;; Capture templates (built conditionally so build-time is safe)
-;; -------------------------------------------------------------------
-(let ((templates nil))
-  ;; Inbox TODOs -> future.org / "Inbox"
-  (when my/org-future-file
-    (push
-     `("t" "Todo (Inbox)" entry
-       (file+headline ,my/org-future-file "Inbox")
-       "** TODO %?\n   :PROPERTIES:\n   :CREATED: %U\n   :END:\n")
-     templates))
+;; ============================================================================
+;; Agenda settings
+;; ============================================================================
 
-  ;; Daily journal with clock summary across projects + future
-  (when (and my/org-journal-file my/org-projects-file my/org-future-file)
-    (push
-     `("d" "Daily journal with clock summary" entry
-       (file+olp+datetree ,my/org-journal-file)
-       ,(format
-         (concat
-          "* %%<%%Y-%%m-%%d %%A>\n:PROPERTIES:\n:CREATED: %%U\n:END:\n\n"
-          "** Daily Notes\n%%?\n\n"
-          "** Time Summary\n"
-          "#+BEGIN: clocktable :scope (\"%s\" \"%s\") :maxlevel 3 :block %%<%%Y-%%m-%%d> :link t :compact t :narrow 40!\n"
-          "#+END:\n")
-         my/org-projects-file
-         my/org-future-file)
-       :tree-type month)
-     templates))
+(setq org-agenda-span 21
+      org-agenda-start-on-weekday nil)
 
-  ;; Simple freeform journal entry
-  (when my/org-journal-file
-    (push
-     `("j" "Journal" entry
-       (file+olp+datetree ,my/org-journal-file)
-       "* %U\n%?\n"
-       :tree-type month)
-     templates))
-
-  (setq org-capture-templates (nreverse templates)))
-
-;; -------------------------------------------------------------------
-;; Refile targets (only if projects.org exists)
-;; -------------------------------------------------------------------
-(when my/org-projects-file
-  ;; Refile targets - allow refiling to any heading up to level 2 in projects.org
-  (setq org-refile-targets
-        `((org-agenda-files :maxlevel . 2)
-          (,my/org-projects-file :maxlevel . 2))))
-(setq org-refile-use-outline-path 'file)
-(setq org-outline-path-complete-in-steps nil)
-
-;; -------------------------------------------------------------------
-;; Helper: detect if future.org has any :urgent: items
-;; Used so the "⚡ Urgent (from Inbox)" header only appears when needed.
-;; Safe if the file doesn't exist (e.g. Docker build).
-;; -------------------------------------------------------------------
 (defun my/org-has-urgent-inbox-p ()
-  "Return non-nil if there are any TODOs tagged :urgent: in future.org."
-  (when (and my/org-future-file
-             (file-exists-p my/org-future-file))
-    (let ((files (list my/org-future-file))
-          (found nil))
+  "Return non-nil if future.org has any :urgent: TODOs."
+  (when (and my/org-future-file (file-exists-p my/org-future-file))
+    (let ((files (list my/org-future-file)) found)
       (org-agenda-prepare-buffers files)
-      (org-map-entries
-       (lambda () (setq found t))
-       "urgent"
-       files)
+      (org-map-entries (lambda () (setq found t)) "urgent" files)
       found)))
 
-;; -------------------------------------------------------------------
-;; Custom agenda views
-;;
-;; Daily Focus (C-c a d): Routine daily view
-;;   - Today's scheduled/deadline items from projects.org
-;;   - Urgent items from inbox (tagged :urgent: in future.org)
-;;   - Must/Should/Could buckets from projects.org
-;;   - Excludes :meta: tasks
-;;
-;; Inbox Review (C-c a i): Weekly review of captured items in future.org
-;; Meta Tasks (C-c a m): System and planning tasks in projects.org
-;; Full Backlog (C-c a p): All TODOs from projects.org
-;; -------------------------------------------------------------------
 (setq org-agenda-custom-commands
       `(("d" "Daily Focus"
-         ((agenda ""
-                  ((org-agenda-span 'day)
-                   (org-agenda-start-day "today")
-		   (org-agenda-skip-scheduled-if-done t)
-		   (org-agenda-skip-deadline-if-done t)
-		   (org-agenda-skip-timestamp-if-done t)))
+         ((agenda "" ((org-agenda-span 'day)
+                       (org-agenda-start-day "today")
+                       (org-agenda-skip-scheduled-if-done t)
+                       (org-agenda-skip-deadline-if-done t)
+                       (org-agenda-skip-timestamp-if-done t)))
           (tags-todo "urgent"
-                     ((org-agenda-files ',(when my/org-future-file
-                                            (list my/org-future-file)))
-                      ;; Only show the visible header when there are urgent items.
-                      ;; Otherwise, override with an empty string so the default
-                      ;; "Tags search" header doesn’t appear.
+                     ((org-agenda-files ',(when my/org-future-file (list my/org-future-file)))
                       (org-agenda-overriding-header
-                       (if (my/org-has-urgent-inbox-p)
-                           "⚡ Urgent (from Inbox)"
-                         ""))))
-          (tags-todo "must"
-                     ((org-agenda-overriding-header "Must Do")))
-          (tags-todo "should"
-                     ((org-agenda-overriding-header "Should Do")))
-          (tags-todo "could"
-                     ((org-agenda-overriding-header "Could Do"))))
-        ;; Hide :meta: tasks from this Daily Focus view
-        ((org-agenda-tag-filter-preset '("-meta"))))
+                       (if (my/org-has-urgent-inbox-p) "⚡ Urgent (from Inbox)" ""))))
+          (tags-todo "must"   ((org-agenda-overriding-header "Must Do")))
+          (tags-todo "should" ((org-agenda-overriding-header "Should Do")))
+          (tags-todo "could"  ((org-agenda-overriding-header "Could Do"))))
+         ((org-agenda-tag-filter-preset '("-meta"))))
+        ("i" "Inbox Review"
+         ((alltodo "" ((org-agenda-files ',(when my/org-future-file (list my/org-future-file)))
+                        (org-agenda-overriding-header "Inbox - Review & Refile")
+                        (org-agenda-sorting-strategy '(priority-down time-up scheduled-up))))))
+        ("m" "Meta Tasks"
+         ((tags-todo "meta" ((org-agenda-overriding-header "System & Planning Tasks")))))
+        ("p" "Full Backlog"
+         ((todo "" ((org-agenda-overriding-header "Complete Backlog")))))))
 
-      ("i" "Inbox Review"
-       ((alltodo ""
-                 ((org-agenda-files ',(when my/org-future-file
-                                        (list my/org-future-file)))
-                  (org-agenda-overriding-header "Inbox - Review & Refile")
-                  (org-agenda-sorting-strategy
-                   '(priority-down time-up scheduled-up))))))
+;; ============================================================================
+;; Capture templates
+;; ============================================================================
 
-      ("m" "Meta / Planning Tasks"
-       ((tags-todo "meta"
-                   ((org-agenda-overriding-header "System & Planning Tasks")))))
+(setq org-capture-templates
+      (delq nil
+            (list
+             (when my/org-future-file
+               `("t" "Todo (Inbox)" entry
+                 (file+headline ,my/org-future-file "Inbox")
+                 "** TODO %?\n   :PROPERTIES:\n   :CREATED: %U\n   :END:\n"))
+             (when my/org-journal-file
+               `("j" "Journal" entry
+                 (file+olp+datetree ,my/org-journal-file)
+                 "* %U\n%?\n"
+                 :tree-type month))
+             (when (and my/org-journal-file my/org-projects-file my/org-future-file)
+               `("d" "Daily journal with clock summary" entry
+                 (file+olp+datetree ,my/org-journal-file)
+                 ,(format (concat "* %%<%%Y-%%m-%%d %%A>\n:PROPERTIES:\n:CREATED: %%U\n:END:\n\n"
+                                  "** Daily Notes\n%%?\n\n"
+                                  "** Time Summary\n"
+                                  "#+BEGIN: clocktable :scope (\"%s\" \"%s\") "
+                                  ":maxlevel 3 :block %%<%%Y-%%m-%%d> :link t :compact t :narrow 40!\n"
+                                  "#+END:\n")
+                          my/org-projects-file my/org-future-file)
+                 :tree-type month)))))
 
-      ("p" "Full Backlog"
-       ((todo ""
-              ((org-agenda-overriding-header "Complete Backlog (all TODOs)")))))))
+;; ============================================================================
+;; Refile
+;; ============================================================================
 
-;; -------------------------------------------------------------------
-;; D-Bus notification fallback for containers
-;; -------------------------------------------------------------------
-;; In container environments (no desktop), D-Bus session bus is unavailable.
-;; This suppresses the error and provides minibuffer + modeline flash instead.
+(when my/org-projects-file
+  (setq org-refile-targets `((org-agenda-files :maxlevel . 2)
+                             (,my/org-projects-file :maxlevel . 2))))
+(setq org-refile-use-outline-path 'file
+      org-outline-path-complete-in-steps nil)
 
-(when my/in-docker-p
-  ;; Suppress D-Bus :session errors silently
-  (defvar skewed-emacs-dbus-session-available nil
-    "D-Bus session bus not available in container.")
+;; ============================================================================
+;; D-Bus fallback for containers
+;; ============================================================================
 
+(when (bound-and-true-p my/in-docker-p)
+  (defvar skewed-emacs-dbus-session-available nil)
   (defun skewed-emacs--dbus-suppress-session (orig-fun bus &rest args)
-    "Suppress D-Bus :session calls when session bus unavailable."
-    (if (and (eq bus :session) (not skewed-emacs-dbus-session-available))
-        nil
+    (unless (and (eq bus :session) (not skewed-emacs-dbus-session-available))
       (apply orig-fun bus args)))
-
   (advice-add 'dbus-call-method :around #'skewed-emacs--dbus-suppress-session)
-
-  ;; Provide alternative notification via minibuffer + modeline flash
   (setq org-show-notification-handler
         (lambda (msg)
           (message "🔔 Org: %s" msg)
-          (let ((orig-face (face-attribute 'mode-line :background)))
+          (let ((orig-bg (face-attribute 'mode-line :background)))
             (set-face-attribute 'mode-line nil :background "DarkOrange")
             (run-with-timer 0.5 nil
-                            (lambda (bg)
-                              (set-face-attribute 'mode-line nil :background bg))
-                            orig-face)))))
+                            (lambda (bg) (set-face-attribute 'mode-line nil :background bg))
+                            orig-bg)))))
 
-;; -------------------------------------------------------------------
-;; Auto-save org files on clock/state changes
-;; -------------------------------------------------------------------
-;; Save the current org buffer after clocking or state changes.
-;; This ensures work is persisted before stepping away from keyboard.
+;; ============================================================================
+;; Auto-save on clock/state changes
+;; ============================================================================
 
 (defun my/org-save-current-buffer ()
-  "Save the current buffer if it's an org file visiting a file."
-  (when (and (derived-mode-p 'org-mode)
-             (buffer-file-name))
+  "Save current buffer if it's an org file."
+  (when (and (derived-mode-p 'org-mode) (buffer-file-name))
     (save-buffer)))
 
 (defun my/org-save-all-org-buffers ()
-  "Save all org buffers that are visiting files."
+  "Save all org buffers."
   (org-save-all-org-buffers))
 
-;; Clock hooks
-(add-hook 'org-clock-in-hook #'my/org-save-all-org-buffers)
-(add-hook 'org-clock-out-hook #'my/org-save-all-org-buffers)
+(defun my/org-clock-cleanup-stale-vars ()
+  "Clear stale clock variables after clock-out."
+  (unless (org-clocking-p)
+    (setq org-clock-heading nil
+          org-clock-start-time nil)))
+
+;; ============================================================================
+;; Japa tracking
+;; ============================================================================
+
+(defvar my/japa-headline-pattern "Today's japa")
+
+(defun my/japa-task-p ()
+  "Return non-nil if current clocked task is japa."
+  (and org-clock-heading
+       (string-match-p my/japa-headline-pattern org-clock-heading)))
+
+(defun my/japa-bonus-indicator (rounds)
+  "Return indicator string for ROUNDS completed."
+  (cond ((>= rounds 64) "🚀")
+        ((>= rounds 32) "🏆")
+        ((>= rounds 24) "🔥🔥")
+        ((>= rounds 20) "🔥")
+        ((>= rounds 16) "✓")
+        (t (format "%d/16" rounds))))
+
+(defun my/japa-mala-format (total)
+  "Format TOTAL rounds as mala notation."
+  (let ((sets (1+ (/ total 16)))
+        (remainder (mod total 16)))
+    (if (= sets 1)
+        (format "%d/16" remainder)
+      (format "%d/16/%d" remainder sets))))
+
+(defun my/japa-parse-note (note)
+  "Parse NOTE, returning (rounds . mala-total) or nil.
+Rounds: first freestanding integer.
+Mala: N/16 or N/16/M where M is 1-based (1=first set of 16)."
+  (let (rounds mala-total)
+    (let ((stripped (replace-regexp-in-string "[0-9]+/16\\(/[1-4]\\)?" "" note)))
+      (when (string-match "\\b\\([0-9]+\\)\\b" stripped)
+        (setq rounds (string-to-number (match-string 1 stripped)))))
+    (when (string-match "\\b\\([0-9]\\|1[0-6]\\)/16\\(?:/\\([1-4]\\)\\)?\\b" note)
+      (let ((n (string-to-number (match-string 1 note)))
+            (m (if (match-string 2 note) (string-to-number (match-string 2 note)) 1)))
+        (setq mala-total (+ n (* (1- m) 16)))))
+    (when (or rounds mala-total)
+      (cons rounds mala-total))))
+
+(defun my/japa-get-today-rounds ()
+  "Get total rounds logged today."
+  (let ((today (format-time-string "%Y-%m-%d"))
+        (total 0))
+    (when my/org-projects-file
+      (with-current-buffer (find-file-noselect my/org-projects-file)
+        (save-excursion
+          (goto-char (point-min))
+          (when (search-forward my/japa-headline-pattern nil t)
+            (let ((end (save-excursion (org-end-of-subtree t) (point))))
+              (while (re-search-forward (concat "CLOCK: \\[" today "[^]]+\\]--\\[") end t)
+                (forward-line 1)
+                (when (looking-at "[ \t]+- \\(.+\\)")
+                  (let ((parsed (my/japa-parse-note (match-string 1))))
+                    (when (car parsed)
+                      (setq total (+ total (car parsed))))))))))))
+    total))
+
+(defun my/japa-get-today-mala ()
+  "Get most recent mala count from today's notes."
+  (let ((today (format-time-string "%Y-%m-%d"))
+        latest)
+    (when my/org-projects-file
+      (with-current-buffer (find-file-noselect my/org-projects-file)
+        (save-excursion
+          (goto-char (point-min))
+          (when (search-forward my/japa-headline-pattern nil t)
+            (let ((end (save-excursion (org-end-of-subtree t) (point))))
+              (while (re-search-forward (concat "CLOCK: \\[" today "[^]]+\\]--\\[") end t)
+                (forward-line 1)
+                (when (looking-at "[ \t]+- \\(.+\\)")
+                  (let ((parsed (my/japa-parse-note (match-string 1))))
+                    (when (cdr parsed)
+                      (setq latest (cdr parsed)))))))))))
+    latest))
+
+(defun my/japa-validate-after-note ()
+  "Validate japa checksum after clock-out."
+  (when (and my/org-projects-file
+             org-clock-heading
+             (string-match-p my/japa-headline-pattern org-clock-heading))
+    (let ((rounds (my/japa-get-today-rounds))
+          (mala (my/japa-get-today-mala)))
+      (when (and mala (> rounds 0))
+        (if (= rounds mala)
+            (message "📿 ✓ Checksum OK: %d rounds = %s" rounds (my/japa-mala-format mala))
+          (message "📿 ⚠ Mismatch: recorded %d, mala shows %s (%d)"
+                   rounds (my/japa-mala-format mala) mala))))))
+
+(defun my/japa-agenda-finalize-hook ()
+  "Add japa indicator to agenda."
+  (let ((rounds (my/japa-get-today-rounds)))
+    (when (> rounds 0)
+      (save-excursion
+        (goto-char (point-min))
+        (when (re-search-forward "Today's japa" nil t)
+          (end-of-line)
+          (let ((inhibit-read-only t))
+            (insert " " (my/japa-bonus-indicator rounds))))))))
+
+;; ============================================================================
+;; Hooks (consolidated)
+;; ============================================================================
+
+(add-hook 'org-clock-in-hook     #'my/org-save-all-org-buffers)
+(add-hook 'org-clock-out-hook    #'my/org-save-all-org-buffers)
+(add-hook 'org-clock-out-hook    #'my/org-clock-cleanup-stale-vars)
+(add-hook 'org-clock-out-hook    #'my/japa-validate-after-note)
 (add-hook 'org-clock-cancel-hook #'my/org-save-all-org-buffers)
-
-;; State change hook (TODO state transitions)
 (add-hook 'org-after-todo-state-change-hook #'my/org-save-current-buffer)
+(add-hook 'org-after-tags-change-hook       #'my/org-save-current-buffer)
+(add-hook 'org-after-refile-insert-hook     #'my/org-save-all-org-buffers)
+(add-hook 'org-agenda-finalize-hook         #'my/japa-agenda-finalize-hook)
 
-;; Tag change hook
-(add-hook 'org-after-tags-change-hook #'my/org-save-current-buffer)
-
-;; Note finalization (after C-c C-c stores the log note)
 (advice-add 'org-store-log-note :after #'my/org-save-all-org-buffers)
 
-;; Refile hook (when moving items between files/headings)
-(add-hook 'org-after-refile-insert-hook #'my/org-save-all-org-buffers)
-
 (provide 'org-config)
-
 ;;; org-config.el ends here
