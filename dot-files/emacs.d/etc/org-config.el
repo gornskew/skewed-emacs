@@ -310,6 +310,9 @@
 ;; Tag change hook
 (add-hook 'org-after-tags-change-hook #'my/org-save-current-buffer)
 
+;; Note finalization (after C-c C-c stores the log note)
+(advice-add 'org-store-log-note :after #'my/org-save-all-org-buffers)
+
 ;; Refile hook (when moving items between files/headings)
 (add-hook 'org-after-refile-insert-hook #'my/org-save-all-org-buffers)
 
