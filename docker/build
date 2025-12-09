@@ -49,20 +49,8 @@ else
 fi
 
 
-echo "Updating Steve Molitor's claude-code in sideloaded directory..."
-cd ../dot-files/emacs.d/sideloaded
-if [ -d "claude-code" ]; then
-    echo "claude-code directory exists, pulling latest changes..."
-    cd claude-code
-    git pull
-    cd ..
-else
-    echo "claude-code directory not found, cloning..."
-    git clone --depth 1 https://github.com/stevemolitor/claude-code.el claude-code
-fi
-cd "${docker_dir}"
+# Note: claude-code cloning is now handled by ./setup which is called during docker build
 
-echo "Done updating Steve Molitor's claude-code."
 
 
 echo "Building with branch tag: ${branch}"

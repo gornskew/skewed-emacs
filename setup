@@ -304,6 +304,36 @@ fi
 
 echo ""
 
+# ============================================================================
+# Clone/update sideloaded dependencies
+# ============================================================================
+
+claude_code_dir="$REPO_DIR/dot-files/emacs.d/sideloaded/claude-code"
+
+echo "Checking claude-code (Steve Molitor's claude-code.el)..."
+if [ -d "$claude_code_dir" ]; then
+    if [ -d "$claude_code_dir/.git" ]; then
+        echo "claude-code exists, pulling latest changes..."
+        if $dry_run; then
+            echo "[DRY RUN] Would run: git -C $claude_code_dir pull"
+        else
+            git -C "$claude_code_dir" pull || echo "Warning: Failed to update claude-code (continuing anyway)"
+        fi
+    else
+        echo "claude-code directory exists but is not a git repo (possibly from Docker build)"
+    fi
+else
+    echo "claude-code not found, cloning..."
+    if $dry_run; then
+        echo "[DRY RUN] Would clone https://github.com/stevemolitor/claude-code.el to $claude_code_dir"
+    else
+        git clone --depth 1 https://github.com/stevemolitor/claude-code.el "$claude_code_dir" || {
+            echo "Warning: Failed to clone claude-code (continuing anyway)"
+        }
+    fi
+fi
+echo ""
+
 # Make sure dot_files directory exists
 if [ ! -d "$dot_files" ]; then
     echo >&2 "ERROR: Could not find dot-files directory at $dot_files"

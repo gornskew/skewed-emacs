@@ -7,6 +7,7 @@
 
 
 # Emacs package directories
+dot-files/emacs.d/sideloaded/claude-code/
 dot-files/emacs.d/straight
 dot-files/emacs.d/transient
 dot-files/emacs.d/tramp
@@ -41,7 +42,6 @@ dot-files/emacs.d/workspace/
 dot-files/emacs.d/semanticdb/
 
 
-dot-files/emacs.d/sideloaded/claude-code/
 
 .cache
 node_modules/

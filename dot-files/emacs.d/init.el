@@ -207,7 +207,7 @@
 		   (expand-file-name "~/skewed-emacs/scripts/claudely.sh"))
 		 (message "claude-code: claudely.sh not found – disabled")
 		 nil)))
-     :bind-keymap ("C-c c" . claude-code-command-map))
+     :bind-keymap ("C-c C" . claude-code-command-map))
 
    (org-config
     :ensure nil

@@ -120,7 +120,7 @@
   (when (and my/org-future-file (file-exists-p my/org-future-file))
     (let ((files (list my/org-future-file)) found)
       (org-agenda-prepare-buffers files)
-      (org-map-entries (lambda () (setq found t)) "urgent" files)
+      (org-map-entries (lambda () (setq found t)) "urgent/TODO" files)
       found)))
 
 (setq org-agenda-custom-commands
@@ -131,7 +131,9 @@
                        (org-agenda-skip-deadline-if-done t)
                        (org-agenda-skip-timestamp-if-done t)))
           (tags-todo "urgent"
-                     ((org-agenda-files ',(when my/org-future-file (list my/org-future-file)))
+                     ((org-agenda-files (when my/org-future-file (list my/org-future-file)))
+                      (org-agenda-skip-function
+                       '(if (my/org-has-urgent-inbox-p) nil '(goto-char (point-max))))
                       (org-agenda-overriding-header
                        (if (my/org-has-urgent-inbox-p) "⚡ Urgent (from Inbox)" ""))))
           (tags-todo "must"   ((org-agenda-overriding-header "Must Do")))
