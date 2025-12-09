@@ -133,6 +133,9 @@
      :demand t				; Alternative theme
      :config (load-theme 'zenburn t)
      :defer nil)
+    (yaml
+     :mode (("\\.ya?ml\\'" . yaml-mode))
+     :defer nil)
     (ellama
      :commands ellama
      :defer (not skewed-emacs-docker-build?))

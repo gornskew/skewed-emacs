@@ -6,7 +6,7 @@
 
 (require 'org-habit)
 (setq org-habit-completed-glyph ?✓
-      org-habit-today-glyph ?📿)
+      org-habit-today-glyph ?🧹)
 (set-face-attribute 'org-habit-alert-face nil :background "#2d6a6a")
 (add-to-list 'org-modules 'org-habit)
 
