@@ -38,7 +38,6 @@
 			(other-status . 1)
  			(lisply-status . 1)
  			(system-info . 1)
- 			(agenda . 1)
 			))
 
 
@@ -237,36 +236,48 @@ Returns (:status OK|ERROR :time response-time-ms)."
 (defun help-info-strings ()
   "Return a list of propertized strings for help dashboard item."
   (list
-   (propertize "• Emacs Tutorial: C-h C-t\n"
-               'keymap (let ((map (make-sparse-keymap)))
-                         (define-key map (kbd "RET") 'help-with-tutorial)
-                         (define-key map [mouse-1] 'help-with-tutorial)
-                         map)
-               'face 'button
-               'help-echo "Run Emacs tutorial (C-h C-t)")
-   (propertize "• Gendl Repl: M-x slime-connect RET\n"
-               'keymap (let ((map (make-sparse-keymap)))
-                         (define-key map (kbd "RET") 'slime-connect)
-                         (define-key map [mouse-1] 'slime-connect)
-                         map)
-               'face 'button
-               'help-echo "Connect to Gendl REPL (slime-connect)")
-   (propertize "• Claude Code: M-x claude-code\n"
-               'keymap (let ((map (make-sparse-keymap))
-			     (function (lambda () (interactive)
-					 (eat))))
-                         (define-key map (kbd "RET") function)
-                         (define-key map [mouse-1] function)
-                         map)
-               'face 'button
-               'help-echo "Run claude-code.el in a *eat* terminal'")
-   (propertize "• M-x light-theme, dark-theme, load-theme\n"
-               'keymap (let ((map (make-sparse-keymap)))
-                         (define-key map (kbd "RET") 'load-theme)
-                         (define-key map [mouse-1] 'load-theme)
-                         map)
-               'face 'button
-               'help-echo "Run load-theme")))
+   (concat "    📖 "
+           (propertize "Emacs Tutorial: C-h C-t\n"
+                       'keymap (let ((map (make-sparse-keymap)))
+                                 (define-key map (kbd "RET") 'help-with-tutorial)
+                                 (define-key map [mouse-1] 'help-with-tutorial)
+                                 map)
+                       'face 'button
+                       'help-echo "Run Emacs tutorial (C-h C-t)"))
+   (concat "    🚀 "
+           (propertize "Gendl Repl: M-x slime-connect RET\n"
+                       'keymap (let ((map (make-sparse-keymap)))
+                                 (define-key map (kbd "RET") 'slime-connect)
+                                 (define-key map [mouse-1] 'slime-connect)
+                                 map)
+                       'face 'button
+                       'help-echo "Connect to Gendl REPL (slime-connect)"))
+   (concat "    🤖 "
+           (propertize "Claude Code: M-x claude-code\n"
+                       'keymap (let ((map (make-sparse-keymap))
+                                     (function (lambda () (interactive) (eat))))
+                                 (define-key map (kbd "RET") function)
+                                 (define-key map [mouse-1] function)
+                                 map)
+                       'face 'button
+                       'help-echo "Run claude-code.el in a *eat* terminal"))
+   (concat "    🔦 "
+           (propertize "Daily Focus: C-c a d\n"
+                       'keymap (let ((map (make-sparse-keymap))
+                                     (function (lambda () (interactive) (org-agenda nil "d"))))
+                                 (define-key map (kbd "RET") function)
+                                 (define-key map [mouse-1] function)
+                                 map)
+                       'face 'button
+                       'help-echo "Open daily focus agenda view (C-c a d)"))
+   (concat "    🎨 "
+           (propertize "M-x light-theme, dark-theme, load-theme\n"
+                       'keymap (let ((map (make-sparse-keymap)))
+                                 (define-key map (kbd "RET") 'load-theme)
+                                 (define-key map [mouse-1] 'load-theme)
+                                 map)
+                       'face 'button
+                       'help-echo "Run load-theme"))))
 
 			      
 (defun active-projects-strings (list-size)
@@ -300,30 +311,38 @@ Returns (:status OK|ERROR :time response-time-ms)."
          (let* ((proj (car proj-time-pair))
                 (mtime (cdr proj-time-pair))
                 (full-path (expand-file-name proj projects-dir))
-                (time-ago
+                (seconds-ago
                  (if (and mtime (not (equal mtime '(0 0))))
-                     (let ((seconds-ago
-                            (float-time (time-subtract
-                                         (current-time) mtime))))
-                       (cond
-                        ((< seconds-ago 3600)
-                         (format "%.0fm ago" (/ seconds-ago 60)))
-                        ((< seconds-ago 86400)
-                         (format "%.1fh ago" (/ seconds-ago 3600)))
-                        ((< seconds-ago 604800)
-                         (format "%.1fd ago" (/ seconds-ago 86400)))
-                        (t (format-time-string "%Y-%m-%d" mtime))))
+                     (float-time (time-subtract (current-time) mtime))
+                   nil))
+                (folder-icon
+                 (cond
+                  ((null seconds-ago) "📁")
+                  ((< seconds-ago 86400) "📂")      ; < 1 day: open folder
+                  ((< seconds-ago 604800) "📁")    ; < 1 week: closed folder
+                  (t "🗃️")))                        ; older: archive box
+                (time-ago
+                 (if seconds-ago
+                     (cond
+                      ((< seconds-ago 3600)
+                       (format "%.0fm ago" (/ seconds-ago 60)))
+                      ((< seconds-ago 86400)
+                       (format "%.1fh ago" (/ seconds-ago 3600)))
+                      ((< seconds-ago 604800)
+                       (format "%.1fd ago" (/ seconds-ago 86400)))
+                      (t (format-time-string "%Y-%m-%d" mtime)))
                    "unknown")))
-           (format "    %s - %s\n"
+           (format "    %s %s - %s\n"
+                   folder-icon
                    (propertize proj
                                'keymap (let ((map (make-sparse-keymap)))
                                          (define-key map (kbd "RET")
-						     (eval 
-						      `(lambda () (interactive)
-							 (dired ,full-path))))
+                                                     (eval
+                                                      `(lambda () (interactive)
+                                                         (dired ,full-path))))
                                          (define-key map [mouse-1]
-						     `(lambda () (interactive)
-							(dired ,full-path)))
+                                                     `(lambda () (interactive)
+                                                        (dired ,full-path)))
                                          map)
                                'face 'button
                                'help-echo (format "Open %s in Dired" full-path))
@@ -402,12 +421,12 @@ Returns (:status OK|ERROR :time response-time-ms)."
   (if list-size
       (let ((system-info (gather-system-info)))
         (list 
-         (format "    Emacs PID: %s | Uptime: %s\n" 
+         (format "    🐃 Emacs PID: %s | Uptime: %s\n" 
                  (plist-get system-info :emacs-pid)
                  (emacs-uptime))
          (let ((memory (plist-get system-info :memory-mb))
                (cpu-time (plist-get system-info :cpu-seconds)))
-           (format "    Memory: %s | CPU Time: %s\n"
+           (format "    🧠 Memory: %s | CPU Time: %s\n"
                    (if memory (format "%.1f MB" memory) "N/A")
                    (if cpu-time 
                        (let ((minutes (floor (/ cpu-time 60)))
@@ -416,15 +435,16 @@ Returns (:status OK|ERROR :time response-time-ms)."
                              (format "%dm %.1fs" minutes seconds)
                            (format "%.1fs" seconds)))
                      "N/A")))
-         (format "    Packages: %d | Buffers: %d/%d total\n"
+         (format "    📦 Packages: %d | Buffers: %d/%d total\n"
                  (plist-get system-info :active-packages)
                  (plist-get system-info :visible-buffers)
                  (plist-get system-info :total-buffers))
-         (format "    Version: %s | Platform: %s\n"
+         (format "    🎪 Version: %s | Platform: %s\n"
                  (plist-get system-info :emacs-version)
                  (plist-get system-info :system-type))
-         (format "    Time: %s\n"
-                 (plist-get system-info :current-time))))
+         (format "    🕐 Time: %s %s\n"
+                 (plist-get system-info :current-time)
+                 (format-time-string "%Z"))))
     '()))
 
 
