@@ -38,6 +38,7 @@
 			(other-status . 1)
  			(lisply-status . 1)
  			(system-info . 1)
+ 			(agenda . 1)
 			))
 
 
@@ -236,28 +237,21 @@ Returns (:status OK|ERROR :time response-time-ms)."
 (defun help-info-strings ()
   "Return a list of propertized strings for help dashboard item."
   (list
-   (concat "    " (propertize "📖 Emacs Tutorial: C-h t\n"
+   (propertize "• Emacs Tutorial: C-h C-t\n"
                'keymap (let ((map (make-sparse-keymap)))
                          (define-key map (kbd "RET") 'help-with-tutorial)
                          (define-key map [mouse-1] 'help-with-tutorial)
                          map)
                'face 'button
-               'help-echo "Run Emacs tutorial (C-h C-t)"))
-   (concat "    " (propertize "🎯 Daily Focus: C-c a d\n"
-               'keymap (let ((map (make-sparse-keymap)))
-                         (define-key map (kbd "RET") (lambda () (interactive) (org-agenda nil "d")))
-                         (define-key map [mouse-1] (lambda () (interactive) (org-agenda nil "d")))
-                         map)
-               'face 'button
-               'help-echo "Open Daily Focus agenda view (C-c a d)"))
-   (concat "    " (propertize "🚀 Gendl Repl: M-x slime-connect RET\n"
+               'help-echo "Run Emacs tutorial (C-h C-t)")
+   (propertize "• Gendl Repl: M-x slime-connect RET\n"
                'keymap (let ((map (make-sparse-keymap)))
                          (define-key map (kbd "RET") 'slime-connect)
                          (define-key map [mouse-1] 'slime-connect)
                          map)
                'face 'button
-               'help-echo "Connect to Gendl REPL (slime-connect)"))
-   (concat "    " (propertize "🤖 Claude Code: M-x claude-code\n"
+               'help-echo "Connect to Gendl REPL (slime-connect)")
+   (propertize "• Claude Code: M-x claude-code\n"
                'keymap (let ((map (make-sparse-keymap))
 			     (function (lambda () (interactive)
 					 (eat))))
@@ -265,14 +259,14 @@ Returns (:status OK|ERROR :time response-time-ms)."
                          (define-key map [mouse-1] function)
                          map)
                'face 'button
-               'help-echo "Run claude-code.el in a *eat* terminal'"))
-   (concat "    " (propertize "🎨 M-x light-theme, dark-theme, load-theme\n"
+               'help-echo "Run claude-code.el in a *eat* terminal'")
+   (propertize "• M-x light-theme, dark-theme, load-theme\n"
                'keymap (let ((map (make-sparse-keymap)))
                          (define-key map (kbd "RET") 'load-theme)
                          (define-key map [mouse-1] 'load-theme)
                          map)
                'face 'button
-               'help-echo "Run load-theme"))))
+               'help-echo "Run load-theme")))
 
 			      
 (defun active-projects-strings (list-size)
@@ -320,7 +314,7 @@ Returns (:status OK|ERROR :time response-time-ms)."
                          (format "%.1fd ago" (/ seconds-ago 86400)))
                         (t (format-time-string "%Y-%m-%d" mtime))))
                    "unknown")))
-           (format "    📁 %s - %s\n"
+           (format "    %s - %s\n"
                    (propertize proj
                                'keymap (let ((map (make-sparse-keymap)))
                                          (define-key map (kbd "RET")
@@ -353,11 +347,11 @@ Returns (:status OK|ERROR :time response-time-ms)."
                       (let* ((host (plist-get backend :host))
                              (port (plist-get backend :port))
                              (name (or (plist-get backend :name) "unknown"))
-                             (result (silent-http-ping host port "/lisply/ping-lisp" 1.5)))
+                             (result (silent-http-ping host port "/lisply/ping-lisp" 0.5)))
                         (format "    %s\n"
                                (propertize 
-                                (format "%s %s (%s:%s)%s"
-                                        (if (string= (plist-get result :status) "OK") "✅" "❌")
+                                (format "[%s] %s (%s:%s)%s"
+                                        (if (string= (plist-get result :status) "OK") "OK" "!DN!")
                                         name host port
                                         (if (string= (plist-get result :status) "OK")
                                             (format " - %s" (or (plist-get result :time) "?ms"))
@@ -376,23 +370,6 @@ Returns (:status OK|ERROR :time response-time-ms)."
           (list "    No Lisply backends discovered\n")))
     '()))
 
-(defun swank-service-icon (name)
-  "Return an icon for SWANK service NAME."
-  (cond
-   ((string-match-p "ccl" name) "💻")
-   ((string-match-p "sbcl" name) "🏭")
-   ((string-match-p "non-smp" name) "🛩")
-   ((string-match-p "smp" name) "🚀")
-   (t "🏭")))
-
-
-  (cond
-   ((string-match-p "ccl" name) "🖥️")      ; classic Mac for CCL
-   ((string-match-p "sbcl" name) "🏭")     ; factory/steel for SBCL  
-   ((string-match-p "non-smp" name) "✈️")  ; airplane for non-smp
-   ((string-match-p "smp" name) "🚀")      ; spaceship for smp
-   (t "🏭")))                                ; default factory
-
 (defun other-status-strings (list-size)
   "Return a list of propertized strings for other status (SWANK services) dashboard item."
   (if list-size
@@ -404,7 +381,7 @@ Returns (:status OK|ERROR :time response-time-ms)."
                              (port (plist-get service-info :port))
                              (name (plist-get service-info :name)))
                          (format "    %s\n"
-                                (propertize (format "%s %s on %s" (swank-service-icon host) host port)
+                                (propertize (format "🏭 %s on %s" host port)
                                            'keymap (let ((map (make-sparse-keymap)))
                                                      (define-key map (kbd "RET")
                                                                  `(lambda () (interactive)
@@ -425,12 +402,12 @@ Returns (:status OK|ERROR :time response-time-ms)."
   (if list-size
       (let ((system-info (gather-system-info)))
         (list 
-         (format "    🦬 Emacs PID: %s | Uptime: %s\n" 
+         (format "    Emacs PID: %s | Uptime: %s\n" 
                  (plist-get system-info :emacs-pid)
                  (emacs-uptime))
          (let ((memory (plist-get system-info :memory-mb))
                (cpu-time (plist-get system-info :cpu-seconds)))
-           (format "    🧠 Memory: %s | CPU Time: %s\n"
+           (format "    Memory: %s | CPU Time: %s\n"
                    (if memory (format "%.1f MB" memory) "N/A")
                    (if cpu-time 
                        (let ((minutes (floor (/ cpu-time 60)))
@@ -439,14 +416,14 @@ Returns (:status OK|ERROR :time response-time-ms)."
                              (format "%dm %.1fs" minutes seconds)
                            (format "%.1fs" seconds)))
                      "N/A")))
-         (format "    📦 Packages: %d | Buffers: %d/%d total\n"
+         (format "    Packages: %d | Buffers: %d/%d total\n"
                  (plist-get system-info :active-packages)
                  (plist-get system-info :visible-buffers)
                  (plist-get system-info :total-buffers))
-         (format "    🖥️ Version: %s | Platform: %s\n"
+         (format "    Version: %s | Platform: %s\n"
                  (plist-get system-info :emacs-version)
                  (plist-get system-info :system-type))
-         (format "    🕐 Time: %s\n"
+         (format "    Time: %s\n"
                  (plist-get system-info :current-time))))
     '()))
 
