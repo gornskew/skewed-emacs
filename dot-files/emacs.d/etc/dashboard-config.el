@@ -236,48 +236,50 @@ Returns (:status OK|ERROR :time response-time-ms)."
 (defun help-info-strings ()
   "Return a list of propertized strings for help dashboard item."
   (list
-   (concat "    📖 "
-           (propertize "Emacs Tutorial: C-h C-t\n"
+   (concat "    "
+           (propertize "📖 Emacs Tutorial: C-h C-t\n"
                        'keymap (let ((map (make-sparse-keymap)))
                                  (define-key map (kbd "RET") 'help-with-tutorial)
                                  (define-key map [mouse-1] 'help-with-tutorial)
                                  map)
                        'face 'button
                        'help-echo "Run Emacs tutorial (C-h C-t)"))
-   (concat "    🚀 "
-           (propertize "Gendl Repl: M-x slime-connect RET\n"
-                       'keymap (let ((map (make-sparse-keymap)))
-                                 (define-key map (kbd "RET") 'slime-connect)
-                                 (define-key map [mouse-1] 'slime-connect)
-                                 map)
-                       'face 'button
-                       'help-echo "Connect to Gendl REPL (slime-connect)"))
-   (concat "    🤖 "
-           (propertize "Claude Code: M-x claude-code\n"
-                       'keymap (let ((map (make-sparse-keymap))
-                                     (function (lambda () (interactive) (eat))))
-                                 (define-key map (kbd "RET") function)
-                                 (define-key map [mouse-1] function)
-                                 map)
-                       'face 'button
-                       'help-echo "Run claude-code.el in a *eat* terminal"))
-   (concat "    🔦 "
-           (propertize "Daily Focus: C-c a d\n"
-                       'keymap (let ((map (make-sparse-keymap))
-                                     (function (lambda () (interactive) (org-agenda nil "d"))))
-                                 (define-key map (kbd "RET") function)
-                                 (define-key map [mouse-1] function)
-                                 map)
-                       'face 'button
-                       'help-echo "Open daily focus agenda view (C-c a d)"))
-   (concat "    🎨 "
-           (propertize "M-x light-theme, dark-theme, load-theme\n"
-                       'keymap (let ((map (make-sparse-keymap)))
-                                 (define-key map (kbd "RET") 'load-theme)
-                                 (define-key map [mouse-1] 'load-theme)
-                                 map)
-                       'face 'button
-                       'help-echo "Run load-theme"))))
+   (concat "    "
+	   (propertize "🎯 Daily Focus: C-c a d\n"
+		       'keymap (let ((map (make-sparse-keymap))
+				     (function (lambda () (interactive) (org-agenda nil "d"))))
+				 (define-key map (kbd "RET") function)
+				 (define-key map [mouse-1] function)
+				 map)
+		       'face 'button
+		       'help-echo "Open daily focus agenda view (C-c a d)"))
+   
+   (concat "    "
+	   (propertize "🚀 Gendl Repl: M-x slime-connect RET\n"
+		       'keymap (let ((map (make-sparse-keymap)))
+				 (define-key map (kbd "RET") 'slime-connect)
+				 (define-key map [mouse-1] 'slime-connect)
+				 map)
+		       'face 'button
+		       'help-echo "Connect to Gendl REPL (slime-connect)"))
+   (concat "    "
+	   (propertize "🤖 Claude Code: M-x claude-code\n"
+		       'keymap (let ((map (make-sparse-keymap))
+				     (function (lambda () (interactive) (eat))))
+				 (define-key map (kbd "RET") function)
+				 (define-key map [mouse-1] function)
+				 map)
+		       'face 'button
+		       'help-echo "Run claude-code.el in a *eat* terminal"))
+   
+   (concat "    "
+	   (propertize "🎨 M-x light-theme, dark-theme, load-theme\n"
+		       'keymap (let ((map (make-sparse-keymap)))
+				 (define-key map (kbd "RET") 'load-theme)
+				 (define-key map [mouse-1] 'load-theme)
+				 map)
+		       'face 'button
+		       'help-echo "Run load-theme"))))
 
 			      
 (defun active-projects-strings (list-size)
@@ -332,9 +334,8 @@ Returns (:status OK|ERROR :time response-time-ms)."
                        (format "%.1fd ago" (/ seconds-ago 86400)))
                       (t (format-time-string "%Y-%m-%d" mtime)))
                    "unknown")))
-           (format "    %s %s - %s\n"
-                   folder-icon
-                   (propertize proj
+           (format "    %s - %s\n"
+                   (propertize (format "%s %s" folder-icon proj)
                                'keymap (let ((map (make-sparse-keymap)))
                                          (define-key map (kbd "RET")
                                                      (eval
@@ -369,8 +370,8 @@ Returns (:status OK|ERROR :time response-time-ms)."
                              (result (silent-http-ping host port "/lisply/ping-lisp" 0.5)))
                         (format "    %s\n"
                                (propertize 
-                                (format "[%s] %s (%s:%s)%s"
-                                        (if (string= (plist-get result :status) "OK") "OK" "!DN!")
+                                (format "%s %s (%s:%s)%s"
+                                        (if (string= (plist-get result :status) "OK") "✅" "❌")
                                         name host port
                                         (if (string= (plist-get result :status) "OK")
                                             (format " - %s" (or (plist-get result :time) "?ms"))
@@ -397,10 +398,11 @@ Returns (:status OK|ERROR :time response-time-ms)."
             (append
              (mapcar (lambda (service-info)
                        (let ((host (plist-get service-info :host))
+			     (icon (plist-get service-info :icon))
                              (port (plist-get service-info :port))
                              (name (plist-get service-info :name)))
                          (format "    %s\n"
-                                (propertize (format "🏭 %s on %s" host port)
+                                (propertize (format "%s %s on %s" icon host port)
                                            'keymap (let ((map (make-sparse-keymap)))
                                                      (define-key map (kbd "RET")
                                                                  `(lambda () (interactive)

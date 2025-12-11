@@ -94,12 +94,17 @@
                             ((string-match "non-smp" name) "Commercial")
                             ((string-match "smp" name) "Commercial SMP")
                             (t "Lisp")))
+		 (icon (cond ((string-equal lisp-impl "CCL")  "🖥️")
+			     ((string-equal lisp-impl "SBCL")  "🏭")
+			     ((string-equal lisp-impl "Commercial") "✈️")
+			     ((string-equal lisp-impl "Commercial SMP")  "🚀")))
                  (effective-host (if skewed-emacs-container? name "localhost"))
                  (effective-port (if skewed-emacs-container? container-port host-port)))
             (push (list :host effective-host
                        :port effective-port
                        :name name
-                       :impl lisp-impl
+		       :icon icon
+		       :impl lisp-impl
                        :running t)
                   swank-services)))))
     (nreverse swank-services)))
