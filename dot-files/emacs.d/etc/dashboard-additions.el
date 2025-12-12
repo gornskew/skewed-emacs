@@ -2,6 +2,8 @@
 ;;; Commentary: supplement for dashboard-config.el
 ;;; Code:
 
+(require 'skewed-icons)
+
 (defun discover-docker-services ()
   "Discover Docker containers with dynamic port mapping - no hardcoded ports."
   (condition-case nil
@@ -94,10 +96,10 @@
                             ((string-match "non-smp" name) "Commercial")
                             ((string-match "smp" name) "Commercial SMP")
                             (t "Lisp")))
-		 (icon (cond ((string-equal lisp-impl "CCL")  "🖥️")
-			     ((string-equal lisp-impl "SBCL")  "🏭")
-			     ((string-equal lisp-impl "Commercial") "✈️")
-			     ((string-equal lisp-impl "Commercial SMP")  "🚀")))
+		 (icon (cond ((string-equal lisp-impl "CCL") (skewed-icon :svc-ccl))
+			     ((string-equal lisp-impl "SBCL") (skewed-icon :svc-sbcl))
+			     ((string-equal lisp-impl "Commercial") (skewed-icon :svc-commercial))
+			     ((string-equal lisp-impl "Commercial SMP") (skewed-icon :svc-smp))))
                  (effective-host (if skewed-emacs-container? name "localhost"))
                  (effective-port (if skewed-emacs-container? container-port host-port)))
             (push (list :host effective-host

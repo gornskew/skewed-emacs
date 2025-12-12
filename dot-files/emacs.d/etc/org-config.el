@@ -5,13 +5,15 @@
 ;;; Code:
 
 (require 'org-habit)
+(require 'skewed-icons)
 
 ;; Use ellipsis instead of $ for truncated lines
 (unless standard-display-table
   (setq standard-display-table (make-display-table)))
 (set-display-table-slot standard-display-table 'truncation (make-glyph-code ?… 'escape-glyph))
-(setq org-habit-completed-glyph ?✓
-      org-habit-today-glyph ?🧹)
+;; Use safe single-width characters for habit glyphs
+(setq org-habit-completed-glyph ?+
+      org-habit-today-glyph ?#)
 (set-face-attribute 'org-habit-alert-face nil :background "#2d6a6a")
 (add-to-list 'org-modules 'org-habit)
 
@@ -243,11 +245,11 @@
 
 (defun my/japa-bonus-indicator (rounds)
   "Return indicator string for ROUNDS completed."
-  (cond ((>= rounds 64) "🚀")
-        ((>= rounds 32) "🏆")
-        ((>= rounds 24) "🔥🔥")
-        ((>= rounds 20) "🔥")
-        ((>= rounds 16) "✓")
+  (cond ((>= rounds 64) (skewed-icon :japa-epic))
+        ((>= rounds 32) (skewed-icon :japa-bonus3))
+        ((>= rounds 24) (skewed-icon :japa-bonus2))
+        ((>= rounds 20) (skewed-icon :japa-bonus1))
+        ((>= rounds 16) (skewed-icon :japa-complete))
         (t (format "%d/16" rounds))))
 
 (defun my/japa-mala-format (total)
@@ -385,13 +387,13 @@ Returns (hash-table . earliest-date)."
   "Return icon for ROUNDS completed."
   (cond
    ((null rounds) nil)
-   ((= rounds 0) "☀️")                 ; Zero: sun
-   ((< rounds 16) "📿")               ; In progress: mala beads
-   ((< rounds 20) "✅")               ; Goal met: checkmark
-   ((< rounds 24) "🔥")               ; Bonus level 1
-   ((< rounds 32) "💪")               ; Bonus level 2
-   ((< rounds 64) "🏆")               ; Achievement: trophy
-   (t "🚀")))                          ; Epic: rocket
+   ((= rounds 0) (skewed-icon :japa-zero))
+   ((< rounds 16) (skewed-icon :japa-progress))
+   ((< rounds 20) (skewed-icon :japa-complete))
+   ((< rounds 24) (skewed-icon :japa-bonus1))
+   ((< rounds 32) (skewed-icon :japa-bonus2))
+   ((< rounds 64) (skewed-icon :japa-bonus3))
+   (t (skewed-icon :japa-epic))))                          ; Epic: rocket
 
 (defun my/japa-build-custom-graph ()
   "Build custom japa habit graph - 7 day window (4 past + today + 2 future)."
@@ -412,11 +414,14 @@ Returns (hash-table . earliest-date)."
              (is-future (> day-offset 0))
              (is-before-tracking (and earliest-date (string< day-str earliest-date)))
              (icon (cond
-                    (is-future "·")
-                    (is-before-tracking "·")
+                    (is-future (skewed-icon :japa-future))
+                    (is-before-tracking (skewed-icon :japa-future))
                     (is-today 
-                     (concat "⟦" (or (my/japa-day-icon (or day-rounds 0)) "☀️") "⟧"))
-                    ((null day-rounds) "☀️")
+                     (concat (skewed-icon :japa-today-l)
+                             (or (my/japa-day-icon (or day-rounds 0))
+                                 (skewed-icon :japa-zero))
+                             (skewed-icon :japa-today-r)))
+                    ((null day-rounds) (skewed-icon :japa-zero))
                     (t (my/japa-day-icon day-rounds)))))
         (push icon icons)))
     (string-join (nreverse icons) " ")))

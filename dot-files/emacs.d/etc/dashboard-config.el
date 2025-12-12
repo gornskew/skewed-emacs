@@ -11,6 +11,7 @@
 (require 'dashboard)
 (require 'dashboard-additions)
 (require 'cl-lib)
+(require 'skewed-icons)
 
 ;;; Code:
 
@@ -21,7 +22,7 @@
 (defvar projects-dir
   (expand-file-name
    (if (or skewed-emacs-container? skewed-emacs-docker-build?
-	   (file-exists-p "/projects/"))
+           (file-exists-p "/projects/"))
        "/projects/" "~/projects/")))
 
 (dashboard-setup-startup-hook)
@@ -29,25 +30,21 @@
 
 (setq dashboard-startup-banner skewed-dashboard-banner-file)
 
-
-;;(setq dashboard-items nil)
-
-(setq dashboard-items `((help . 3)
- 			;;(recents  . 3) replace this with one we control. 
- 			(active-projects . 5)
-			(other-status . 1)
- 			(lisply-status . 1)
- 			(system-info . 1)
-			))
+(setq dashboard-items '((help . 3)
+                        (active-projects . 5)
+                        (other-status . 1)
+                        (lisply-status . 1)
+                        (system-info . 1)
+                        ))
 
 
 (setq dashboard-item-generators
       (append '((help . dashboard-insert-help-info)
-		(active-projects . dashboard-insert-active-projects)
-		(lisply-status . dashboard-insert-lisply-backends)
- 		(system-info . dashboard-insert-system-info)
- 		(other-status . dashboard-insert-other-status))
-              (cl-remove-if (lambda (item) 
+                (active-projects . dashboard-insert-active-projects)
+                (lisply-status . dashboard-insert-lisply-backends)
+                (system-info . dashboard-insert-system-info)
+                (other-status . dashboard-insert-other-status))
+              (cl-remove-if (lambda (item)
                               (memq (car item) '(system-info lisply-status active-projects projects)))
                             dashboard-item-generators)))
 
@@ -56,19 +53,17 @@
 
 (setq initial-buffer-choice
       (lambda ()
-	(dashboard-refresh-buffer)
-	(get-buffer-create "*dashboard*")))
+        (dashboard-refresh-buffer)
+        (get-buffer-create "*dashboard*")))
 
 
 (defun dashboard-insert-help-info (list-size)
-  "Insert getting-started info. LIST-SIZE nil to leave blank."
-  (if list-size
-      (progn
-        (dashboard-insert-heading "Getting Started:")
-        (insert "\n")
-        (dolist (line (help-info-strings))
-          (insert line)))
-    (dashboard-insert-heading "No Help for You")))
+  "Insert getting-started info."
+  (when list-size
+    (dashboard-insert-heading "Getting Started:")
+    (insert "\n")
+    (dolist (line (help-info-strings))
+      (insert line))))
 
 (defun dashboard-insert-active-projects (list-size)
   "Insert active projects info.  LIST-SIZE is passed along."
@@ -78,14 +73,12 @@
     (insert proj-string)))
 
 (defun dashboard-insert-system-info (list-size)
-  "Insert system information using propertized strings list. LIST-SIZE nil to leave blank."
-  (if list-size
-      (progn
-        (dashboard-insert-heading "System Information:")
-        (insert "\n")
-        (dolist (line (system-info-strings list-size))
-          (insert line)))
-    (dashboard-insert-heading "No System Info for You")))
+  "Insert system information."
+  (when list-size
+    (dashboard-insert-heading "System Information:")
+    (insert "\n")
+    (dolist (line (system-info-strings list-size))
+      (insert line))))
 
 ;;
 ;; FLAG - get more sophisticated for determining live services for
@@ -93,29 +86,24 @@
 ;;
 (defun dashboard-insert-lisply-backends (list-size)
   "Insert Lisply backends status using propertized strings list."
-  (if list-size
-      (progn
-        (dashboard-insert-heading "Lisply Backends:")
-        (insert "\n")
-        (dolist (line (lisply-backends-strings list-size))
-          (insert line)))
-    (dashboard-insert-heading "No Lisply Backends Configured")))
+  (when list-size
+    (dashboard-insert-heading "Lisply Backends:")
+    (insert "\n")
+    (dolist (line (lisply-backends-strings list-size))
+      (insert line))))
 
 (defun dashboard-insert-other-status (list-size)
   "Insert other services status section using propertized strings list.  
 LIST-SIZE used as boolean"
-  (if list-size
-      (progn
-        (dashboard-insert-heading "𝒮𝒲𝒜𝒩𝒦 Service hosts and ports:")
-        (insert "\n")
-        (dolist (line (other-status-strings list-size))
-          (insert line)))
-    (dashboard-insert-heading "No SWANK Services")))
+  (when list-size
+    (dashboard-insert-heading "SWANK Service hosts and ports:")
+    (insert "\n")
+    (dolist (line (other-status-strings list-size))
+      (insert line))))
+
+
 ;; Helper functions below. 
 ;;
-
-
-
 
 (defun silent-http-ping (host port endpoint &optional timeout)
   "Ping HTTP ENDPOINT on HOST at PORT silently.
@@ -123,11 +111,11 @@ Returns (:status OK|ERROR :time response-time-ms)."
   (let ((url (format "http://%s:%d%s" host port (or endpoint "/")))
         (url-request-timeout (or timeout 2))
         (start-time (current-time))
-        (inhibit-message t)          ; Suppress all messages
-        (message-log-max nil)        ; Don't log messages
-        (url-show-status nil)        ; Don't show URL status
-        (url-automatic-caching nil)  ; Disable caching
-        (url-debug nil))             ; Disable debug output
+        (inhibit-message t)		; Suppress all messages
+        (message-log-max nil)		; Don't log messages
+        (url-show-status nil)		; Don't show URL status
+        (url-automatic-caching nil)	; Disable caching
+        (url-debug nil))		; Disable debug output
     (condition-case err
         (let ((buffer (url-retrieve-synchronously url nil t url-request-timeout)))
           (if buffer
@@ -190,7 +178,7 @@ Returns (:status OK|ERROR :time response-time-ms)."
           :current-time (current-time-string)
           :active-packages (length package-activated-list)
           :visible-buffers (length (visible-buffer-list))
-	  :total-buffers (length (buffer-list))
+          :total-buffers (length (buffer-list))
           :emacs-version emacs-version
           :system-type system-type
           :working-dir default-directory
@@ -237,7 +225,8 @@ Returns (:status OK|ERROR :time response-time-ms)."
   "Return a list of propertized strings for help dashboard item."
   (list
    (concat "    "
-           (propertize "📖 Emacs Tutorial: C-h C-t\n"
+           (propertize (concat (skewed-icon :help-book)
+			       " Emacs Tutorial: C-h C-t\n")
                        'keymap (let ((map (make-sparse-keymap)))
                                  (define-key map (kbd "RET") 'help-with-tutorial)
                                  (define-key map [mouse-1] 'help-with-tutorial)
@@ -245,43 +234,45 @@ Returns (:status OK|ERROR :time response-time-ms)."
                        'face 'button
                        'help-echo "Run Emacs tutorial (C-h C-t)"))
    (concat "    "
-	   (propertize "🎯 Daily Focus: C-c a d\n"
-		       'keymap (let ((map (make-sparse-keymap))
-				     (function (lambda () (interactive) (org-agenda nil "d"))))
-				 (define-key map (kbd "RET") function)
-				 (define-key map [mouse-1] function)
-				 map)
-		       'face 'button
-		       'help-echo "Open daily focus agenda view (C-c a d)"))
+           (propertize (concat (skewed-icon :help-target)
+			       " Daily Focus: C-c a d\n")
+                       'keymap (let ((map (make-sparse-keymap))
+                                     (function (lambda () (interactive) (org-agenda nil "d"))))
+                                 (define-key map (kbd "RET") function)
+                                 (define-key map [mouse-1] function)
+                                 map)
+                       'face 'button
+                       'help-echo "Open daily focus agenda view (C-c a d)"))
    
    (concat "    "
-	   (propertize "🚀 Gendl Repl: M-x slime-connect RET\n"
-		       'keymap (let ((map (make-sparse-keymap)))
-				 (define-key map (kbd "RET") 'slime-connect)
-				 (define-key map [mouse-1] 'slime-connect)
-				 map)
-		       'face 'button
-		       'help-echo "Connect to Gendl REPL (slime-connect)"))
+           (propertize (concat (skewed-icon :help-rocket)
+			       " Gendl Repl: M-x slime-connect RET\n")
+                       'keymap (let ((map (make-sparse-keymap)))
+                                 (define-key map (kbd "RET") 'slime-connect)
+                                 (define-key map [mouse-1] 'slime-connect)
+                                 map)
+                       'face 'button
+                       'help-echo "Connect to Gendl REPL (slime-connect)"))
    (concat "    "
-	   (propertize "🤖 Claude Code: M-x claude-code\n"
-		       'keymap (let ((map (make-sparse-keymap))
-				     (function (lambda () (interactive) (eat))))
-				 (define-key map (kbd "RET") function)
-				 (define-key map [mouse-1] function)
-				 map)
-		       'face 'button
-		       'help-echo "Run claude-code.el in a *eat* terminal"))
+        (propertize (concat (skewed-icon :help-robot) " Claude Code: M-x claude-code\n")
+                       'keymap (let ((map (make-sparse-keymap))
+                                     (function (lambda () (interactive) (eat))))
+                                 (define-key map (kbd "RET") function)
+                                 (define-key map [mouse-1] function)
+                                 map)
+                       'face 'button
+                       'help-echo "Run claude-code.el in a *eat* terminal"))
    
    (concat "    "
-	   (propertize "🎨 M-x light-theme, dark-theme, load-theme\n"
-		       'keymap (let ((map (make-sparse-keymap)))
-				 (define-key map (kbd "RET") 'load-theme)
-				 (define-key map [mouse-1] 'load-theme)
-				 map)
-		       'face 'button
-		       'help-echo "Run load-theme"))))
+        (propertize (concat (skewed-icon :help-palette) " M-x light-theme, dark-theme, load-theme\n")
+                       'keymap (let ((map (make-sparse-keymap)))
+                                 (define-key map (kbd "RET") 'load-theme)
+                                 (define-key map [mouse-1] 'load-theme)
+                                 map)
+                       'face 'button
+                       'help-echo "Run load-theme"))))
 
-			      
+                              
 (defun active-projects-strings (list-size)
   "Return a list of propertized strings for active projects."
   (let* ((project-dirs
@@ -319,10 +310,10 @@ Returns (:status OK|ERROR :time response-time-ms)."
                    nil))
                 (folder-icon
                  (cond
-                  ((null seconds-ago) "📁")
-                  ((< seconds-ago 86400) "📂")      ; < 1 day: open folder
-                  ((< seconds-ago 604800) "📁")    ; < 1 week: closed folder
-                  (t "🗃️")))                        ; older: archive box
+                  ((null seconds-ago) (skewed-icon :folder))
+                  ((< seconds-ago 86400) (skewed-icon :folder-open))
+                  ((< seconds-ago 604800) (skewed-icon :folder))
+                  (t (skewed-icon :folder-archive))))                        ; older: archive box
                 (time-ago
                  (if seconds-ago
                      (cond
@@ -371,7 +362,8 @@ Returns (:status OK|ERROR :time response-time-ms)."
                         (format "    %s\n"
                                (propertize 
                                 (format "%s %s (%s:%s)%s"
-                                        (if (string= (plist-get result :status) "OK") "✅" "❌")
+                                        (if (string= (plist-get result :status) "OK")
+					    (skewed-icon :check) (skewed-icon :cross))
                                         name host port
                                         (if (string= (plist-get result :status) "OK")
                                             (format " - %s" (or (plist-get result :time) "?ms"))
@@ -398,7 +390,7 @@ Returns (:status OK|ERROR :time response-time-ms)."
             (append
              (mapcar (lambda (service-info)
                        (let ((host (plist-get service-info :host))
-			     (icon (plist-get service-info :icon))
+                             (icon (plist-get service-info :icon))
                              (port (plist-get service-info :port))
                              (name (plist-get service-info :name)))
                          (format "    %s\n"
@@ -423,12 +415,14 @@ Returns (:status OK|ERROR :time response-time-ms)."
   (if list-size
       (let ((system-info (gather-system-info)))
         (list 
-         (format "    🐃 Emacs PID: %s | Uptime: %s\n" 
+         (format "    %s Emacs PID: %s | Uptime: %s\n"
+                 (skewed-icon :sys-process)
                  (plist-get system-info :emacs-pid)
                  (emacs-uptime))
          (let ((memory (plist-get system-info :memory-mb))
                (cpu-time (plist-get system-info :cpu-seconds)))
-           (format "    🧠 Memory: %s | CPU Time: %s\n"
+           (format "    %s Memory: %s | CPU Time: %s\n"
+                   (skewed-icon :sys-memory)
                    (if memory (format "%.1f MB" memory) "N/A")
                    (if cpu-time 
                        (let ((minutes (floor (/ cpu-time 60)))
@@ -437,14 +431,17 @@ Returns (:status OK|ERROR :time response-time-ms)."
                              (format "%dm %.1fs" minutes seconds)
                            (format "%.1fs" seconds)))
                      "N/A")))
-         (format "    📦 Packages: %d | Buffers: %d/%d total\n"
+         (format "    %s Packages: %d | Buffers: %d/%d total\n"
+                 (skewed-icon :sys-package)
                  (plist-get system-info :active-packages)
                  (plist-get system-info :visible-buffers)
                  (plist-get system-info :total-buffers))
-         (format "    🎪 Version: %s | Platform: %s\n"
+         (format "    %s Version: %s | Platform: %s\n"
+                 (skewed-icon :sys-version)
                  (plist-get system-info :emacs-version)
                  (plist-get system-info :system-type))
-         (format "    🕐 Time: %s %s\n"
+         (format "    %s Time: %s %s\n"
+                 (skewed-icon :sys-time)
                  (plist-get system-info :current-time)
                  (format-time-string "%Z"))))
     '()))
@@ -577,9 +574,9 @@ $$    $$/ $$ | $$  |$$       |$$$/    $$$ |$$       |$$    $$/
   "Generate our needed dashboard banner TEXT-FILE."
   (unless text-file (setq text-file skewed-dashboard-banner-file))
   (let ((skewed-banner (plist-get
-			(plist-get skewed-dashboard-banners :big-money-sw) :skewed))
+                        (plist-get skewed-dashboard-banners :big-money-sw) :skewed))
         (emacs-banner (plist-get
-		       (plist-get skewed-dashboard-banners :big-money-se) :emacs)))
+                       (plist-get skewed-dashboard-banners :big-money-se) :emacs)))
 
     (write-region (concat skewed-banner emacs-banner) nil text-file nil nil nil nil)
     ))
