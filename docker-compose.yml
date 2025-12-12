@@ -45,6 +45,7 @@ services:
           create_host_path: true
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /var/run/docker.sock:/var/run/docker.sock
+      - ${EMACS_LOCAL_SRC:-/this-path-definitely-does-not-exist}/.emacs-local:/home/emacs-user/.emacs-local:ro
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
     networks:

@@ -417,9 +417,8 @@ Returns (hash-table . earliest-date)."
                     (is-future (skewed-icon :japa-future))
                     (is-before-tracking (skewed-icon :japa-future))
                     (is-today 
-                     (skewed-icon-today-wrap
                      (or (my/japa-day-icon (or day-rounds 0))
-                         (skewed-icon :japa-zero))))
+                         (skewed-icon :japa-zero)))
                     ((null day-rounds) (skewed-icon :japa-zero))
                     (t (my/japa-day-icon day-rounds)))))
         (push icon icons)))

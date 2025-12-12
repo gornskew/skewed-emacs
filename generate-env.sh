@@ -51,6 +51,11 @@ DOCKER_NETWORK_NAME=skewed-network
 TERM=xterm-256color
 COLORTERM=truecolor
 
+$(if [ -f "$USER_HOME/.emacs-local" ]; then
+    echo "EMACS_LOCAL_SRC=$USER_HOME"
+    echo "# Found ~/.emacs-local → will be mounted read-only into container"
+fi)
+
 # Timezone (detected from host)
 TZ=$HOST_TZ
 
