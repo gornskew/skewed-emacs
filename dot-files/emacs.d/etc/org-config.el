@@ -5,6 +5,11 @@
 ;;; Code:
 
 (require 'org-habit)
+
+;; Use ellipsis instead of $ for truncated lines
+(unless standard-display-table
+  (setq standard-display-table (make-display-table)))
+(set-display-table-slot standard-display-table 'truncation (make-glyph-code ?… 'escape-glyph))
 (setq org-habit-completed-glyph ?✓
       org-habit-today-glyph ?🧹)
 (set-face-attribute 'org-habit-alert-face nil :background "#2d6a6a")
@@ -343,6 +348,98 @@ Mala: N/16 or N/16/M where M is 1-based (1=first set of 16)."
 (add-hook 'org-agenda-finalize-hook         #'my/japa-agenda-finalize-hook)
 
 (advice-add 'org-store-log-note :after #'my/org-save-all-org-buffers)
+
+
+
+;; ============================================================================
+;; Japa habit graph - custom icons based on round counts  
+;; ============================================================================
+
+(defun my/japa-get-rounds-by-date ()
+  "Get hash table of date -> total rounds by summing standalone numbers.
+Returns (hash-table . earliest-date)."
+  (let ((by-date (make-hash-table :test 'equal))
+        (earliest-date nil))
+    (when my/org-projects-file
+      (with-current-buffer (find-file-noselect my/org-projects-file)
+        (save-excursion
+          (goto-char (point-min))
+          (when (search-forward my/japa-headline-pattern nil t)
+            (let ((end (save-excursion (org-end-of-subtree t) (point))))
+              (while (re-search-forward "CLOCK: \\[\\([0-9-]+\\)" end t)
+                (let ((date (match-string 1)))
+                  (when (or (null earliest-date) (string< date earliest-date))
+                    (setq earliest-date date))
+                  (unless (gethash date by-date)
+                    (puthash date 0 by-date))
+                  (forward-line 1)
+                  (when (looking-at "[ \t]+- \\(.+\\)")
+                    (let* ((note (match-string 1))
+                           (parsed (my/japa-parse-note note))
+                           (rounds (car parsed)))
+                      (when rounds
+                        (puthash date (+ (gethash date by-date 0) rounds) by-date)))))))))))
+    (cons by-date earliest-date)))
+
+(defun my/japa-day-icon (rounds)
+  "Return icon for ROUNDS completed."
+  (cond
+   ((null rounds) nil)
+   ((= rounds 0) "☀️")                 ; Zero: sun
+   ((< rounds 16) "📿")               ; In progress: mala beads
+   ((< rounds 20) "✅")               ; Goal met: checkmark
+   ((< rounds 24) "🔥")               ; Bonus level 1
+   ((< rounds 32) "💪")               ; Bonus level 2
+   ((< rounds 64) "🏆")               ; Achievement: trophy
+   (t "🚀")))                          ; Epic: rocket
+
+(defun my/japa-build-custom-graph ()
+  "Build custom japa habit graph - 7 day window (4 past + today + 2 future)."
+  (let* ((today (format-time-string "%Y-%m-%d"))
+         (today-time (org-time-string-to-time today))
+         (data-and-earliest (my/japa-get-rounds-by-date))
+         (rounds-data (car data-and-earliest))
+         (earliest-date (cdr data-and-earliest))
+         (preceding 4)   ; 4 days back
+         (following 2)   ; 2 days forward
+         (icons '()))
+    (dotimes (i (+ preceding following 1))
+      (let* ((day-offset (- i preceding))
+             (day-time (time-add today-time (days-to-time day-offset)))
+             (day-str (format-time-string "%Y-%m-%d" day-time))
+             (day-rounds (gethash day-str rounds-data))
+             (is-today (= day-offset 0))
+             (is-future (> day-offset 0))
+             (is-before-tracking (and earliest-date (string< day-str earliest-date)))
+             (icon (cond
+                    (is-future "·")
+                    (is-before-tracking "·")
+                    (is-today 
+                     (concat "⟦" (or (my/japa-day-icon (or day-rounds 0)) "☀️") "⟧"))
+                    ((null day-rounds) "☀️")
+                    (t (my/japa-day-icon day-rounds)))))
+        (push icon icons)))
+    (string-join (nreverse icons) " ")))
+
+(defun my/japa-replace-habit-graph-in-agenda ()
+  "Replace standard habit graph for japa with custom icon-based graph."
+  (when (derived-mode-p 'org-agenda-mode)
+    (save-excursion
+      (goto-char (point-min))
+      (when (re-search-forward "Today's japa" nil t)
+        (let* ((line-end (line-end-position))
+               (custom-graph (my/japa-build-custom-graph)))
+          (move-to-column (or org-habit-graph-column 40))
+          (when (< (point) line-end)
+            (let ((graph-start (point))
+                  (inhibit-read-only t))
+              (delete-region graph-start line-end)
+              (insert " " custom-graph))))))))
+
+(add-hook 'org-agenda-finalize-hook #'my/japa-replace-habit-graph-in-agenda 90)
+
+
+
 
 (provide 'org-config)
 ;;; org-config.el ends here
