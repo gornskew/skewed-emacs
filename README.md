@@ -5,7 +5,7 @@ Model Context Protocol (MCP) integration, enabling AI agents to
 interact directly with Emacs and other Lisp REPLs for automated
 development workflows.
 
-![Skewed Emacs Logo](img/skewed-dash.jpg)
+![Skewed Emacs Logo](img/skewed-nerd.jpeg)
 
 This README assumes that you have access to a system with a
 [bash](https://www.gnu.org/software/bash/) shell and
@@ -43,6 +43,56 @@ This Skewed Emacs repository houses essentially three things:
   - Docker Compose orchestration for running configured skewed-emacs with
     other helpful containers such as lisply-mcp for the Lisply-MCP compatible middleware.
 
+
+## Terminal Icons Setup (Recommended)
+
+Skewed Emacs includes a flexible icon system for the dashboard and
+org-mode agenda. For the best visual experience, we recommend
+installing a **Nerd Font** in your terminal.
+
+### Why Nerd Fonts?
+
+The default `unicode` icon style uses safe geometric symbols that work
+everywhere but look plain. With a Nerd Font installed, you get rich,
+visually distinctive icons throughout the interface.
+
+### Quick Setup
+
+1. **Download a Nerd Font** from [nerdfonts.com](https://www.nerdfonts.com/font-downloads)
+   - Popular choices: **Hack**, **FiraCode**, **JetBrainsMono**, **Meslo**
+   - Download the "Nerd Font" version (not the regular font)
+
+2. **Install the font** on your system:
+   - **Windows**: Right-click the `.ttf` files → "Install"
+   - **macOS**: Double-click the `.ttf` files → "Install Font"
+   - **Linux**: Copy to `~/.local/share/fonts/` and run `fc-cache -fv`
+
+3. **Configure your terminal** to use the Nerd Font:
+   - **Windows Terminal**: Settings → Profiles → Defaults → Appearance → Font face
+   - **iTerm2**: Preferences → Profiles → Text → Font
+   - **GNOME Terminal**: Preferences → Profile → Custom font
+   - **Alacritty**: Edit `font.normal.family` in config
+
+4. **Enable nerd icons in Skewed Emacs** by adding to your config or running:
+   ```elisp
+   (setq skewed-icons-style 'nerd)
+   ```
+   Or interactively: `M-x skewed-icons-set-style RET nerd RET`
+
+### Available Icon Styles
+
+| Style | Description | When to Use |
+|-------|-------------|-------------|
+| `ascii` | Pure ASCII characters | Dumb terminals, serial consoles |
+| `unicode` | Safe geometric symbols | Default, works everywhere |
+| `unicode-fancy` | Colorful Unicode + VS15 | Experimental, terminal support varies |
+| `nerd` | Nerd Font icons | **Recommended** with Nerd Font installed |
+
+### Troubleshooting Icons
+
+- **Question marks in diamonds (�)**: Nerd Font not installed or not selected in terminal
+- **Misaligned columns**: Switch from `unicode-fancy` to `unicode` or `nerd`
+- **Icons look plain**: Install a Nerd Font and set `skewed-icons-style` to `'nerd`
 
 ## Windows Keyboard Tweaks for Emacs
 

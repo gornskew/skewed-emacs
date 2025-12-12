@@ -142,7 +142,7 @@
                       (org-agenda-skip-function
                        '(if (my/org-has-urgent-inbox-p) nil '(goto-char (point-max))))
                       (org-agenda-overriding-header
-                       (if (my/org-has-urgent-inbox-p) "⚡ Urgent (from Inbox)" ""))))
+                       (if (my/org-has-urgent-inbox-p) (concat (skewed-icon :lightning) " Urgent (from Inbox)") ""))))
           (tags-todo "must"   ((org-agenda-overriding-header "Must Do")))
           (tags-todo "should" ((org-agenda-overriding-header "Should Do")))
           (tags-todo "could"  ((org-agenda-overriding-header "Could Do"))))
@@ -206,7 +206,7 @@
   (advice-add 'dbus-call-method :around #'skewed-emacs--dbus-suppress-session)
   (setq org-show-notification-handler
         (lambda (msg)
-          (message "🔔 Org: %s" msg)
+          (message (concat (skewed-icon :bell) " Org: %s") msg)
           (let ((orig-bg (face-attribute 'mode-line :background)))
             (set-face-attribute 'mode-line nil :background "DarkOrange")
             (run-with-timer 0.5 nil
@@ -320,8 +320,8 @@ Mala: N/16 or N/16/M where M is 1-based (1=first set of 16)."
           (mala (my/japa-get-today-mala)))
       (when (and mala (> rounds 0))
         (if (= rounds mala)
-            (message "📿 ✓ Checksum OK: %d rounds = %s" rounds (my/japa-mala-format mala))
-          (message "📿 ⚠ Mismatch: recorded %d, mala shows %s (%d)"
+            (message (concat (skewed-icon :japa-complete) " ✓ Checksum OK: %d rounds = %s") rounds (my/japa-mala-format mala))
+          (message (concat (skewed-icon :warning) " Mismatch: recorded %d, mala shows %s (%d)")
                    rounds (my/japa-mala-format mala) mala))))))
 
 (defun my/japa-agenda-finalize-hook ()
