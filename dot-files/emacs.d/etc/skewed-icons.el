@@ -33,6 +33,7 @@
   :group 'skewed-emacs
   :prefix "skewed-icons-")
 
+
 (defcustom skewed-icons-style 'unicode
   "Icon style to use.
 - `ascii': Pure ASCII, universal
@@ -55,7 +56,7 @@
     (:sys-process . "*") (:sys-memory . "*") (:sys-package . "*") (:sys-version . "*") (:sys-time . "*")
     (:japa-zero . ".") (:japa-progress . "o") (:japa-complete . "+")
     (:japa-bonus1 . "*") (:japa-bonus2 . "#") (:japa-bonus3 . "@") (:japa-epic . "!")
-    (:japa-today-l . "[") (:japa-today-r . "]") (:japa-future . ".")
+    (:japa-today-l . "") (:japa-today-r . "") (:japa-future . ".")
     (:habit-done . "+") (:habit-today . "#")
     (:svc-ccl . "C") (:svc-sbcl . "S") (:svc-commercial . "$") (:svc-smp . "&")
     (:arrow-right . ">") (:arrow-left . "<") (:star . "*") (:clock . "@")
@@ -105,8 +106,8 @@
     (:japa-bonus2    . "◈")      ; U+25C8 (bonus tier 2)
     (:japa-bonus3    . "❖")      ; U+2756 BLACK DIAMOND MINUS WHITE X
     (:japa-epic      . "✦")      ; U+2726 BLACK FOUR POINTED STAR
-    (:japa-today-l   . "⟨")      ; U+27E8 
-    (:japa-today-r   . "⟩")      ; U+27E9
+    (:japa-today-l   . "")      ; U+27E8 
+    (:japa-today-r   . "")      ; U+27E9
     (:japa-future    . "·")      ; U+00B7
     
     ;; Habits
@@ -232,8 +233,8 @@
                 (:japa-bonus2 . ,(nerd-icons-faicon "nf-fa-star"))
                 (:japa-bonus3 . ,(nerd-icons-faicon "nf-fa-trophy"))
                 (:japa-epic . ,(nerd-icons-faicon "nf-fa-heart"))
-                (:japa-today-l . "[")
-                (:japa-today-r . "]")
+                (:japa-today-l . "")
+                (:japa-today-r . "")
                 (:japa-future . "·")
                 (:habit-done . ,(nerd-icons-faicon "nf-fa-check"))
                 (:habit-today . ,(nerd-icons-faicon "nf-fa-calendar"))
@@ -310,3 +311,26 @@
 
 (provide 'skewed-icons)
 ;;; skewed-icons.el ends here
+
+
+;;; Helper for centered "today" indicators
+
+(defun skewed-icon-today-wrap (icon)
+  "Wrap ICON with today delimiters and apply visual styling.
+Styling is controlled by `skewed-icons-today-style'."
+  (let* ((left (skewed-icon :japa-today-l))
+         (right (skewed-icon :japa-today-r))
+         (face (pcase (or (bound-and-true-p skewed-icons-today-style) 'highlight)
+                 ('highlight '(:background "#3a3a3a" 
+                              :foreground "#ffaa00"
+                              :weight bold
+                              :box (:line-width 1 :color "#555555")))
+                 ('bold '(:weight bold))
+                 ('inverse '(:inverse-video t :weight bold))
+                 ('subtle '(:background "#2a2a2a" :weight bold))
+                 ('plain nil)
+                 (_ '(:weight bold)))))
+    ;; Just style the icon, no extra spaces
+    (if face
+        (concat left (propertize icon 'face face) right)
+      (concat left icon right))))
