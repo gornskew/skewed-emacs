@@ -1,11 +1,6 @@
 ;;; Dashboard Config --- splashy dash  -*- lexical-binding: nil -*-
 ;;; Dashboard setup
 
-;; To Do:
-;;
-;;
-;;
-
 (require 'subr-x)
 (require 'url)
 (require 'dashboard)
@@ -26,7 +21,7 @@
        "/projects/" "~/projects/")))
 
 (dashboard-setup-startup-hook)
-(setq dashboard-banner-logo-title "𝑺𝑲𝑬𝑾𝑬𝑫 𝑬𝑴𝑨𝑪𝑺")
+(setq dashboard-banner-logo-title nil)
 
 (setq dashboard-startup-banner skewed-dashboard-banner-file)
 
@@ -36,7 +31,6 @@
                         (lisply-status . 1)
                         (system-info . 1)
                         ))
-
 
 (setq dashboard-item-generators
       (append '((help . dashboard-insert-help-info)
@@ -56,6 +50,28 @@
         (dashboard-refresh-buffer)
         (get-buffer-create "*dashboard*")))
 
+;;; Helper for Alignment =======================================================
+
+(defun skewed-dashboard-is-wide-char-p (icon-str)
+  "Return t if the first char of ICON-STR is in a known wide Unicode range.
+This detects 'Ghost' icons (like ⚙) that Emacs claims are width 1 but display as 2."
+  (let ((char (aref icon-str 0)))
+    (or 
+     (and (>= char #x2600) (<= char #x27BF))   ;; Misc Symbols & Dingbats (e.g. ⚙, ✈, ✔)
+     (and (>= char #x1F300) (<= char #x1F9FF)) ;; Modern Emoji / Symbols (e.g. 🚀, 🤖)
+     (and (>= char #x1F680) (<= char #x1F6FF)) ;; Transport / Map
+     (>= (string-width icon-str) 2))))         ;; Trust Emacs if it already says 2
+
+(defun skewed-dashboard-pad-icon (icon-key)
+  "Lookup icon by KEY and pad it.
+If the icon is a 'ghost' (visual width > Emacs width), we add extra padding."
+  (let* ((icon-str (skewed-icon icon-key))
+         (is-ghost (skewed-icon-is-ghost icon-key)))
+    (if is-ghost
+        (concat icon-str "  ") ;; Ghost: 2 spaces (Icon overlaps 1st space)
+      (concat icon-str " ")))) ;; Honest: 1 space
+
+;;; Item Generators ============================================================
 
 (defun dashboard-insert-help-info (list-size)
   "Insert getting-started info."
@@ -80,10 +96,6 @@
     (dolist (line (system-info-strings list-size))
       (insert line))))
 
-;;
-;; FLAG - get more sophisticated for determining live services for
-;; standalone runnings.
-;;
 (defun dashboard-insert-lisply-backends (list-size)
   "Insert Lisply backends status using propertized strings list."
   (when list-size
@@ -93,17 +105,247 @@
       (insert line))))
 
 (defun dashboard-insert-other-status (list-size)
-  "Insert other services status section using propertized strings list.  
+  "Insert other services status section using propertized strings list.
 LIST-SIZE used as boolean"
   (when list-size
-    (dashboard-insert-heading "SWANK Service hosts and ports:")
+    (dashboard-insert-heading "𝓢𝓦𝓐𝓝𝓚 Service hosts and ports:")
     (insert "\n")
     (dolist (line (other-status-strings list-size))
       (insert line))))
 
 
-;; Helper functions below. 
-;;
+;;; String Generators ==========================================================
+
+(defun help-info-strings ()
+  "Return a list of propertized strings for help dashboard item."
+  (list
+   (concat "    "
+           (propertize (concat (skewed-dashboard-pad-icon :help-book)
+                               "Emacs Tutorial: C-h C-t\n")
+                       'keymap (let ((map (make-sparse-keymap)))
+                                 (define-key map (kbd "RET") 'help-with-tutorial)
+                                 (define-key map [mouse-1] 'help-with-tutorial)
+                                 map)
+                       'face 'button
+                       'help-echo "Run Emacs tutorial (C-h C-t)"))
+   (concat "    "
+           (propertize (concat (skewed-dashboard-pad-icon :help-target)
+                               "Daily Focus: C-c a d\n")
+                       'keymap (let ((map (make-sparse-keymap))
+                                     (function (lambda () (interactive) (org-agenda nil "d"))))
+                                 (define-key map (kbd "RET") function)
+                                 (define-key map [mouse-1] function)
+                                 map)
+                       'face 'button
+                       'help-echo "Open daily focus agenda view (C-c a d)"))
+
+   (concat "    "
+           (propertize (concat (skewed-dashboard-pad-icon :help-rocket)
+                               "Gendl Repl: M-x slime-connect RET\n")
+                       'keymap (let ((map (make-sparse-keymap)))
+                                 (define-key map (kbd "RET") 'slime-connect)
+                                 (define-key map [mouse-1] 'slime-connect)
+                                 map)
+                       'face 'button
+                       'help-echo "Connect to Gendl REPL (slime-connect)"))
+   (concat "    "
+        (propertize (concat (skewed-dashboard-pad-icon :help-robot) "Claude Code: M-x claude-code\n")
+                       'keymap (let ((map (make-sparse-keymap))
+                                     (function (lambda () (interactive) (eat))))
+                                 (define-key map (kbd "RET") function)
+                                 (define-key map [mouse-1] function)
+                                 map)
+                       'face 'button
+                       'help-echo "Run claude-code.el in a *eat* terminal"))
+
+   (concat "    "
+        (propertize (concat (skewed-dashboard-pad-icon :help-palette) "M-x light-theme, dark-theme, load-theme\n")
+                       'keymap (let ((map (make-sparse-keymap)))
+                                 (define-key map (kbd "RET") 'load-theme)
+                                 (define-key map [mouse-1] 'load-theme)
+                                 map)
+                       'face 'button
+                       'help-echo "Run load-theme"))))
+
+
+(defun active-projects-strings (list-size)
+  "Return a list of propertized strings for active projects."
+  (let* ((project-dirs
+          (when (file-exists-p projects-dir)
+            (seq-filter
+             (lambda (dir)
+               (and (file-directory-p (expand-file-name dir projects-dir))
+                    (file-exists-p
+                     (expand-file-name (concat dir "/.git") projects-dir))))
+             (directory-files projects-dir nil "^[^.]"))))
+         (projects-with-mtime
+          (mapcar
+           (lambda (proj)
+             (let* ((full-path (expand-file-name proj projects-dir))
+                    (git-time (get-cached-directory-mtime
+                               full-path #'get-git-recent-activity))
+                    (dir-time (get-simple-directory-mtime full-path))
+                    (activity-time (or git-time dir-time)))
+               (cons proj activity-time)))
+           project-dirs))
+         (sorted-projects (sort projects-with-mtime
+                               (lambda (a b)
+                                 (time-less-p (cdr b) (cdr a)))))
+         (display-projects (seq-take sorted-projects (or list-size 8))))
+    (cond
+     (display-projects
+      (mapcar
+       (lambda (proj-time-pair)
+         (let* ((proj (car proj-time-pair))
+                (mtime (cdr proj-time-pair))
+                (full-path (expand-file-name proj projects-dir))
+                (seconds-ago
+                 (if (and mtime (not (equal mtime '(0 0))))
+                     (float-time (time-subtract (current-time) mtime))
+                   nil))
+                (folder-icon
+                 (cond
+                  ((null seconds-ago) :folder)
+                  ((< seconds-ago 86400) :folder-open)
+                  ((< seconds-ago 604800) :folder)
+                  (t :folder-archive)))
+                (time-ago
+                 (if seconds-ago
+                     (cond
+                      ((< seconds-ago 3600)
+                       (format "%.0fm ago" (/ seconds-ago 60)))
+                      ((< seconds-ago 86400)
+                       (format "%.1fh ago" (/ seconds-ago 3600)))
+                      ((< seconds-ago 604800)
+                       (format "%.1fd ago" (/ seconds-ago 86400)))
+                      (t (format-time-string "%Y-%m-%d" mtime)))
+                   "unknown")))
+           (format "    %s - %s\n"
+                   (propertize (format "%s%s" (skewed-dashboard-pad-icon folder-icon) proj)
+                               'keymap (let ((map (make-sparse-keymap)))
+                                          (define-key map (kbd "RET")
+                                                      (eval
+                                                       `(lambda () (interactive)
+                                                          (dired ,full-path))))
+                                          (define-key map [mouse-1]
+                                                      `(lambda () (interactive)
+                                                         (dired ,full-path)))
+                                          map)
+                               'face 'button
+                               'help-echo (format "Open %s in Dired" full-path))
+                   time-ago)))
+       display-projects))
+     ((and (file-exists-p projects-dir)
+           (file-directory-p projects-dir))
+      (list (format "    --- No projects detected in %s ---\n" projects-dir)))
+     (t
+      (list (format "    --- No %s directory exists ---\n" projects-dir))))))
+
+
+(defun lisply-backends-strings (list-size)
+  "Return a list of propertized strings for lisply backends dashboard item."
+  (if list-size
+      (let ((backends (or (discover-network-lisply-backends)
+                          '((:host "localhost" :port 7080 :name "skewed-emacs")
+                            (:host "localhost" :port 9081 :name "gendl")))))
+        (if backends
+            (mapcar (lambda (backend)
+                      (let* ((host (plist-get backend :host))
+                             (port (plist-get backend :port))
+                             (name (or (plist-get backend :name) "unknown"))
+                             (result (silent-http-ping host port "/lisply/ping-lisp" 0.5))
+                             (is-ok (string= (plist-get result :status) "OK"))
+                             (icon (if is-ok :check :cross)))
+                        (format "    %s\n"
+                               (propertize
+                                (format "%s%s (%s:%s)%s"
+                                        (skewed-dashboard-pad-icon icon)
+                                        name host port
+                                        (if is-ok
+                                            (format " - %s" (or (plist-get result :time) "?ms"))
+                                          ""))
+                                'keymap (let ((map (make-sparse-keymap)))
+                                          (define-key map (kbd "RET")
+                                                      `(lambda () (interactive)
+                                                         (browse-url (format "http://%s:%s" ,host ,port))))
+                                          (define-key map [mouse-1]
+                                                      `(lambda () (interactive)
+                                                         (browse-url (format "http://%s:%s" ,host ,port))))
+                                          map)
+                                'face (if is-ok 'success 'error)
+                                'help-echo (format "Open %s Lisply backend in browser" name)))))
+                    backends)
+          (list "    No Lisply backends discovered\n")))
+    '()))
+
+(defun other-status-strings (list-size)
+  "Return a list of propertized strings for other status (SWANK services) dashboard item."
+  (if list-size
+      (let ((services (discover-swank-services)))
+        (if services
+            (append
+             (mapcar (lambda (service-info)
+                       (let* ((host (plist-get service-info :host))
+                              (icon (plist-get service-info :icon))
+                              (port (plist-get service-info :port))
+                              (name (plist-get service-info :name)))
+                         (format "    %s\n"
+                                 (propertize
+                                  ;; Use pad-icon helper to guarantee alignment
+                                  (format "%s%s on %s" (skewed-dashboard-pad-icon icon) (or name host) port)
+                                  'keymap (let ((map (make-sparse-keymap)))
+                                            (define-key map (kbd "RET")
+                                                        `(lambda () (interactive)
+                                                           (slime-connect ,host ,port)))
+                                            (define-key map [mouse-1]
+                                                        `(lambda () (interactive)
+                                                           (slime-connect ,host ,port)))
+                                            map)
+                                  'face 'button
+                                  'help-echo (format "Connect to SLIME on %s:%s" host port)))))
+                     services)
+             (list "  Enter via an above link or use 𝙼-𝚡 𝚜𝚕𝚒𝚖𝚎-𝚌𝚘𝚗𝚗𝚎𝚌𝚝.\n"))
+          (list "  No SWANK services detected\n")))
+    '()))
+
+(defun system-info-strings (list-size)
+  "Return a list of propertized strings for system information dashboard item."
+  (if list-size
+      (let ((system-info (gather-system-info)))
+        (list
+         (format "    %sEmacs PID: %s | Uptime: %s\n"
+                 (skewed-dashboard-pad-icon :sys-process)
+                 (plist-get system-info :emacs-pid)
+                 (emacs-uptime))
+         (let ((memory (plist-get system-info :memory-mb))
+               (cpu-time (plist-get system-info :cpu-seconds)))
+           (format "    %sMemory: %s | CPU Time: %s\n"
+                   (skewed-dashboard-pad-icon :sys-memory)
+                   (if memory (format "%.1f MB" memory) "N/A")
+                   (if cpu-time
+                       (let ((minutes (floor (/ cpu-time 60)))
+                             (seconds (mod cpu-time 60)))
+                         (if (> minutes 0)
+                             (format "%dm %.1fs" minutes seconds)
+                           (format "%.1fs" seconds)))
+                     "N/A")))
+         (format "    %sPackages: %d | Buffers: %d/%d total\n"
+                 (skewed-dashboard-pad-icon :sys-package)
+                 (plist-get system-info :active-packages)
+                 (plist-get system-info :visible-buffers)
+                 (plist-get system-info :total-buffers))
+         (format "    %sVersion: %s | Platform: %s\n"
+                 (skewed-dashboard-pad-icon :sys-version)
+                 (plist-get system-info :emacs-version)
+                 (plist-get system-info :system-type))
+         (format "    %sTime: %s %s\n"
+                 (skewed-dashboard-pad-icon :sys-time)
+                 (plist-get system-info :current-time)
+                 (format-time-string "%Z"))))
+    '()))
+
+
+;;; Utilities and Banner =======================================================
 
 (defun silent-http-ping (host port endpoint &optional timeout)
   "Ping HTTP ENDPOINT on HOST at PORT silently.
@@ -111,11 +353,11 @@ Returns (:status OK|ERROR :time response-time-ms)."
   (let ((url (format "http://%s:%d%s" host port (or endpoint "/")))
         (url-request-timeout (or timeout 2))
         (start-time (current-time))
-        (inhibit-message t)		; Suppress all messages
-        (message-log-max nil)		; Don't log messages
-        (url-show-status nil)		; Don't show URL status
-        (url-automatic-caching nil)	; Disable caching
-        (url-debug nil))		; Disable debug output
+        (inhibit-message t)             ; Suppress all messages
+        (message-log-max nil)           ; Don't log messages
+        (url-show-status nil)           ; Don't show URL status
+        (url-automatic-caching nil)     ; Disable caching
+        (url-debug nil))                ; Disable debug output
     (condition-case err
         (let ((buffer (url-retrieve-synchronously url nil t url-request-timeout)))
           (if buffer
@@ -221,351 +463,123 @@ Returns (:status OK|ERROR :time response-time-ms)."
         (puthash cache-key (list :mtime new-mtime :timestamp now) project-mtime-cache)
         new-mtime))))
 
-(defun help-info-strings ()
-  "Return a list of propertized strings for help dashboard item."
-  (list
-   (concat "    "
-           (propertize (concat (skewed-icon :help-book)
-			       " Emacs Tutorial: C-h C-t\n")
-                       'keymap (let ((map (make-sparse-keymap)))
-                                 (define-key map (kbd "RET") 'help-with-tutorial)
-                                 (define-key map [mouse-1] 'help-with-tutorial)
-                                 map)
-                       'face 'button
-                       'help-echo "Run Emacs tutorial (C-h C-t)"))
-   (concat "    "
-           (propertize (concat (skewed-icon :help-target)
-			       " Daily Focus: C-c a d\n")
-                       'keymap (let ((map (make-sparse-keymap))
-                                     (function (lambda () (interactive) (org-agenda nil "d"))))
-                                 (define-key map (kbd "RET") function)
-                                 (define-key map [mouse-1] function)
-                                 map)
-                       'face 'button
-                       'help-echo "Open daily focus agenda view (C-c a d)"))
-   
-   (concat "    "
-           (propertize (concat (skewed-icon :help-rocket)
-			       " Gendl Repl: M-x slime-connect RET\n")
-                       'keymap (let ((map (make-sparse-keymap)))
-                                 (define-key map (kbd "RET") 'slime-connect)
-                                 (define-key map [mouse-1] 'slime-connect)
-                                 map)
-                       'face 'button
-                       'help-echo "Connect to Gendl REPL (slime-connect)"))
-   (concat "    "
-        (propertize (concat (skewed-icon :help-robot) " Claude Code: M-x claude-code\n")
-                       'keymap (let ((map (make-sparse-keymap))
-                                     (function (lambda () (interactive) (eat))))
-                                 (define-key map (kbd "RET") function)
-                                 (define-key map [mouse-1] function)
-                                 map)
-                       'face 'button
-                       'help-echo "Run claude-code.el in a *eat* terminal"))
-   
-   (concat "    "
-        (propertize (concat (skewed-icon :help-palette) " M-x light-theme, dark-theme, load-theme\n")
-                       'keymap (let ((map (make-sparse-keymap)))
-                                 (define-key map (kbd "RET") 'load-theme)
-                                 (define-key map [mouse-1] 'load-theme)
-                                 map)
-                       'face 'button
-                       'help-echo "Run load-theme"))))
-
-                              
-(defun active-projects-strings (list-size)
-  "Return a list of propertized strings for active projects."
-  (let* ((project-dirs
-          (when (file-exists-p projects-dir)
-            (seq-filter
-             (lambda (dir)
-               (and (file-directory-p (expand-file-name dir projects-dir))
-                    (file-exists-p
-                     (expand-file-name (concat dir "/.git") projects-dir))))
-             (directory-files projects-dir nil "^[^.]"))))
-         (projects-with-mtime
-          (mapcar
-           (lambda (proj)
-             (let* ((full-path (expand-file-name proj projects-dir))
-                    (git-time (get-cached-directory-mtime
-                               full-path #'get-git-recent-activity))
-                    (dir-time (get-simple-directory-mtime full-path))
-                    (activity-time (or git-time dir-time)))
-               (cons proj activity-time)))
-           project-dirs))
-         (sorted-projects (sort projects-with-mtime
-                               (lambda (a b)
-                                 (time-less-p (cdr b) (cdr a)))))
-         (display-projects (seq-take sorted-projects (or list-size 8))))
-    (cond
-     (display-projects
-      (mapcar
-       (lambda (proj-time-pair)
-         (let* ((proj (car proj-time-pair))
-                (mtime (cdr proj-time-pair))
-                (full-path (expand-file-name proj projects-dir))
-                (seconds-ago
-                 (if (and mtime (not (equal mtime '(0 0))))
-                     (float-time (time-subtract (current-time) mtime))
-                   nil))
-                (folder-icon
-                 (cond
-                  ((null seconds-ago) (skewed-icon :folder))
-                  ((< seconds-ago 86400) (skewed-icon :folder-open))
-                  ((< seconds-ago 604800) (skewed-icon :folder))
-                  (t (skewed-icon :folder-archive))))                        ; older: archive box
-                (time-ago
-                 (if seconds-ago
-                     (cond
-                      ((< seconds-ago 3600)
-                       (format "%.0fm ago" (/ seconds-ago 60)))
-                      ((< seconds-ago 86400)
-                       (format "%.1fh ago" (/ seconds-ago 3600)))
-                      ((< seconds-ago 604800)
-                       (format "%.1fd ago" (/ seconds-ago 86400)))
-                      (t (format-time-string "%Y-%m-%d" mtime)))
-                   "unknown")))
-           (format "    %s - %s\n"
-                   (propertize (format "%s %s" folder-icon proj)
-                               'keymap (let ((map (make-sparse-keymap)))
-                                         (define-key map (kbd "RET")
-                                                     (eval
-                                                      `(lambda () (interactive)
-                                                         (dired ,full-path))))
-                                         (define-key map [mouse-1]
-                                                     `(lambda () (interactive)
-                                                        (dired ,full-path)))
-                                         map)
-                               'face 'button
-                               'help-echo (format "Open %s in Dired" full-path))
-                   time-ago)))
-       display-projects))
-     ((and (file-exists-p projects-dir)
-           (file-directory-p projects-dir))
-      (list (format "    --- No projects detected in %s ---\n" projects-dir)))
-     (t
-      (list (format "    --- No %s directory exists ---\n" projects-dir))))))
-
-
-(defun lisply-backends-strings (list-size)
-  "Return a list of propertized strings for lisply backends dashboard item."
-  (if list-size
-      (let ((backends (or (discover-network-lisply-backends)
-                         '((:host "localhost" :port 7080 :name "skewed-emacs")
-                           (:host "localhost" :port 9081 :name "gendl")))))
-        (if backends
-            (mapcar (lambda (backend)
-                      (let* ((host (plist-get backend :host))
-                             (port (plist-get backend :port))
-                             (name (or (plist-get backend :name) "unknown"))
-                             (result (silent-http-ping host port "/lisply/ping-lisp" 0.5)))
-                        (format "    %s\n"
-                               (propertize 
-                                (format "%s %s (%s:%s)%s"
-                                        (if (string= (plist-get result :status) "OK")
-					    (skewed-icon :check) (skewed-icon :cross))
-                                        name host port
-                                        (if (string= (plist-get result :status) "OK")
-                                            (format " - %s" (or (plist-get result :time) "?ms"))
-                                          ""))
-                                'keymap (let ((map (make-sparse-keymap)))
-                                          (define-key map (kbd "RET")
-                                                      `(lambda () (interactive)
-                                                         (browse-url (format "http://%s:%s" ,host ,port))))
-                                          (define-key map [mouse-1]
-                                                      `(lambda () (interactive)
-                                                         (browse-url (format "http://%s:%s" ,host ,port))))
-                                          map)
-                                'face (if (string= (plist-get result :status) "OK") 'success 'error)
-                                'help-echo (format "Open %s Lisply backend in browser" name)))))
-                    backends)
-          (list "    No Lisply backends discovered\n")))
-    '()))
-
-(defun other-status-strings (list-size)
-  "Return a list of propertized strings for other status (SWANK services) dashboard item."
-  (if list-size
-      (let ((services (discover-swank-services)))
-        (if services
-            (append
-             (mapcar (lambda (service-info)
-                       (let ((host (plist-get service-info :host))
-                             (icon (plist-get service-info :icon))
-                             (port (plist-get service-info :port))
-                             (name (plist-get service-info :name)))
-                         (format "    %s\n"
-                                (propertize (format "%s %s on %s" icon host port)
-                                           'keymap (let ((map (make-sparse-keymap)))
-                                                     (define-key map (kbd "RET")
-                                                                 `(lambda () (interactive)
-                                                                    (slime-connect ,host ,port)))
-                                                     (define-key map [mouse-1]
-                                                                 `(lambda () (interactive)
-                                                                    (slime-connect ,host ,port)))
-                                                     map)
-                                           'face 'button
-                                           'help-echo (format "Connect to SLIME on %s:%s" host port)))))
-                     services)
-             (list "  Enter via an above link or use 𝙼-𝚡 𝚜𝚕𝚒𝚖𝚎-𝚌𝚘𝚗𝚗𝚎𝚌𝚝.\n"))
-          (list "  No SWANK services detected\n")))
-    '()))
-
-(defun system-info-strings (list-size)
-  "Return a list of propertized strings for system information dashboard item."
-  (if list-size
-      (let ((system-info (gather-system-info)))
-        (list 
-         (format "    %s Emacs PID: %s | Uptime: %s\n"
-                 (skewed-icon :sys-process)
-                 (plist-get system-info :emacs-pid)
-                 (emacs-uptime))
-         (let ((memory (plist-get system-info :memory-mb))
-               (cpu-time (plist-get system-info :cpu-seconds)))
-           (format "    %s Memory: %s | CPU Time: %s\n"
-                   (skewed-icon :sys-memory)
-                   (if memory (format "%.1f MB" memory) "N/A")
-                   (if cpu-time 
-                       (let ((minutes (floor (/ cpu-time 60)))
-                             (seconds (mod cpu-time 60)))
-                         (if (> minutes 0)
-                             (format "%dm %.1fs" minutes seconds)
-                           (format "%.1fs" seconds)))
-                     "N/A")))
-         (format "    %s Packages: %d | Buffers: %d/%d total\n"
-                 (skewed-icon :sys-package)
-                 (plist-get system-info :active-packages)
-                 (plist-get system-info :visible-buffers)
-                 (plist-get system-info :total-buffers))
-         (format "    %s Version: %s | Platform: %s\n"
-                 (skewed-icon :sys-version)
-                 (plist-get system-info :emacs-version)
-                 (plist-get system-info :system-type))
-         (format "    %s Time: %s %s\n"
-                 (skewed-icon :sys-time)
-                 (plist-get system-info :current-time)
-                 (format-time-string "%Z"))))
-    '()))
-
-
-
-
 (defvar skewed-dashboard-banners
   '(:blur-vision
     "
- ░▒▓███████▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░▒▓███████▓▒░  
-░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░ 
-░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░ 
- ░▒▓██████▓▒░░▒▓███████▓▒░░▒▓██████▓▒░ ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓██████▓▒░ ░▒▓█▓▒░░▒▓█▓▒░ 
-       ░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░ 
-       ░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░ 
-░▒▓███████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░░▒▓█████████████▓▒░░▒▓████████▓▒░▒▓███████▓▒░  
-                                                                                       
-                                                                                       
+ ░▒▓███████▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░▒▓███████▓▒░ 
+░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░
+░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░
+ ░▒▓██████▓▒░░▒▓███████▓▒░░▒▓██████▓▒░ ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓██████▓▒░ ░▒▓█▓▒░░▒▓█▓▒░
+       ░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░
+       ░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░
+░▒▓███████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░░▒▓█████████████▓▒░░▒▓████████▓▒░▒▓███████▓▒░ 
+                                                                                      
+                                                                                      
       ░▒▓████████▓▒░▒▓██████████████▓▒░ ░▒▓██████▓▒░ ░▒▓██████▓▒░ ░▒▓███████▓▒░        
-      ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░               
-      ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░               
-      ░▒▓██████▓▒░ ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░▒▓█▓▒░       ░▒▓██████▓▒░         
-      ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░             ░▒▓█▓▒░        
+      ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░              
+      ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░       ░▒▓█▓▒░              
+      ░▒▓██████▓▒░ ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░▒▓█▓▒░       ░▒▓██████▓▒░        
+      ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░            ░▒▓█▓▒░        
       ░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░      ░▒▓█▓▒░        
-      ░▒▓████████▓▒░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░░▒▓██████▓▒░░▒▓███████▓▒░        
+      ░▒▓████████▓▒░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░░▒▓██████▓▒░░▒▓███████▓▒░
 "
     :big-money-ne
     (:skewed
      "
-  /$$$$$$  /$$   /$$ /$$$$$$$$ /$$      /$$ /$$$$$$$$ /$$$$$$$ 
+  /$$$$$$  /$$   /$$ /$$$$$$$$ /$$       /$$ /$$$$$$$$ /$$$$$$$
  /$$__  $$| $$  /$$/| $$_____/| $$  /$ | $$| $$_____/| $$__  $$
-| $$  \\__/| $$ /$$/ | $$      | $$ /$$$| $$| $$      | $$  \\ $$
-|  $$$$$$ | $$$$$/  | $$$$$   | $$/$$ $$ $$| $$$$$   | $$  | $$
- \\____  $$| $$  $$  | $$__/   | $$$$_  $$$$| $$__/   | $$  | $$
- /$$  \\ $$| $$\\  $$ | $$      | $$$/ \\  $$$| $$      | $$  | $$
-|  $$$$$$/| $$ \\  $$| $$$$$$$$| $$/   \\  $$| $$$$$$$$| $$$$$$$/
- \\______/ |__/  \\__/|________/|__/     \\__/|________/|_______/
+| $$  \\__/| $$ /$$/ | $$       | $$ /$$$| $$| $$       | $$  \\ $$
+|  $$$$$$ | $$$$$/  | $$$$$    | $$/$$ $$ $$| $$$$$    | $$  | $$
+ \\____  $$| $$  $$  | $$__/    | $$$$_  $$$$| $$__/    | $$  | $$
+ /$$  \\ $$| $$\\  $$ | $$       | $$$/ \\  $$$| $$       | $$  | $$
+|  $$$$$$/| $$ \\  $$| $$$$$$$$| $$/    \\  $$| $$$$$$$$| $$$$$$$/
+ \\______/ |__/  \\__/|________/|__/      \\__/|________/|_______/
 "
      :emacs
      "
-       /$$$$$$$$ /$$      /$$  /$$$$$$   /$$$$$$   /$$$$$$     
-      | $$_____/| $$$    /$$$ /$$__  $$ /$$__  $$ /$$__  $$    
-      | $$      | $$$$  /$$$$| $$  \\ $$| $$  \\__/| $$  \\__/    
-      | $$$$$   | $$ $$/$$ $$| $$$$$$$$| $$      |  $$$$$$     
-      | $$__/   | $$  $$$| $$| $$__  $$| $$       \\____  $$    
-      | $$      | $$\\  $ | $$| $$  | $$| $$    $$ /$$  \\ $$    
-      | $$$$$$$$| $$ \\/  | $$| $$  | $$|  $$$$$$/|  $$$$$$/    
-      |________/|__/     |__/|__/  |__/ \\______/  \\______/
+       /$$$$$$$$ /$$       /$$  /$$$$$$   /$$$$$$   /$$$$$$
+      | $$_____/| $$$     /$$$ /$$__  $$ /$$__  $$ /$$__  $$
+      | $$      | $$$$   /$$$$| $$  \\ $$| $$  \\__/| $$  \\__/
+      | $$$$$   | $$ $$/$$ $$| $$$$$$$$| $$       |  $$$$$$
+      | $$__/   | $$  $$$| $$| $$__  $$| $$        \\____  $$
+      | $$      | $$\\  $ | $$| $$  | $$| $$    $$ /$$  \\ $$
+      | $$$$$$$$| $$ \\/  | $$| $$  | $$|  $$$$$$/|  $$$$$$/
+      |________/|__/      |__/|__/  |__/ \\______/  \\______/
 ")
-    
+
     :big-money-nw
     (:skewed
      "
- $$$$$$\\  $$\\   $$\\ $$$$$$$$\\ $$\\      $$\\ $$$$$$$$\\ $$$$$$$\\  
-$$  __$$\\ $$ | $$  |$$  _____|$$ | $\\  $$ |$$  _____|$$  __$$\\ 
+ $$$$$$\\  $$\\   $$\\ $$$$$$$$\\ $$\\       $$\\ $$$$$$$$\\ $$$$$$$\\
+$$  __$$\\ $$ | $$  |$$  _____|$$ | $\\  $$ |$$  _____|$$  __$$\\
 $$ /  \\__|$$ |$$  / $$ |      $$ |$$$\\ $$ |$$ |      $$ |  $$ |
 \\$$$$$$\\  $$$$$  /  $$$$$\\    $$ $$ $$\\$$ |$$$$$\\    $$ |  $$ |
  \\____$$\\ $$  $$<   $$  __|   $$$$  _$$$$ |$$  __|   $$ |  $$ |
 $$\\   $$ |$$ |\\$$\\  $$ |      $$$  / \\$$$ |$$ |      $$ |  $$ |
-\\$$$$$$  |$$ | \\$$\\ $$$$$$$$\\ $$  /   \\$$ |$$$$$$$$\\ $$$$$$$  |
- \\______/ \\__|  \\__|\\________|\\__/     \\__|\\________|\\_______/ 
+\\$$$$$$  |$$ | \\$$\\ $$$$$$$$\\ $$  /    \\$$ |$$$$$$$$\\ $$$$$$$  |
+ \\______/ \\__|  \\__|\\________|\\__/      \\__|\\________|\\_______/
 "
      :emacs
      "
-      $$$$$$$$\\ $$\\      $$\\  $$$$$$\\   $$$$$$\\   $$$$$$\\      
-      $$  _____|$$$\\    $$$ |$$  __$$\\ $$  __$$\\ $$  __$$\\     
-      $$ |      $$$$\\  $$$$ |$$ /  $$ |$$ /  \\__|$$ /  \\__|    
-      $$$$$\\    $$\\$$\\$$ $$ |$$$$$$$$ |$$ |      \\$$$$$$\\      
-      $$  __|   $$ \\$$$  $$ |$$  __$$ |$$ |       \\____$$\\     
-      $$ |      $$ |\\$  /$$ |$$ |  $$ |$$ |  $$\\ $$\\   $$ |    
-      $$$$$$$$\\ $$ | \\_/ $$ |$$ |  $$ |\\$$$$$$  |\\$$$$$$  |    
-      \\________|\\__|     \\__|\\__|  \\__| \\______/  \\______/    
+       $$$$$$$$\\ $$\\       $$\\  $$$$$$\\   $$$$$$\\   $$$$$$\\
+       $$  _____|$$$\\     $$$ |$$  __$$\\ $$  __$$\\ $$  __$$\\
+       $$ |      $$$$\\   $$$$ |$$ /  $$ |$$ /  \\__|$$ /  \\__|
+       $$$$$\\    $$\\$$\\$$ $$ |$$$$$$$$ |$$ |      \\$$$$$$\\
+       $$  __|   $$ \\$$$  $$ |$$  __$$ |$$ |       \\____$$\\
+       $$ |      $$ |\\$  /$$ |$$ |  $$ |$$ |  $$\\ $$\\   $$ |
+       $$$$$$$$\\ $$ | \\_/ $$ |$$ |  $$ |\\$$$$$$  |\\$$$$$$  |
+       \\________|\\__|      \\__|\\__|  \\__| \\______/  \\______/
 ")
     :big-money-se
     (:skewed
     "
-  ______   __    __  ________  __       __  ________  _______  
- /      \\ |  \\  /  \\|        \\|  \\  _  |  \\|        \\|       \\ 
+  ______   __     __  ________  __        __  ________  _______
+ /      \\ |  \\   /  \\|        \\|  \\  _   |  \\|        \\|       \\
 |  $$$$$$\\| $$ /  $$| $$$$$$$$| $$ / \\ | $$| $$$$$$$$| $$$$$$$\\
-| $$___\\$$| $$/  $$ | $$__    | $$/  $\\| $$| $$__    | $$  | $$
- \\$$    \\ | $$  $$  | $$  \\   | $$  $$$\\ $$| $$  \\   | $$  | $$
- _\\$$$$$$\\| $$$$$\\  | $$$$$   | $$ $$\\$$\\$$| $$$$$   | $$  | $$
+| $$___\\$$| $$/  $$ | $$__     | $$/  $\\| $$| $$__     | $$  | $$
+ \\$$    \\ | $$  $$  | $$  \\    | $$  $$$\\ $$| $$  \\    | $$  | $$
+ _\\$$$$$$\\| $$$$$\\  | $$$$$    | $$ $$\\$$\\$$| $$$$$    | $$  | $$
 |  \\__| $$| $$ \\$$\\ | $$_____ | $$$$  \\$$$$| $$_____ | $$__/ $$
- \\$$    $$| $$  \\$$\\| $$     \\| $$$    \\$$$| $$     \\| $$    $$
+ \\$$    $$| $$  \\$$\\| $$      \\| $$$     \\$$$| $$      \\| $$    $$
   \\$$$$$$  \\$$   \\$$ \\$$$$$$$$ \\$$      \\$$ \\$$$$$$$$ \\$$$$$$$
 "
     :emacs
     "
-       ________  __       __   ______    ______    ______      
-      |        \\|  \\     /  \\ /      \\  /      \\  /      \\     
-      | $$$$$$$$| $$\\   /  $$|  $$$$$$\\|  $$$$$$\\|  $$$$$$\\    
-      | $$__    | $$$\\ /  $$$| $$__| $$| $$   \\$$| $$___\\$$    
-      | $$  \\   | $$$$\\  $$$$| $$    $$| $$       \\$$    \\     
-      | $$$$$   | $$\\$$ $$ $$| $$$$$$$$| $$   __  _\\$$$$$$\\    
-      | $$_____ | $$ \\$$$| $$| $$  | $$| $$__/  \\|  \\__| $$    
-      | $$     \\| $$  \\$ | $$| $$  | $$ \\$$    $$ \\$$    $$    
-       \\$$$$$$$$ \\$$      \\$$ \\$$   \\$$  \\$$$$$$   \\$$$$$$
+        ________  __        __   ______    ______    ______
+       |        \\|  \\      /  \\ /      \\  /      \\  /      \\
+       | $$$$$$$$| $$\\    /  $$|  $$$$$$\\|  $$$$$$\\|  $$$$$$\\
+       | $$__    | $$$\\ /  $$$| $$__| $$| $$    \\$$| $$___\\$$
+       | $$  \\   | $$$$\\  $$$$| $$    $$| $$       \\$$    \\
+       | $$$$$   | $$\\$$ $$ $$| $$$$$$$$| $$    __  _\\$$$$$$\\
+       | $$_____ | $$ \\$$$| $$| $$  | $$| $$__/  \\|  \\__| $$
+       | $$      \\| $$  \\$ | $$| $$  | $$ \\$$    $$ \\$$    $$
+        \\$$$$$$$$ \\$$      \\$$ \\$$    \\$$  \\$$$$$$   \\$$$$$$
 ")
-    
+
     :big-money-sw
     (:skewed
      "
-  ______   __    __  ________  __       __  ________  _______  
- /      \\ /  |  /  |/        |/  |  _  /  |/        |/       \\ 
+  ______   __     __  ________  __        __  ________  _______
+ /      \\ /  |   /  |/        |/  |  _   /  |/        |/       \\
 /$$$$$$  |$$ | /$$/ $$$$$$$$/ $$ | / \\ $$ |$$$$$$$$/ $$$$$$$  |
 $$ \\__$$/ $$ |/$$/  $$ |__    $$ |/$  \\$$ |$$ |__    $$ |  $$ |
 $$      \\ $$  $$<   $$    |   $$ /$$$  $$ |$$    |   $$ |  $$ |
  $$$$$$  |$$$$$  \\  $$$$$/    $$ $$/$$ $$ |$$$$$/    $$ |  $$ |
 /  \\__$$ |$$ |$$  \\ $$ |_____ $$$$/  $$$$ |$$ |_____ $$ |__$$ |
-$$    $$/ $$ | $$  |$$       |$$$/    $$$ |$$       |$$    $$/ 
+$$    $$/ $$ | $$  |$$       |$$$/    $$$ |$$       |$$    $$/
  $$$$$$/  $$/   $$/ $$$$$$$$/ $$/      $$/ $$$$$$$$/ $$$$$$$/
 "
      :emacs
      "
-       ________  __       __   ______    ______    ______      
-      /        |/  \\     /  | /      \\  /      \\  /      \\     
-      $$$$$$$$/ $$  \\   /$$ |/$$$$$$  |/$$$$$$  |/$$$$$$  |    
-      $$ |__    $$$  \\ /$$$ |$$ |__$$ |$$ |  $$/ $$ \\__$$/     
-      $$    |   $$$$  /$$$$ |$$    $$ |$$ |      $$      \\     
-      $$$$$/    $$ $$ $$/$$ |$$$$$$$$ |$$ |   __  $$$$$$  |    
-      $$ |_____ $$ |$$$/ $$ |$$ |  $$ |$$ \\__/  |/  \\__$$ |    
-      $$       |$$ | $/  $$ |$$ |  $$ |$$    $$/ $$    $$/     
-      $$$$$$$$/ $$/      $$/ $$/   $$/  $$$$$$/   $$$$$$/      
+        ________  __        __   ______    ______    ______
+       /        |/  \\      /  | /      \\  /      \\  /      \\
+       $$$$$$$$/ $$  \\    /$$ |/$$$$$$  |/$$$$$$  |/$$$$$$  |
+       $$ |__    $$$  \\ /$$$ |$$ |__$$ |$$ |  $$/ $$ \\__$$/
+       $$    |   $$$$  /$$$$ |$$    $$ |$$ |      $$      \\
+       $$$$$/    $$ $$ $$/$$ |$$$$$$$$ |$$ |    __  $$$$$$  |
+       $$ |_____ $$ |$$$/ $$ |$$ |  $$ |$$ \\__/  |/  \\__$$ |
+       $$       |$$ | $/  $$ |$$ |  $$ |$$    $$/ $$    $$/
+       $$$$$$$$/ $$/      $$/ $$/    $$/  $$$$$$/   $$$$$$/
 ")))
 
 
@@ -584,4 +598,3 @@ $$    $$/ $$ | $$  |$$       |$$$/    $$$ |$$       |$$    $$/
 
 (provide 'dashboard-config)
 ;;; dashboard-config.el ends here
-

@@ -34,17 +34,48 @@
   :prefix "skewed-icons-")
 
 
-(defcustom skewed-icons-style 'unicode
+(defcustom skewed-icons-style 'colorful
   "Icon style to use.
 - `ascii': Pure ASCII, universal
-- `unicode': Safe geometric Unicode (recommended)
-- `unicode-fancy': Richer Unicode with VS15 (may vary by terminal)
+- `unicode': Safe geometric Unicode (recommended for older terms)
+- `colorful': Windows Terminal style Emojis
 - `nerd': Nerd Font icons"
   :type '(choice (const :tag "ASCII" ascii)
-                 (const :tag "Unicode safe (recommended)" unicode)
-                 (const :tag "Unicode fancy (VS15)" unicode-fancy)
+                 (const :tag "Unicode geomeric" unicode)
+                 (const :tag "Colorful Emoji (WinTerm)" colorful)
                  (const :tag "Nerd Fonts" nerd))
   :group 'skewed-icons)
+
+
+;;; Width Fixing Logic =========================================================
+(defun skewed-icons--fix-widths ()
+  "Force Emacs to recognize standard Emoji and Symbol ranges as double-width.
+This synchronizes Emacs' internal width calculation with modern terminals."
+  ;; 1. Standard Emoji & Pictographs (covers most colorful icons)
+  (set-char-table-range char-width-table '(#x1F300 . #x1F9FF) 2)
+
+  ;; 2. Misc Symbols (covers the Gear ⚙ which is usually #x2699)
+  ;;    Range #x2600 - #x27BF covers Sun, Cloud, Check, Pointing Fingers, etc.
+  (set-char-table-range char-width-table '(#x2600 . #x27BF) 2)
+
+  ;; 3. Dingbats & Geometric Shapes (covers heavy checks, crosses, circles)
+  (set-char-table-range char-width-table '(#x2700 . #x27BF) 2)
+  
+  ;; 4. Supplemental Symbols (covers the Robot 🤖 and other newer additions)
+  (set-char-table-range char-width-table '(#x1F900 . #x1F9FF) 2)
+  
+  ;; 5. Transport and Map Symbols (covers the Airplane ✈ and Rocket 🚀)
+  (set-char-table-range char-width-table '(#x1F680 . #x1F6FF) 2)
+
+  ;; 6. Enclosed Alphanumeric Supplement (covers regional indicators, etc)
+  (set-char-table-range char-width-table '(#x1F100 . #x1F1FF) 2)
+
+  ;; 7. Specific overrides for characters often stuck in "text" presentation
+  ;;    The Airplane (U+2708) is tricky. It lives in Dingbats but often needs forcing.
+  (set-char-table-range char-width-table '(#x2708 . #x2708) 2) 
+
+  (message "Skewed-icons: Extended Emoji width fixes applied."))
+
 
 ;;; Icon Tables ================================================================
 
@@ -131,69 +162,69 @@
     (:ellipsis       . "…"))
   "Geometric Unicode - guaranteed never emojified.")
 
-;; Fancy unicode with colorful characters + VS15 to force text presentation
-(defconst skewed-icons--unicode-fancy-table
-  (let ((vs15 "\uFE0E"))  ; Variation Selector 15 = text presentation
-    `((:bullet         . "•")
-      (:bullet-hollow  . "◦")
-      (:bullet-tri     . "▸")
-      (:bullet-dash    . "─")
-      
-      (:check          . ,(concat "✔" vs15))
-      (:cross          . ,(concat "✘" vs15))
-      (:warning        . ,(concat "⚠" vs15))
-      (:info           . "ℹ")
-      (:ok             . ,(concat "✔" vs15))
-      (:error          . ,(concat "✘" vs15))
-      
-      (:folder         . "▪")
-      (:folder-open    . "▫")  
-      (:folder-archive . "◆")
-      (:file           . "─")
-      
-      (:help-book      . ,(concat "❧" vs15))
-      (:help-target    . "◎")
-      (:help-rocket    . "▲")
-      (:help-robot     . ,(concat "⚙" vs15))
-      (:help-palette   . ,(concat "✿" vs15))
-      
-      (:sys-process    . ,(concat "⚙" vs15))
-      (:sys-memory     . "◐")
-      (:sys-package    . "◆")
-      (:sys-version    . "◇")
-      (:sys-time       . "◷")
-      
-      ;; Japa - colorful with VS15
-      (:japa-zero      . ,(concat "☀" vs15))   ; sun
-      (:japa-progress  . "◐")
-      (:japa-complete  . "●")
-      (:japa-bonus1    . "◉")
-      (:japa-bonus2    . ,(concat "★" vs15))   ; star
-      (:japa-bonus3    . "✦")
-      (:japa-epic      . ,(concat "❤" vs15))   ; heart
-      (:japa-today-l   . "⟨")
-      (:japa-today-r   . "⟩")
-      (:japa-future    . "·")
-      
-      (:habit-done     . ,(concat "✔" vs15))
-      (:habit-today    . "▸")
-      
-      (:svc-ccl        . "◇")
-      (:svc-sbcl       . "◆")
-      (:svc-commercial . "▸")
-      (:svc-smp        . "▶")
-      
-      (:arrow-right    . "→")
-      (:arrow-left     . "←")
-      (:star           . ,(concat "★" vs15))
-      (:clock          . "◷")
-      (:bell           . ,(concat "♪" vs15))
-      (:lightning      . "↯")
-      (:dot            . "·")
-      (:ellipsis       . "…")))
-  "Fancy Unicode with VS15 for text presentation.")
 
-;; Nerd font table - populated lazily
+;; In skewed-icons.el
+
+(defconst skewed-icons--colorful-table
+  ;; Format: (:key . ("ICON_CHAR" . NEEDS_EXTRA_PADDING?))
+  ;; If NEEDS_EXTRA_PADDING is t, we add 1 extra space to compensate for "Ghost" width.
+  '((:bullet          . ("•" . nil))
+    (:bullet-hollow   . ("◦" . nil))
+    (:bullet-tri      . ("▸" . nil))
+    (:bullet-dash     . ("─" . nil))
+
+    (:check           . ("✔" . t))   ;; Heavy check often ghosts
+    (:cross           . ("✘" . t))   ;; Heavy X often ghosts
+    (:warning         . ("⚠" . t))   ;; Warning sign often ghosts
+    (:info            . ("ℹ" . t))
+    (:ok              . ("✔" . t))
+    (:error           . ("✘" . t))
+
+    (:folder          . ("📁" . nil)) ;; Usually honest 2-wide
+    (:folder-open     . ("📂" . nil))
+    (:folder-archive  . ("📦" . nil))
+    (:file            . ("📄" . nil))
+
+    (:help-book       . ("📖" . nil))
+    (:help-target     . ("🎯" . nil))
+    (:help-rocket     . ("🚀" . nil))
+    (:help-robot      . ("🤖" . nil))
+    (:help-palette    . ("🎨" . nil))
+
+    (:sys-process     . ("⚙" . t))    ;; The GEAR is a classic Ghost!
+    (:sys-memory      . ("💾" . nil))
+    (:sys-package     . ("📦" . nil))
+    (:sys-version     . ("🏷" . t))    ;; Label often ghosts
+    (:sys-time        . ("🕒" . nil))
+
+    ;; Japa
+    (:japa-zero       . ("🌅" . nil))
+    (:japa-progress   . ("📿" . t))
+    (:japa-complete   . ("✅" . nil))
+    (:japa-bonus1     . ("🏆" . t))
+    (:japa-bonus2     . ("🥈" . t))
+    (:japa-bonus3     . ("🥇" . t))
+    (:japa-epic       . ("🛸" . t))
+    (:japa-future     . ("❓" . t))
+
+    (:habit-done      . ("✔" . t))
+    (:habit-today     . ("▸" . nil))
+
+    (:svc-ccl         . ("🖥" . t))    ;; Computer is a Ghost
+    (:svc-sbcl        . ("🏭" . nil))    ;; Factory usually behaves
+    (:svc-commercial  . ("✈" . t))     ;; Plane is a Ghost
+    (:svc-smp         . ("🚀" . nil))  ;; Rocket usually behaves
+
+    (:arrow-right     . ("→" . nil))
+    (:arrow-left      . ("←" . nil))
+    (:star            . ("⭐" . nil))
+    (:clock           . ("🕒" . nil))
+    (:bell            . ("🔔" . nil))
+    (:lightning       . ("⚡" . t))     ;; Bolt often ghosts
+    (:dot             . ("·" . nil))
+    (:ellipsis        . ("…" . nil))))
+
+
 (defvar skewed-icons--nerd-table nil)
 
 (defun skewed-icons--init-nerd-table ()
@@ -254,83 +285,64 @@
 
 ;;; Public API =================================================================
 
+(defun skewed-icons--get-current-table ()
+  "Return the active icon table based on `skewed-icons-style`."
+  (pcase skewed-icons-style
+    ('ascii skewed-icons--ascii-table)
+    ('unicode skewed-icons--unicode-table)
+    ('colorful skewed-icons--colorful-table)
+    ('nerd (progn
+             (skewed-icons--init-nerd-table)
+             (or skewed-icons--nerd-table
+                 skewed-icons--unicode-table)))
+    (_ skewed-icons--colorful-table)))
+
 (defun skewed-icon (name)
-  "Get icon for NAME using current style."
-  (let ((table (pcase skewed-icons-style
-                 ('ascii skewed-icons--ascii-table)
-                 ('unicode skewed-icons--unicode-table)
-                 ('unicode-fancy skewed-icons--unicode-fancy-table)
-                 ('nerd (progn
-                          (skewed-icons--init-nerd-table)
-                          (or skewed-icons--nerd-table
-                              skewed-icons--unicode-table)))
-                 (_ skewed-icons--unicode-table))))
-    (or (alist-get name table)
-        (alist-get name skewed-icons--ascii-table)
-        "?")))
+  "Get icon string for NAME using current style.
+Handles both simple string values and (STRING . GHOST) cons cells."
+  (let* ((table (skewed-icons--get-current-table))
+         (entry (alist-get name table)))
+    (cond
+     ((stringp entry) entry)          ;; Simple string (ASCII/Unicode tables)
+     ((consp entry) (car entry))      ;; Cons cell (Colorful table)
+     (t "?"))))
+
+(defun skewed-icon-is-ghost (name)
+  "Return t if the current icon is a 'ghost' needing extra padding.
+Only returns t if style is 'colorful' and the icon is flagged."
+  (if (eq skewed-icons-style 'colorful)
+      (let* ((table skewed-icons--colorful-table)
+             (entry (alist-get name table)))
+        (if (consp entry) (cdr entry) nil))
+    nil)) ;; ASCII/Unicode/Nerd never ghost
+
 
 (defun skewed-icons-set-style (style)
   "Set icon style interactively."
   (interactive
    (list (intern (completing-read "Icon style: "
-                                  '("ascii" "unicode" "unicode-fancy" "nerd")
+                                  '("ascii" "unicode" "colorful" "nerd")
                                   nil t))))
   (setq skewed-icons-style style)
+  
+  ;; THE CRITICAL FIX: If using colorful, enforce width=2
+  (when (eq style 'colorful)
+    (skewed-icons--fix-widths))
+
   (message "Icon style: %s" style)
   (when (and (fboundp 'dashboard-refresh-buffer)
              (get-buffer "*dashboard*"))
     (dashboard-refresh-buffer)))
 
-(defun skewed-icons-preview ()
-  "Preview all icons in current style."
-  (interactive)
-  (let ((buf (get-buffer-create "*skewed-icons*")))
-    (with-current-buffer buf
-      (let ((inhibit-read-only t))
-        (erase-buffer)
-        (insert (format "Style: %s\n\n" skewed-icons-style))
-        (insert "Japa Graph Preview:\n  ")
-        (insert (skewed-icon :japa-zero) " "
-                (skewed-icon :japa-progress) " "
-                (skewed-icon :japa-complete) " "
-                (skewed-icon :japa-today-l)
-                (skewed-icon :japa-bonus1)
-                (skewed-icon :japa-today-r) " "
-                (skewed-icon :japa-bonus2) " "
-                (skewed-icon :japa-bonus3) " "
-                (skewed-icon :japa-epic) "\n\n")
-        (dolist (group '(("Status" :check :cross :ok :error :warning :info)
-                         ("Japa" :japa-zero :japa-progress :japa-complete
-                                  :japa-bonus1 :japa-bonus2 :japa-bonus3 :japa-epic)
-                         ("Services" :svc-ccl :svc-sbcl :svc-commercial :svc-smp)))
-          (insert (format "%s:\n" (car group)))
-          (dolist (name (cdr group))
-            (insert (format "  %s %s\n" (skewed-icon name) name)))
-          (insert "\n"))))
-    (display-buffer buf)))
+;; Run fix automatically if style is already set to colorful at load time
+(when (eq skewed-icons-style 'colorful)
+  (skewed-icons--fix-widths))
+
+
+
 
 (provide 'skewed-icons)
 ;;; skewed-icons.el ends here
 
 
-;;; Helper for centered "today" indicators
 
-(defun skewed-icon-today-wrap (icon)
-  "Wrap ICON with today delimiters and apply visual styling.
-Styling is controlled by `skewed-icons-today-style'."
-  (let* ((left (skewed-icon :japa-today-l))
-         (right (skewed-icon :japa-today-r))
-         (face (pcase (or (bound-and-true-p skewed-icons-today-style) 'highlight)
-                 ('highlight '(:background "#3a3a3a" 
-                              :foreground "#ffaa00"
-                              :weight bold
-                              :box (:line-width 1 :color "#555555")))
-                 ('bold '(:weight bold))
-                 ('inverse '(:inverse-video t :weight bold))
-                 ('subtle '(:background "#2a2a2a" :weight bold))
-                 ('plain nil)
-                 (_ '(:weight bold)))))
-    ;; Just style the icon, no extra spaces
-    (if face
-        (concat left (propertize icon 'face face) right)
-      (concat left icon right))))
