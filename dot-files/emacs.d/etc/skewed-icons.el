@@ -72,7 +72,16 @@ This synchronizes Emacs' internal width calculation with modern terminals."
 
   ;; 7. Specific overrides for characters often stuck in "text" presentation
   ;;    The Airplane (U+2708) is tricky. It lives in Dingbats but often needs forcing.
-  (set-char-table-range char-width-table '(#x2708 . #x2708) 2) 
+
+  (set-char-table-range char-width-table '(#x1f402 . #x1f402) 2)
+
+  (set-char-table-range char-width-table '(#x1f402 . #x1f50e) 2)
+
+  (set-char-table-range char-width-table '(#x1f938 . #x1f938) 2)
+  (set-char-table-range char-width-table '(#x3bb . #x3bb) 1)
+  (set-char-table-range char-width-table '(#x26a1 . #x26a1) 1)
+
+  (set-char-table-range char-width-table '(#x2708 . #x2708) 2)
 
   (message "Skewed-icons: Extended Emoji width fixes applied."))
 
@@ -84,6 +93,7 @@ This synchronizes Emacs' internal width calculation with modern terminals."
     (:check . "+") (:cross . "x") (:warning . "!") (:info . "i") (:ok . "+") (:error . "x")
     (:folder . ">") (:folder-open . "v") (:folder-archive . "#") (:file . "-")
     (:help-book . "?") (:help-target . ">") (:help-rocket . "!") (:help-robot . "@") (:help-palette . "~")
+    (:sys-info       . "(i)︎")
     (:sys-process . "*") (:sys-memory . "*") (:sys-package . "*") (:sys-version . "*") (:sys-time . "*")
     (:japa-zero . ".") (:japa-progress . "o") (:japa-complete . "+")
     (:japa-bonus1 . "*") (:japa-bonus2 . "#") (:japa-bonus3 . "@") (:japa-epic . "!")
@@ -91,7 +101,14 @@ This synchronizes Emacs' internal width calculation with modern terminals."
     (:habit-done . "+") (:habit-today . "#")
     (:svc-ccl . "C") (:svc-sbcl . "S") (:svc-commercial . "$") (:svc-smp . "&")
     (:arrow-right . ">") (:arrow-left . "<") (:star . "*") (:clock . "@")
-    (:bell . "*") (:lightning . "!") (:dot . ".") (:ellipsis . "..."))
+    (:bell . "*") (:lightning . "!") (:dot . ".") (:ellipsis . "...")
+
+    (:getting-started . ">")
+    (:active-projects . "@")
+    (:swank-services . "-")
+    (:lisply-backends . "_")
+
+    )
   "Pure ASCII - works everywhere.")
 
 (defconst skewed-icons--unicode-table
@@ -123,6 +140,7 @@ This synchronizes Emacs' internal width calculation with modern terminals."
     (:help-palette   . "◐")      ; half circle for palette
     
     ;; System - varied geometric
+    (:sys-info       . "👓︎")
     (:sys-process    . "◆")
     (:sys-memory     . "◐")
     (:sys-package    . "▪")
@@ -159,7 +177,14 @@ This synchronizes Emacs' internal width calculation with modern terminals."
     (:bell           . "♪")      ; musical note
     (:lightning      . "↯")      ; zigzag arrow
     (:dot            . "·")
-    (:ellipsis       . "…"))
+    (:ellipsis       . "…")
+
+    (:getting-started . "↯")
+    (:active-projects . "✦")
+    (:swank-services . "△")
+    (:lisply-backends . "✦")
+
+    )
   "Geometric Unicode - guaranteed never emojified.")
 
 
@@ -191,8 +216,9 @@ This synchronizes Emacs' internal width calculation with modern terminals."
     (:help-robot      . ("🤖" . nil))
     (:help-palette    . ("🎨" . nil))
 
-    (:sys-process     . ("⚙" . t))    ;; The GEAR is a classic Ghost!
-    (:sys-memory      . ("💾" . nil))
+    (:sys-info        . ("🔎︎"  .  nil))
+    (:sys-process     . ("🐂" . nil))    ;; The GEAR is a classic Ghost!
+    (:sys-memory      . ("🧠" . nil))
     (:sys-package     . ("📦" . nil))
     (:sys-version     . ("🏷" . t))    ;; Label often ghosts
     (:sys-time        . ("🕒" . nil))
@@ -220,9 +246,17 @@ This synchronizes Emacs' internal width calculation with modern terminals."
     (:star            . ("⭐" . nil))
     (:clock           . ("🕒" . nil))
     (:bell            . ("🔔" . nil))
-    (:lightning       . ("⚡" . t))     ;; Bolt often ghosts
+    (:lightning       . ("" . t))     ;; Bolt often ghosts
     (:dot             . ("·" . nil))
-    (:ellipsis        . ("…" . nil))))
+    (:ellipsis        . ("…" . nil))
+
+
+    (:getting-started . "⚡️")
+    (:active-projects . "🤸🏼‍♂️")
+    (:swank-services . "🍸")
+    (:lisply-backends . "λ")
+
+    ))
 
 
 (defvar skewed-icons--nerd-table nil)

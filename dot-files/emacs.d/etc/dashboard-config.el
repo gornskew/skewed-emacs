@@ -77,14 +77,16 @@ If the icon is a 'ghost' (visual width > Emacs width), we add extra padding."
 (defun dashboard-insert-help-info (list-size)
   "Insert getting-started info."
   (when list-size
-    (dashboard-insert-heading "Getting Started:")
+    (dashboard-insert-heading (concat ;;(skewed-dashboard-pad-icon :getting-started)
+				      "Getting Started:"))
     (insert "\n")
     (dolist (line (help-info-strings))
       (insert line))))
 
 (defun dashboard-insert-active-projects (list-size)
   "Insert active projects info.  LIST-SIZE is passed along."
-  (dashboard-insert-heading (format "Active Projects in %s:" projects-dir))
+  (dashboard-insert-heading (concat ;;(skewed-dashboard-pad-icon :active-projects)
+				    (format "Active Projects in %s:" projects-dir)))
   (insert "\n")
   (dolist (proj-string (active-projects-strings list-size))
     (insert proj-string)))
@@ -92,7 +94,8 @@ If the icon is a 'ghost' (visual width > Emacs width), we add extra padding."
 (defun dashboard-insert-system-info (list-size)
   "Insert system information."
   (when list-size
-    (dashboard-insert-heading "System Information:")
+    (dashboard-insert-heading (concat ;;(skewed-dashboard-pad-icon :sys-info)
+				      "System Information:"))
     (insert "\n")
     (dolist (line (system-info-strings list-size))
       (insert line))))
@@ -100,7 +103,9 @@ If the icon is a 'ghost' (visual width > Emacs width), we add extra padding."
 (defun dashboard-insert-lisply-backends (list-size)
   "Insert Lisply backends status using propertized strings list."
   (when list-size
-    (dashboard-insert-heading "Lisply Backends:")
+    (dashboard-insert-heading (concat
+			       ;;(skewed-dashboard-pad-icon :lisply-backends)
+			       "Lisply Backends (configurable for Lisply-MCP):"))
     (insert "\n")
     (dolist (line (lisply-backends-strings list-size))
       (insert line))))
@@ -109,7 +114,8 @@ If the icon is a 'ghost' (visual width > Emacs width), we add extra padding."
   "Insert other services status section using propertized strings list.
 LIST-SIZE used as boolean"
   (when list-size
-    (dashboard-insert-heading "𝓢𝓦𝓐𝓝𝓚 Service hosts and ports:")
+    (dashboard-insert-heading (concat ;;(skewed-dashboard-pad-icon :swank-services)
+				      "𝓢𝓦𝓐𝓝𝓚 Services (hosts and ports):"))
     (insert "\n")
     (dolist (line (other-status-strings list-size))
       (insert line))))
