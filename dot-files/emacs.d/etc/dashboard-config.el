@@ -121,7 +121,7 @@ LIST-SIZE used as boolean"
   (list
    (concat "    "
            (propertize (concat (skewed-dashboard-pad-icon :help-book)
-                               "Emacs Tutorial: C-h C-t\n")
+                               "Emacs Tutorial: C-h t\n")
                        'keymap (let ((map (make-sparse-keymap)))
                                  (define-key map (kbd "RET") 'help-with-tutorial)
                                  (define-key map [mouse-1] 'help-with-tutorial)
