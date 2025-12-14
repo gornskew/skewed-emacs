@@ -49,41 +49,22 @@
 
 ;;; Width Fixing Logic =========================================================
 (defun skewed-icons--fix-widths ()
-  "Force Emacs to recognize standard Emoji and Symbol ranges as double-width.
-This synchronizes Emacs' internal width calculation with modern terminals."
-  ;; 1. Standard Emoji & Pictographs (covers most colorful icons)
-  (set-char-table-range char-width-table '(#x1F300 . #x1F9FF) 2)
-
-  ;; 2. Misc Symbols (covers the Gear ⚙ which is usually #x2699)
-  ;;    Range #x2600 - #x27BF covers Sun, Cloud, Check, Pointing Fingers, etc.
-  (set-char-table-range char-width-table '(#x2600 . #x27BF) 2)
-
-  ;; 3. Dingbats & Geometric Shapes (covers heavy checks, crosses, circles)
-  (set-char-table-range char-width-table '(#x2700 . #x27BF) 2)
-  
-  ;; 4. Supplemental Symbols (covers the Robot 🤖 and other newer additions)
-  (set-char-table-range char-width-table '(#x1F900 . #x1F9FF) 2)
-  
-  ;; 5. Transport and Map Symbols (covers the Airplane ✈ and Rocket 🚀)
-  (set-char-table-range char-width-table '(#x1F680 . #x1F6FF) 2)
-
-  ;; 6. Enclosed Alphanumeric Supplement (covers regional indicators, etc)
-  (set-char-table-range char-width-table '(#x1F100 . #x1F1FF) 2)
-
-  ;; 7. Specific overrides for characters often stuck in "text" presentation
-  ;;    The Airplane (U+2708) is tricky. It lives in Dingbats but often needs forcing.
-
-  (set-char-table-range char-width-table '(#x1f402 . #x1f402) 2)
-
-  (set-char-table-range char-width-table '(#x1f402 . #x1f50e) 2)
-
-  (set-char-table-range char-width-table '(#x1f938 . #x1f938) 2)
-  (set-char-table-range char-width-table '(#x3bb . #x3bb) 1)
-  (set-char-table-range char-width-table '(#x26a1 . #x26a1) 1)
-
-  (set-char-table-range char-width-table '(#x2708 . #x2708) 2)
-
-  (message "Skewed-icons: Extended Emoji width fixes applied."))
+  "Set Emacs character widths to 2 for all emojis in the colorful table.
+This ensures Emacs knows these characters are displayed as 2 columns wide in terminals."
+  (dolist (entry skewed-icons--colorful-table)
+    (let* ((icon-data (cdr entry))
+           (icon-string (if (consp icon-data) (car icon-data) icon-data)))
+      (when (stringp icon-string)
+        ;; Set width=2 for each character in the icon string
+        (dotimes (i (length icon-string))
+          (let ((char (aref icon-string i)))
+            ;; Only set width if it's not a variation selector or other combining char
+            (unless (or (= char #xFE0E)  ; VS15 text presentation
+                        (= char #xFE0F)  ; VS16 emoji presentation
+                        (<= #x0300 char #x036F))  ; Combining diacriticals
+              (set-char-table-range char-width-table char 2)))))))
+  (message "Skewed-icons: Set width=2 for %d colorful emoji entries."
+           (length skewed-icons--colorful-table)))
 
 
 ;;; Icon Tables ================================================================
@@ -93,7 +74,7 @@ This synchronizes Emacs' internal width calculation with modern terminals."
     (:check . "+") (:cross . "x") (:warning . "!") (:info . "i") (:ok . "+") (:error . "x")
     (:folder . ">") (:folder-open . "v") (:folder-archive . "#") (:file . "-")
     (:help-book . "?") (:help-target . ">") (:help-rocket . "!") (:help-robot . "@") (:help-palette . "~")
-    (:sys-info       . "(i)︎")
+    
     (:sys-process . "*") (:sys-memory . "*") (:sys-package . "*") (:sys-version . "*") (:sys-time . "*")
     (:japa-zero . ".") (:japa-progress . "o") (:japa-complete . "+")
     (:japa-bonus1 . "*") (:japa-bonus2 . "#") (:japa-bonus3 . "@") (:japa-epic . "!")
@@ -103,10 +84,12 @@ This synchronizes Emacs' internal width calculation with modern terminals."
     (:arrow-right . ">") (:arrow-left . "<") (:star . "*") (:clock . "@")
     (:bell . "*") (:lightning . "!") (:dot . ".") (:ellipsis . "...")
 
-    (:getting-started . ">")
+    (:getting-started . "!")
     (:active-projects . "@")
-    (:swank-services . "-")
+    (:swanky-services . "Y")
     (:lisply-backends . "_")
+    (:sys-info       . "(i)︎")
+    (:platform . "")
 
     )
   "Pure ASCII - works everywhere.")
@@ -179,10 +162,12 @@ This synchronizes Emacs' internal width calculation with modern terminals."
     (:dot            . "·")
     (:ellipsis       . "…")
 
-    (:getting-started . "↯")
+    (:getting-started . "⚑")
     (:active-projects . "✦")
-    (:swank-services . "△")
+    (:swanky-services . "△")
     (:lisply-backends . "✦")
+    (:sys-info        . "▶")
+    (:platform . "")
 
     )
   "Geometric Unicode - guaranteed never emojified.")
@@ -216,7 +201,7 @@ This synchronizes Emacs' internal width calculation with modern terminals."
     (:help-robot      . ("🤖" . nil))
     (:help-palette    . ("🎨" . nil))
 
-    (:sys-info        . ("🔎︎"  .  nil))
+
     (:sys-process     . ("🐂" . nil))    ;; The GEAR is a classic Ghost!
     (:sys-memory      . ("🧠" . nil))
     (:sys-package     . ("📦" . nil))
@@ -251,11 +236,12 @@ This synchronizes Emacs' internal width calculation with modern terminals."
     (:ellipsis        . ("…" . nil))
 
 
-    (:getting-started . "⚡️")
-    (:active-projects . "🤸🏼‍♂️")
-    (:swank-services . "🍸")
-    (:lisply-backends . "λ")
-
+    (:getting-started . ("🏁" . nil))  ;; Checkered racing flag
+    (:active-projects . ("🤸" . nil))
+    (:swanky-services . ("🍸" . nil))  ;; Martini glass
+    (:lisply-backends . ("👽" . nil))
+    (:sys-info        . ("🩺︎"  .  nil))
+    (:platform        . ("🎪" . nil))
     ))
 
 
@@ -314,8 +300,16 @@ This synchronizes Emacs' internal width calculation with modern terminals."
                 (:bell . ,(nerd-icons-faicon "nf-fa-bell"))
                 (:lightning . ,(nerd-icons-faicon "nf-fa-bolt"))
                 (:dot . "·")
-                (:ellipsis . "…")))
-      (error nil))))
+                (:ellipsis . "…")
+		(:getting-started . ,(nerd-icons-faicon "nf-fa-check"))
+		(:active-projects . ,(nerd-icons-faicon "nf-fa-check"))
+		(:swanky-services . ,(nerd-icons-faicon "nf-fa-check"))
+		(:lisply-backends . ,(nerd-icons-faicon "nf-fa-check"))
+		(:sys-info        . ,(nerd-icons-faicon "nf-fa-check"))
+		(:platform        . ,(nerd-icons-faicon "nf-fa-check"))
+		
+		))
+            (error nil))))
 
 ;;; Public API =================================================================
 
