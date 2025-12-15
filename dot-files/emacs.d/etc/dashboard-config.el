@@ -94,7 +94,7 @@ If the icon is a 'ghost' (visual width > Emacs width), we add extra padding."
 (defun dashboard-insert-system-info (list-size)
   "Insert system information."
   (when list-size
-    (dashboard-insert-heading (concat (skewed-dashboard-pad-icon :sys-info)
+    (dashboard-insert-heading (concat (skewed-dashboard-pad-icon :svc-ccl)
 					"System Information:"))
     (insert "\n")
     (dolist (line (system-info-strings list-size))
