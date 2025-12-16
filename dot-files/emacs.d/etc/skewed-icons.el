@@ -235,6 +235,7 @@ This ensures Emacs knows these characters are displayed as 2 columns wide in ter
     (:dot             . ("·" . nil))
     (:ellipsis        . ("…" . nil))
 
+    (:gorn-1          . ("🦖" . t))
 
     (:getting-started . ("🏁" . nil))  ;; Checkered racing flag
     (:active-projects . ("🤸" . nil))

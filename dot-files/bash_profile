@@ -25,6 +25,14 @@ alias ssh='TERM=xterm-256color COLORTERM=truecolor ssh'
 
 
 
+# Color output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+
 # Theme-switching functions (unchanged)
 set_prompt_theme() {
     local theme="${1:-dark}"
@@ -128,19 +136,16 @@ if [[ $- == *i* && -z "$DOT_BASH_PROFILE_WELCOME" ]]; then
     theme "${THEME:-dark}" 1
     # Show welcome message
     echo ""
-    echo "Welcome to the 🦖 Skewed Emacs 🦖  Bash Profile"
-
-    if [ -z "$INSIDE_EMACS" ]; then
-	echo "Type 'e' to get a terminal-mode emacsclient on current directory."
-    else
-	echo "You appear to be inside emacs shell (${INSIDE_EMACS})."
-    fi
-    
-    echo "Terminal Color Tip: 'theme dark|light|solarized|custom'"
-    echo "Emacs Color Tip: M-x dark-theme, M-x light-theme, or M-x load-theme..."
+    echo "Welcome to the 🦖 Skewed Emacs 🦖  Bash Setup"
     echo ""
-    if ! [ -z "$SKEWED_EMACS_CONTAINER" ]; then
-	echo "Use 'claudly' to launch claude code."
+    printf "\n%b\n" "${BLUE}𝚃𝚘 𝙻𝚊𝚞𝚗𝚌𝚑 𝙴𝚖𝚊𝚌𝚜:${NC}"
+    printf "%b\n" "\`e\` ${BLUE}for a terminal emacsclient, or${NC}"
+    printf "%b\n\n" "\`egui\` ${BLUE}for a graphical one.${NC}"
+    echo ""
+    echo "Terminal colors: 'theme dark|light|solarized|custom'"
+    echo ""
+    echo "Use 'claudly', 'geminly', 'codexly' to launch those agents."
+    echo "" 
     fi
     export DOT_BASH_PROFILE_WELCOME=1
 fi
@@ -150,22 +155,6 @@ fi
 #FLAG -- end of conditional behavior based on interactive shell plus not already ran. 
 #
 
-# Start a Gendl instance with a Swank server
-function gswank
-{
-    local gdl_path=${1:-"/opt/gendl/gdl/program/gdl-ccl"}
-    local port=${2:-4005}
-    
-    if [ -e "$gdl_path" ]; then
-        echo "Starting Gendl Swank server on port $port using $gdl_path"
-        "$gdl_path" -e "(swank:create-server :port $port :dont-close t)" ${@:3}
-    else
-        echo "Error: Gendl executable not found at $gdl_path"
-        echo "Usage: gswank [gdl_path] [port] [additional_args...]"
-        echo "Default: gswank /opt/gendl/gdl/program/gdl-ccl 4005"
-        return 1
-    fi
-}
 
 
 function egui
@@ -174,207 +163,6 @@ function egui
     emacsclient -c ${file}
 }
 
-
-function e
-{
-    file=${1:-""};
-    emacsclient -t ${file}
-}
-
-function eskew
-{
-    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -t $1
-}
-
-function egskew
-{
-    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -c $1 & 
-}
-
-
-function claudly 
-{
-    file=${1:-"."};
-    
-    # Update Claude Code to latest version
-    echo "Checking for Claude Code updates..."
-    docker exec lisply-mcp bash -c 'cd ~/.claude/local && npm update @anthropic-ai/claude-code' >/dev/null 2>&1
-    
-    # First, merge the MCP configs inside the lisply-mcp container
-    echo "Merging MCP configurations..."
-    docker exec lisply-mcp node /app/scripts/merge-mcp-config.js >/dev/null 2>&1
-    
-    # Run Claude with the merged config
-    echo "Starting Claude Code with MCP integration..."
-    docker exec -it --detach-keys "ctrl-^" lisply-mcp /home/node/.claude/local/claude --mcp-config /tmp/merged-mcp-config.json
-}
-
-
-function geminly 
-{
-    file=${1:-"."};
-    
-    # First, merge the MCP configs inside the lisply-mcp container
-    echo "Merging MCP configurations..."
-    docker exec lisply-mcp node /app/scripts/merge-mcp-config.js >/dev/null 2>&1
-    docker exec lisply-mcp cp /tmp/merged-mcp-config.json /home/node/.gemini/settings.json >/dev/null 2>&1
-    
-    # Run Gemini with the merged config
-    echo "Starting Gemini CLI with MCP integration..."
-    docker exec -it --detach-keys "ctrl-^" lisply-mcp /home/node/.gemini/local/gemini 
-}
-
-
-
-function gendl-run-container {
-    local impl="ccl"
-    local offset=1
-    local container_name http_host_port json_flag=""
-
-    # Parse command-line arguments
-    while [[ "$#" -gt 0 ]]; do
-        case $1 in
-            --impl=*) impl="${1#*=}"; shift ;;
-            --sbcl) impl="sbcl"; shift ;;
-            --ccl) impl="ccl"; shift ;;
-            --json|--id-only|--quiet) json_flag="$1"; shift ;;
-            *) break ;;
-        esac
-    done
-
-    # Helper functions
-    is_verbose() { [[ "$json_flag" != "--quiet" && "$json_flag" != "--id-only" && "$json_flag" != "--json" ]]; }
-    
-    log_verbose() { is_verbose && echo "$@"; }
-    
-    format_output() {
-        local cid="$1" status="${2:-ok}" message="$3"
-        case "$json_flag" in
-            --json)
-                echo "{
-  \"container_id\": \"$cid\",
-  \"impl\": \"$impl\",
-  \"port_swank\": $((4200 + offset)),
-  \"port_http\": $((9080 + offset)),
-  \"port_https\": $((9443 + offset)),
-  \"port_telnet\": $((4023 + offset)),
-  \"gendl_mode\": \"${GENDL_MODE:-default}\",
-  \"project_mount\": \"${USER_PROJECTS:-$HOME/projects}\",
-  \"status\": \"$status\"
-}"
-                ;;
-            --id-only|--quiet)
-                echo "$cid"
-                ;;
-            *)
-                [[ -n "$message" ]] && echo "$message"
-                echo "Container ID: $cid"
-                ;;
-        esac
-    }
-
-    is_valid_gendl_service() {
-        curl -s -f "http://localhost:$1/lisply/ping-lisp" | grep -q "pong"
-    }
-
-    # Configure based on implementation
-    case "$impl" in
-        sbcl)
-            offset=2
-            container_name="gendl-sbcl"
-            http_host_port=9082
-            ;;
-        ccl|*)
-            offset=1
-            container_name="gendl-ccl"
-            http_host_port=9081
-            ;;
-    esac
-
-    log_verbose "Using Lisp implementation: ${impl}"
-
-    # Resolve run script path
-    find_docker_run_script() {
-        local paths=(
-            "$HOME/.emacs.d/etc/gendl/docker/run"
-            "$HOME/emacs.d/etc/gendl/docker/run"
-            "$HOME/projects/gendl/docker/run"
-            "/projects/gendl/docker/run"
-        )
-        for path in "${paths[@]}"; do
-            [ -f "$path" ] || [ -L "$path" ] && echo "$path" && return 0
-        done
-        return 1
-    }
-
-    docker_run_script=$(find_docker_run_script) || {
-        log_verbose "Error: Gendl Docker run script not found."
-        return 1
-    }
-
-    log_verbose "Using docker run script: ${docker_run_script}..."
-
-    # Check for existing container by name
-    if existing_cid=$(docker ps -q --filter "name=^${container_name}$"); [ -n "$existing_cid" ]; then
-        if is_valid_gendl_service "$http_host_port"; then
-            format_output "$existing_cid" "existing" "Service already existing: Container ${container_name} (ID: ${existing_cid}) is running a valid Gendl service on port ${http_host_port}."
-            return 1
-        else
-            log_verbose "Error: Container ${container_name} (ID: ${existing_cid}) exists but is not responding on port ${http_host_port}."
-            return 1
-        fi
-    fi
-
-    # Check if HTTP port already in use
-    if ss -tln | grep -q ":${http_host_port}\b"; then
-        if is_valid_gendl_service "$http_host_port"; then
-            port_cid=$(docker ps --filter "publish=${http_host_port}" --format "{{.ID}}")
-            format_output "${port_cid:-unknown}" "existing" "Service already existing: A valid Gendl service is running on port ${http_host_port}."
-            return 1
-        else
-            log_verbose "Error: Port ${http_host_port} is in use by something else."
-            return 1
-        fi
-    fi
-
-    # Run the container
-    run_output=$($docker_run_script $([ "$impl" != "ccl" ] && echo "--$impl") 2>&1)
-    run_status=$?
-
-    if [ $run_status -ne 0 ]; then
-        log_verbose "Error: Failed to start container."
-        is_verbose && echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:"
-        return 1
-    fi
-
-    # Extract container ID from output
-    cid=$(echo "$run_output" | grep "Container ID is:" | tail -1 | awk '{print $NF}')
-    [ -z "$cid" ] && {
-        log_verbose "Error: Could not retrieve container ID."
-        is_verbose && echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:"
-        return 1
-    }
-
-    # Symlink setup inside container
-    docker exec -d "$cid" ln -s /home /Users
-    docker exec -d "$cid" ln -s /home/gendl-user "$HOME"
-
-    # Output - for new container, include the run script output in verbose mode
-    local verbose_message=""
-    is_verbose && verbose_message=$(echo "$run_output" | grep -v "Error response from daemon: No such container: Warning:")
-    
-    if [[ "$json_flag" != "--json" && "$json_flag" != "--id-only" && "$json_flag" != "--quiet" ]]; then
-        echo "$verbose_message"
-        format_output "$cid" "ok"
-    else
-        format_output "$cid" "ok"
-    fi
-}
-
-function rgc {
-    echo "⚠️  Warning: 'rgc' is deprecated. Use 'gendl-run-container' instead." >&2
-    gendl-run-container "$@"
-}
 
 
 # file naming utilities.
@@ -398,7 +186,6 @@ kill_port() {
     echo "Attempting to kill process on port $port..."
     sudo fuser -k -n tcp $port
 }
-
 
 
 # Check if running in Bash
@@ -432,7 +219,8 @@ if [ -f "$HOME/.private-config/dot-files/bash_profile" ]; then
  . "$HOME/.private-config/dot-files/bash_profile"
 fi
 
-# Add to end of bash_profile:
-   if [ -f "$HOME/.ssh-aliases.sh" ]; then
-       . "$HOME/.ssh-aliases.sh"
-   fi
+
+# FLAG -- is this fully implemented or not?: 
+if [ -f "$HOME/.ssh-aliases.sh" ]; then
+    . "$HOME/.ssh-aliases.sh"
+fi

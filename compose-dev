@@ -152,7 +152,7 @@ NETWORK:
     - Inter-container: <service-hostname>:<container-port>
 
 EOF
-    show_skew_commands
+    show_shell_functions
 }
 
 # Service management
@@ -170,12 +170,8 @@ start_services() {
 
 show_skew_commands() {
     printf "\n%b\n" "${BLUE}𝚃𝚘 𝙻𝚊𝚞𝚗𝚌𝚑 𝙴𝚖𝚊𝚌𝚜:${NC}"
-    printf "\n%b\n" "${BLUE}Do this:${NC} source ./dot-files/bash_profile"
-    printf "%b\n" "${BLUE}Then you'll be able to use:${NC}"
     printf "%b\n" "\`eskew\` ${BLUE}for a terminal emacsclient, or${NC}"
     printf "%b\n\n" "\`egskew\` ${BLUE}for a graphical one.${NC}"
-    printf "%b\n" "${BLUE}For a full permanent skewed-emacs config on your host,"
-    printf "%b\n\n" "${BLUE}do this:${NC}  ./setup"
 }
 
 stop_services() {
@@ -324,6 +320,41 @@ show_config() {
     $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" config
 }
 
+
+if [ -f "$SCRIPT_DIR/dot-files/shell-functions.sh" ]; then
+    source "$SCRIPT_DIR/dot-files/shell-functions.sh"
+fi
+
+
+function eskew() {
+    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -t "$@"
+}
+
+function egskew() {
+    docker exec -it skewed-emacs emacsclient -c "$@" &
+}
+
+if [ ! -f "${HOME}/.emacs.d" ] && [ ! -f "${HOME}/.emacs" ]; then
+    function e() {
+	eskew "$@"
+    }
+
+    function egui() {
+	egskew "$@"
+    }
+else
+    function e() {
+	file=${1:-""};
+	emacsclient -t ${file}
+    }
+
+    function egui() {
+	file=${1:-""};
+	emacsclient -c ${file}
+    }
+fi
+
+
 # Main command dispatcher
 main() {
     check_docker_compose
@@ -333,7 +364,7 @@ main() {
             shift
             start_services "$@"
             
-	    show_skew_commands
+	    show_shell_functions
             ;;
         down)
             stop_services

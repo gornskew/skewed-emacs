@@ -230,6 +230,21 @@ if [ -n "$scrub_suffix" ]; then
     
     if $dry_run; then
         echo ""
+    
+    # Check if bash_profile will be sourced from bashrc
+    if [ ! -f ~/.bashrc ] || ! grep -q 'bash_profile' ~/.bashrc; then
+        echo ""
+        echo "${YELLOW}Note:${NC} Your ~/.bashrc doesn't appear to source ~/.bash_profile"
+        echo "This means shell functions (e, eskew, etc.) won't be available in new terminals."
+        echo ""
+        echo "To fix this, you can either:"
+        echo "  1. Manually add to your ~/.bashrc:"
+        echo "     if [ -f ~/.bash_profile ]; then . ~/.bash_profile; fi"
+        echo ""
+        echo "  2. Or simply source it in each session:"
+        echo "     source ~/.bash_profile"
+        echo ""
+    fi
         echo "DRY RUN scrubbing complete. No changes were made."
         echo "Run without --dry-run to apply changes."
     else
@@ -354,9 +369,10 @@ do
         fi
 
         echo "Processing $nondot_file from repository dot-files directory."
-
+	
         dot_file=.${nondot_file}
         target_file="${dot_file}${shadow_suffix}"
+
 
         # Check if target file is already correctly linked
         if [ "$same_suffix_operation" = true ] && $dry_run; then

@@ -2,114 +2,52 @@
 ;;; Commentary: supplement for dashboard-config.el
 ;;; Code:
 
+(require 'services-discovery)
 (require 'skewed-icons)
 
-(defun discover-docker-services ()
-  "Discover Docker containers with dynamic port mapping - no hardcoded ports."
-  (condition-case nil
-      (let ((services '())
-            (output (shell-command-to-string "docker ps --format '{{.Names}}\t{{.Ports}}'")))
-        (dolist (line (split-string output "\n" t))
-          (when (string-match "\\([^\t]+\\)\t\\(.+\\)" line)
-            (let ((name (match-string 1 line))
-                  (ports-str (match-string 2 line)))
-              (when (or (string-match "emacs" name)
-                        (string-match "gendl" name)
-                        (string-match "genworks" name))
-                (let ((port-mappings '())
-                      (pos 0))
-                  (while (string-match "0\\.0\\.0\\.0:\\([0-9]+\\)->\\([0-9]+\\)" ports-str pos)
-                    (let ((host-port (string-to-number (match-string 1 ports-str)))
-                          (container-port (string-to-number (match-string 2 ports-str))))
-                      (push (list :host-port host-port :container-port container-port) port-mappings))
-                    (setq pos (match-end 0)))
-                  (let ((http-mappings (seq-filter 
-                                       (lambda (m) 
-                                         (let ((cp (plist-get m :container-port)))
-                                           (or (and (>= cp 7080) (<= cp 7089))
-                                               (and (>= cp 9080) (<= cp 9099)))))
-                                       port-mappings))
-                        (swank-mappings (seq-filter 
-                                        (lambda (m)
-                                          (let ((cp (plist-get m :container-port)))
-                                            (and (>= cp 4200) (<= cp 4299))))
-                                        port-mappings)))
-                    (when (or http-mappings swank-mappings)
-                      (push (list :name name
-                                  :http-mappings http-mappings
-                                  :swank-mappings swank-mappings
-                                  :running t)
-                            services))))))))
-        ;; Sort services for better display order
-        (sort services 
-              (lambda (a b)
-                (let ((name-a (plist-get a :name))
-                      (name-b (plist-get b :name)))
-                  ;; Define sort priority: skewed-emacs first, then gendl, then genworks-gdl, then others
-                  (cond
-                   ;; skewed-emacs always first
-                   ((string-match "^skewed-emacs" name-a) t)
-                   ((string-match "^skewed-emacs" name-b) nil)
-                   ;; gendl (open source) before genworks-gdl (commercial)
-                   ((and (string-match "^gendl-" name-a) (string-match "^genworks-gdl-" name-b)) t)
-                   ((and (string-match "^genworks-gdl-" name-a) (string-match "^gendl-" name-b)) nil)
-                   ;; within same category, sort alphabetically
-                   (t (string< name-a name-b)))))))
-    (error '())))
 
 (defun discover-network-lisply-backends ()
-  "Discover lisply backends using improved docker service discovery."
-  (let ((services (discover-docker-services))
-        (backends '()))
-    (dolist (service services)
-      (let ((name (plist-get service :name))
-            (http-mappings (plist-get service :http-mappings)))
-        (dolist (mapping http-mappings)
-          (let* ((host-port (plist-get mapping :host-port))
-                 (container-port (plist-get mapping :container-port))
-                 (service-type (cond 
-                               ((string-match "emacs" name) "emacs-lisp")
-                               (t "common-lisp")))
-                 (effective-host (if skewed-emacs-container? name "localhost"))
-                 (effective-port (if skewed-emacs-container? container-port host-port)))
-            (push (list :host effective-host
-                       :port effective-port
-                       :name name
-                       :type service-type
-                       :running t)
-                  backends)))))
-    (nreverse backends)))
+  "Discover lisply backends from services.json (Single Source of Truth).
+Falls back to hardcoded container names if services.json not available."
+  (condition-case nil
+      (let ((services (skewed-get-lisply-backends)))
+        (if services
+            ;; Use services from services.json
+            (mapcar (lambda (svc)
+                      (list :host (plist-get svc :http-host)
+                            :port (plist-get svc :http-port)
+                            :name (plist-get svc :name)
+                            :type (plist-get svc :type)
+                            :running t))
+                    services)
+          ;; Fallback to hardcoded defaults if services.json empty/missing
+          '((:host "skewed-emacs" :port 7080 :name "skewed-emacs" :type "emacs-lisp")
+            (:host "gendl-ccl" :port 9080 :name "gendl-ccl" :type "common-lisp")
+            (:host "gendl-sbcl" :port 9090 :name "gendl-sbcl" :type "common-lisp"))))
+    (error
+     ;; If services-discovery fails, return minimal fallback
+     '((:host "skewed-emacs" :port 7080 :name "skewed-emacs" :type "emacs-lisp")))))
 
 (defun discover-swank-services ()
-  "Discover SWANK services using improved docker service discovery."
-  (let ((services (discover-docker-services))
-        (swank-services '()))
-    (dolist (service services)
-      (let ((name (plist-get service :name))
-            (swank-mappings (plist-get service :swank-mappings)))
-        (dolist (mapping swank-mappings)
-          (let* ((host-port (plist-get mapping :host-port))
-                 (container-port (plist-get mapping :container-port))
-                 (lisp-impl (cond
-                            ((string-match "ccl" name) "CCL")
-                            ((string-match "sbcl" name) "SBCL") 
-                            ((string-match "non-smp" name) "Commercial")
-                            ((string-match "smp" name) "Commercial SMP")
-                            (t "Lisp")))
-		 (icon (cond ((string-equal lisp-impl "CCL") :svc-ccl)
-			     ((string-equal lisp-impl "SBCL") :svc-sbcl)
-			     ((string-equal lisp-impl "Commercial") :svc-commercial)
-			     ((string-equal lisp-impl "Commercial SMP") :svc-smp)))
-                 (effective-host (if skewed-emacs-container? name "localhost"))
-                 (effective-port (if skewed-emacs-container? container-port host-port)))
-            (push (list :host effective-host
-                       :port effective-port
-                       :name name
-		       :icon icon
-		       :impl lisp-impl
-                       :running t)
-                  swank-services)))))
-    (nreverse swank-services)))
+  "Discover SWANK services from services.json (Single Source of Truth)."
+  (condition-case nil
+      (let ((services (skewed-get-swank-services)))
+        (if services
+            (mapcar (lambda (svc)
+                      (let ((lisp-impl (plist-get svc :lisp-impl))
+                            (name (plist-get svc :name)))
+                        (list :host (plist-get svc :swank-host)
+                              :port (plist-get svc :swank-port)
+                              :host-port (plist-get svc :swank-host-port)
+                              :name name
+                              :impl lisp-impl
+                              :icon (cond ((string-equal lisp-impl "CCL") :svc-ccl)
+                                         ((string-equal lisp-impl "SBCL") :svc-sbcl)
+                                         ((string-match "Commercial" lisp-impl) :svc-gdl)
+                                         (t :svc-lisp)))))
+                    services)
+          '()))
+    (error '())))
 
 (provide 'dashboard-additions)
 

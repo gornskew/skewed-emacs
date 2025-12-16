@@ -52,7 +52,7 @@ USER emacs-user
 WORKDIR /home/emacs-user
 
 # Run setup and initialize Emacs
-RUN cd skewed-emacs && ./setup && \
+RUN cd skewed-emacs && SKEWED_EMACS_DOCKER_BUILD=true ./setup && \
     ls -la ~/.emacs.d/init.el && \
     ls -la ~/.emacs.d/sideloaded/lisply-backend/source/ && \
     echo "Configuration files verified" && \
@@ -66,10 +66,7 @@ RUN cd skewed-emacs && ./setup && \
     sleep 8 && emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")" && \
     echo "Emacs initialization complete"
 
-# Update .bashrc
-RUN echo 'export DOT_BASHRC_LOADED=1' >> /home/emacs-user/.bashrc && \
-    echo 'export DOT_PROFILE_LOADED=1' >> /home/emacs-user/.bashrc && \
-    echo 'if [ -z "$DOT_BASH_PROFILE_LOADED" ]; then . "$HOME/.bash_profile"; export DOT_BASH_PROFILE_LOADED=1; fi' >> /home/emacs-user/.bashrc
+# Note: .bashrc is symlinked by setup script from dot-files/bashrc
 
 # Copy startup scripts
 COPY --chown=emacs-user:emacs-user docker/startup.sh /home/emacs-user/startup.sh
