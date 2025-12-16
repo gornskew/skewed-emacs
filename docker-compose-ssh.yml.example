@@ -4,7 +4,10 @@
 # Docker Composition for:
 # - Skewed Emacs
 # - Gendl Development Environment
-# - Node.js container for Lisply-Mcp and Claude Code.
+# - Node.js container for Lisply-Mcp and Claude Code (with SSH access)
+#
+# This version uses SSH instead of docker exec for skewed-emacs -> lisply-mcp access
+# No docker.sock is mounted to skewed-emacs for better security.
 #
 # Usage:
 #   ./compose-dev up                     # Start all services
@@ -44,10 +47,11 @@ services:
         bind:
           create_host_path: true
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      # NOTE: docker.sock is NO LONGER mounted for security
+      # - /var/run/docker.sock:/var/run/docker.sock
       - ${EMACS_LOCAL_SRC:-/this-path-definitely-does-not-exist}/.emacs-local:/home/emacs-user/.emacs-local:ro
-      - ${PROJECTS_DIR}/skewed-emacs/ssh-keys:/home/emacs-user/.ssh:ro	
-    group_add:
-      - "${DOCKER_GROUP_ID:-999}"
+      # SSH keys for connecting to lisply-mcp
+      - ${PROJECTS_DIR}/skewed-emacs/ssh-keys:/home/emacs-user/.ssh:ro
     networks:
       - skewed-network
     healthcheck:
@@ -153,7 +157,7 @@ services:
 
 
   lisply-mcp:
-    image: gornskew/${NODE_IMAGE_BASE}:${NODE_IMAGE_BRANCH:-master}
+    image: gornskew/${NODE_IMAGE_BASE}:${NODE_IMAGE_BRANCH:-master}-ssh
     container_name: ${NODE_IMAGE_BASE_NAME:-lisply-mcp}
     hostname: ${NODE_IMAGE_BASE_NAME:-lisply-mcp}
     restart: unless-stopped
@@ -162,6 +166,7 @@ services:
     ports:
       - "3001:3000"
       - "8081:8080"
+      # SSH port exposed internally on docker network (not to host)
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
@@ -170,6 +175,8 @@ services:
           create_host_path: true
       - /var/run/docker.sock:/var/run/docker.sock
       - ${USER_CONFIG_DIR}:/home/node/.config
+      # Mount authorized_keys for SSH access
+      - ${PROJECTS_DIR}/skewed-emacs/ssh-keys/authorized_keys:/home/node/.ssh/authorized_keys:ro
     environment:
       - HOST_EMACS_URL=http://host.docker.internal:7080
       - TERM=xterm-256color
@@ -182,4 +189,3 @@ services:
     networks:
       - skewed-network
     working_dir: /projects
-

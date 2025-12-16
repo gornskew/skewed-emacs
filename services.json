@@ -1,0 +1,74 @@
+{
+  "_meta": {
+    "description": "Single Source of Truth for skewed-emacs services",
+    "generates": ["docker-compose.yml", "mcp-config.json", "services-discovery.el"],
+    "version": "1.0"
+  },
+  
+  "defaults": {
+    "network": "skewed-network",
+    "restart": "unless-stopped",
+    "volumes": [
+      "${PROJECTS_DIR}:/projects"
+    ],
+    "tz": "${TZ:-Etc/UTC}"
+  },
+
+  "services": {
+    "skewed-emacs": {
+      "type": "emacs-lisp",
+      "lisp_impl": "Emacs",
+      "image": "gornskew/${EMACS_IMAGE_BASE:-skewed-emacs}:${EMACS_IMAGE_BRANCH:-master}",
+      "ports": {
+        "http": { "container": 7080, "host": 7081 }
+      },
+      "healthcheck": {
+        "endpoint": "/lisply/ping-lisp",
+        "interval": "108s"
+      }
+    },
+
+    "gendl-ccl": {
+      "type": "common-lisp",
+      "lisp_impl": "CCL",
+      "image": "genworks/${GENDL_IMAGE_BASE:-gendl}:${GENDL_IMAGE_BRANCH}-ccl",
+      "ports": {
+        "http": { "container": 9080, "host": 9081 },
+        "swank": { "container": 4200, "host": 4201 }
+      },
+      "healthcheck": {
+        "endpoint": "/lisply/ping-lisp",
+        "interval": "72s"
+      }
+    },
+
+    "gendl-sbcl": {
+      "type": "common-lisp",
+      "lisp_impl": "SBCL",
+      "image": "genworks/${GENDL_IMAGE_BASE}:${GENDL_IMAGE_BRANCH}-sbcl",
+      "ports": {
+        "http": { "container": 9090, "host": 9091 },
+        "swank": { "container": 4210, "host": 4211 }
+      },
+      "healthcheck": {
+        "endpoint": "/lisply/ping-lisp",
+        "interval": "90s"
+      }
+    },
+
+    "lisply-mcp": {
+      "type": "middleware",
+      "image": "gornskew/${NODE_IMAGE_BASE}:${NODE_IMAGE_BRANCH:-master}",
+      "ports": {
+        "http": { "container": 8080, "host": 8081 },
+        "dev": { "container": 3000, "host": 3001 }
+      },
+      "ssh": {
+        "enabled": true,
+        "user": "node",
+        "port": 22
+      },
+      "exclude_from_mcp": true
+    }
+  }
+}

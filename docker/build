@@ -1,82 +1,174 @@
-#!/bin/bash
-# Build script for Skewed Emacs compatible with lisply-mcp
+#!/usr/bin/env bash
+# Build script for Skewed Emacs (public-repo friendly)
 
-set -e
+set -euo pipefail
 
 cd "$(dirname "$0")"
-docker_dir=$(pwd)
+DOCKER_DIR="$(pwd)"
+PROJECT_ROOT="$(cd "$DOCKER_DIR/.." && pwd)"
 
-# Parse command line arguments
-PUSH_TO_HUB=true
+DOCKERFILE_PATH="$DOCKER_DIR/Dockerfile"
+BUILD_CONTEXT="$PROJECT_ROOT"   # original script used ".." as context
+
+# -----------------------------
+# CLI args
+# -----------------------------
+# CLI overrides (higher priority than auto-detect)
+CLI_SET_PUSH=""
 while [[ $# -gt 0 ]]; do
-  case $1 in
+  case "$1" in
     --no-push)
-      PUSH_TO_HUB=false
+      CLI_SET_PUSH="false"
+      shift
+      ;;
+    --push)
+      CLI_SET_PUSH="true"
       shift
       ;;
     -h|--help)
-      echo "Usage: $0 [OPTIONS]"
-      echo "Options:"
-      echo "  --no-push    Skip pushing the built image to Docker Hub"
-      echo "  -h, --help   Show this help message"
-      echo ""
-      echo "By default, the script will build and push to Docker Hub."
-      echo "Use --no-push if you only want to build locally."
+      cat <<EOF
+Usage: $0 [OPTIONS]
+
+Options:
+  --push       Enable pushing the built image to Docker Hub
+  --no-push    Skip pushing (build only)
+  -h, --help   Show this help message
+
+Behavior:
+  - If PUSH_IMAGE is set in the environment, it is respected.
+  - Else if --push/--no-push is given, it is respected.
+  - Else auto-push is enabled only if:
+      \$HOME/.docker-dockerhub-gornskew/config.json exists AND
+      it contains an auth entry for "https://index.docker.io/v1/".
+  - Otherwise defaults to build-only (public repo default).
+EOF
       exit 0
       ;;
     *)
-      echo "Unknown option $1"
-      echo "Use --help for usage information"
+      echo "Unknown option: $1" >&2
+      echo "Use --help for usage information" >&2
       exit 1
       ;;
   esac
 done
 
-echo "=== Building Skewed Emacs Docker Image for Lisply-MCP ==="
+# -----------------------------
+# Branch/tag logic
+# -----------------------------
+branch="dev"
+if [ -n "${CI_COMMIT_REF_NAME:-}" ]; then
+  branch="$CI_COMMIT_REF_NAME"
+elif git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  branch="$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD)"
+fi
+branch="${branch//\//--}"
+TAG="$branch"
 
-# Get branch name for tagging (compatible with lisply-mcp expectations)
-if [ -z "${CI_COMMIT_REF_NAME}" ]; then
-    # Try to get branch from git
-    if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        branch=$(git rev-parse --abbrev-ref HEAD)
-        # Replace forward slashes with double hyphens for docker tag compatibility
-        branch=${branch//\/\/\/--}
-    else
-        branch="dev"
-    fi
+# -----------------------------
+# Push defaults (public-friendly)
+# -----------------------------
+# Dedicated push-config (same as lisply-mcp)
+PUSH_DOCKER_CONFIG="${PUSH_DOCKER_CONFIG:-$HOME/.docker-dockerhub-gornskew}"
+cfg="$PUSH_DOCKER_CONFIG/config.json"
+
+# Determine PUSH_IMAGE precedence:
+# 1) env var PUSH_IMAGE
+# 2) CLI flags
+# 3) auto-detect based on push config presence+content
+if [ -n "${PUSH_IMAGE:-}" ]; then
+  : # respect env
+elif [ -n "$CLI_SET_PUSH" ]; then
+  PUSH_IMAGE="$CLI_SET_PUSH"
 else
-    branch=${CI_COMMIT_REF_NAME//\/\/\/--}
+  if [ -f "$cfg" ] && grep -q '"https://index.docker.io/v1/"' "$cfg"; then
+    PUSH_IMAGE="true"
+  else
+    PUSH_IMAGE="false"
+  fi
+fi
+
+# Namespace/tagging behavior:
+# - If pushing, default to gornskew unless user set DOCKER_USERNAME
+# - If not pushing, default to localbuild so anons don't tag gornskew/*
+if [[ "$PUSH_IMAGE" == "true" ]]; then
+  DOCKER_USERNAME="${DOCKER_USERNAME:-gornskew}"
+else
+  DOCKER_USERNAME="${DOCKER_USERNAME:-localbuild}"
+fi
+
+IMAGE_NAME="${DOCKER_USERNAME}/skewed-emacs"
+
+# -----------------------------
+# Preflight
+# -----------------------------
+echo "=== Building Skewed Emacs Docker Image ==="
+echo "Project root:     $PROJECT_ROOT"
+echo "Dockerfile:       $DOCKERFILE_PATH"
+echo "Build context:    $BUILD_CONTEXT"
+echo "Tag:              ${IMAGE_NAME}:${TAG}"
+echo "Push:             ${PUSH_IMAGE}"
+echo "Push docker cfg:  ${PUSH_DOCKER_CONFIG}"
+
+if [ ! -f "$DOCKERFILE_PATH" ]; then
+  echo "Error: Dockerfile not found at $DOCKERFILE_PATH" >&2
+  exit 1
+fi
+
+# -----------------------------
+# Build
+# -----------------------------
+DOCKER_BUILDKIT=1 docker build \
+  --progress=plain \
+  -t "${IMAGE_NAME}:${TAG}" \
+  -f "$DOCKERFILE_PATH" \
+  "$BUILD_CONTEXT"
+
+if [[ "${TAG}" == "main" || "${TAG}" == "master" || "${TAG}" == "devo" ]]; then
+  docker tag "${IMAGE_NAME}:${TAG}" "${IMAGE_NAME}:latest"
 fi
 
 
-# Note: claude-code cloning is now handled by ./setup which is called during docker build
-
-
-
-echo "Building with branch tag: ${branch}"
-
-DOCKER_BUILDKIT=1 docker build --progress=plain -t gornskew/skewed-emacs:${branch} -f Dockerfile ..
-docker tag gornskew/skewed-emacs:${branch} gornskew/skewed-emacs:latest
-
 echo ""
 echo "=== Build Complete ==="
-echo "Image tagged as: gornskew/skewed-emacs:${branch}"
-echo "Also tagged as: gornskew/skewed-emacs:latest"
+echo "Image tagged as: ${IMAGE_NAME}:${TAG}"
+echo "Also tagged as:  ${IMAGE_NAME}:latest"
 echo ""
 echo "To test the container:"
-echo "  ./run                                    # Uses default ports (host 7081 -> container 7080)"
-echo "  docker run -p 7081:7080 gornskew/skewed-emacs:${branch}   # Manual run with default ports"
+echo "  ./run"
+echo "  docker run -p 7081:7080 ${IMAGE_NAME}:${TAG}"
 echo ""
 
-if [ "$PUSH_TO_HUB" = true ]; then
-    DOCKER_CONFIG=~/.docker-dockerhub-gornskew docker push gornskew/skewed-emacs:${branch}
+# -----------------------------
+# Push (optional)
+# -----------------------------
+if [[ "$PUSH_IMAGE" == "true" ]]; then
+  echo "Push enabled."
+
+  if [[ "$DOCKER_USERNAME" == "localbuild" ]]; then
+    echo "Error: PUSH_IMAGE=true but DOCKER_USERNAME resolved to 'localbuild'." >&2
+    echo "Set DOCKER_USERNAME=gornskew (or appropriate namespace) to push." >&2
+    exit 2
+  fi
+
+  # Optional non-interactive login if provided (CI)
+  if [ -n "${DOCKER_PASSWORD:-}" ]; then
+    echo "Logging into Docker Hub (non-interactive) for push user '${DOCKER_USERNAME}'..."
+    echo "${DOCKER_PASSWORD}" | docker --config "$PUSH_DOCKER_CONFIG" login -u "${DOCKER_USERNAME}" --password-stdin
+  else
+    echo "No DOCKER_PASSWORD provided; assuming existing credentials in: $PUSH_DOCKER_CONFIG"
+  fi
+
+  echo "Pushing ${IMAGE_NAME}:${TAG} ..."
+  docker --config "$PUSH_DOCKER_CONFIG" push "${IMAGE_NAME}:${TAG}"
+
+  echo "Pushing ${IMAGE_NAME}:latest ..."
+  docker --config "$PUSH_DOCKER_CONFIG" push "${IMAGE_NAME}:latest"
+
+  echo "Push complete."
 else
-    echo "Skipped push to Docker Hub (--no-push specified)"
-    echo "To push manually:"
-    echo "  docker push gornskew/skewed-emacs:${branch}"
+  echo "Skipping push (public repo default)."
 fi
 
 echo ""
 echo "Done with docker build job."
 echo ""
-

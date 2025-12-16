@@ -431,3 +431,8 @@ fi
 if [ -f "$HOME/.private-config/dot-files/bash_profile" ]; then 
  . "$HOME/.private-config/dot-files/bash_profile"
 fi
+
+# Add to end of bash_profile:
+   if [ -f "$HOME/.ssh-aliases.sh" ]; then
+       . "$HOME/.ssh-aliases.sh"
+   fi
