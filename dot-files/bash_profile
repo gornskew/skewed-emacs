@@ -177,8 +177,10 @@ function claudly
     ssh lisply-mcp 'node /app/scripts/merge-mcp-config.js' >/dev/null 2>&1
     
     # Run Claude with the merged config
+    # Note: TERM=xterm-256color is required for the TUI to work properly
+    # cd /projects sets the working directory
     echo "Starting Claude Code with MCP integration..."
-    ssh -t lisply-mcp '/home/node/.claude/local/claude --mcp-config /tmp/merged-mcp-config.json'
+    ssh -t lisply-mcp 'export TERM=xterm-256color; cd /projects && /home/node/.claude/local/claude --mcp-config /tmp/merged-mcp-config.json'
 }
 
 
@@ -190,8 +192,9 @@ function geminly
     ssh lisply-mcp 'cp /tmp/merged-mcp-config.json /home/node/.gemini/settings.json' >/dev/null 2>&1
     
     # Run Gemini with the merged config
+    # Note: TERM=xterm-256color is required for the TUI to work properly
     echo "Starting Gemini CLI with MCP integration..."
-    ssh -t lisply-mcp '/home/node/.gemini/local/gemini'
+    ssh -t lisply-mcp 'export TERM=xterm-256color; cd /projects && /home/node/.gemini/local/gemini'
 }
 
 
@@ -199,8 +202,9 @@ function codexly
 {
     # TODO: Generate TOML MCP config for codex from SSOT
     # For now, just run codex without MCP config
+    # Note: TERM=xterm-256color is required for the TUI to work properly
     echo "Starting OpenAI Codex CLI..."
-    ssh -t lisply-mcp '/home/node/.codex/local/codex'
+    ssh -t lisply-mcp 'export TERM=xterm-256color; cd /projects && /home/node/.codex/local/codex'
 }
 
 
