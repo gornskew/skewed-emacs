@@ -4,7 +4,6 @@
 
 set -e
 
-
 # Check for batch mode (build time)
 BATCH_MODE=false
 if [ "$1" = "--batch" ]; then
@@ -28,9 +27,8 @@ if [ "$BATCH_MODE" = "false" ]; then
     echo "SWANK_PORT: $SWANK_PORT"
 fi
 
-
 echo "Starting Emacs daemon (packages pre-installed, should be fast)..."
-    # Start daemon in background
+# Start daemon in background
 SHELL=/bin/bash TERM=${TERM} COLORTERM=${COLORTERM} emacs --daemon --load /home/emacs-user/.emacs.d/init.el > /tmp/emacs-daemon.log 2>&1 &
 EMACS_PID=$!
     
@@ -60,11 +58,9 @@ echo ""
 echo "  # Full terminal IDE"
 echo "  source dot-files/bash_profile; eskew"
 echo ""
-echo "M-x eat, then claudly for claud code."
+echo "M-x eat, then claudly for claude code."
 echo " "
 echo " M-x slime-connect for Gendl"
 echo " "
 
 exec /home/emacs-user/emacs-repl.sh
-    
-

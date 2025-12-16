@@ -10,6 +10,11 @@
 #   ./compose-dev up                     # Start all services
 #   ./compose-dev down                   # Stop all services
 #
+# SSH Setup:
+#   SSH keys are baked into the skewed-emacs image at build time.
+#   On startup, skewed-emacs exports its public key to /projects/skewed-emacs/ssh-keys/
+#   lisply-mcp reads this key and installs it for SSH access.
+#
 
 networks:
   skewed-network:
@@ -45,7 +50,6 @@ services:
           create_host_path: true
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ${EMACS_LOCAL_SRC:-/this-path-definitely-does-not-exist}/.emacs-local:/home/emacs-user/.emacs-local:ro
-      - ${PROJECTS_DIR}/skewed-emacs/ssh-keys:/home/emacs-user/.ssh:ro	
     group_add:
       - "${DOCKER_GROUP_ID:-999}"
     networks:
@@ -168,7 +172,7 @@ services:
         target: /projects
         bind:
           create_host_path: true
-      - /var/run/docker.sock:/var/run/docker.sock
+      # Note: docker.sock removed - SSH is used for secure access from skewed-emacs
       - ${USER_CONFIG_DIR}:/home/node/.config
     environment:
       - HOST_EMACS_URL=http://host.docker.internal:7080
@@ -182,4 +186,3 @@ services:
     networks:
       - skewed-network
     working_dir: /projects
-

@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 
 export DOCKER_CONFIG=~/.docker
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(pwd)"
 COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
 
 # Find all .yml files in the current directory, excluding docker-compose.yml
@@ -92,6 +92,51 @@ init_env() {
 }
 
 
+# Setup SSH keys between skewed-emacs and lisply-mcp containers
+# Called after services are started
+setup_ssh_keys() {
+    log_info "Setting up SSH keys for skewed-emacs -> lisply-mcp access..."
+    
+    # Get container names from compose (handles custom naming via env vars)
+    local emacs_container="skewed-emacs"
+    local mcp_container="lisply-mcp"
+    
+    # Check if both containers are running
+    if ! docker ps --format '{{.Names}}' | grep -q "^${emacs_container}$"; then
+        log_warning "Container ${emacs_container} not running, skipping SSH setup"
+        return 0
+    fi
+    
+    if ! docker ps --format '{{.Names}}' | grep -q "^${mcp_container}$"; then
+        log_warning "Container ${mcp_container} not running, skipping SSH setup"
+        return 0
+    fi
+    
+    # Extract public key from skewed-emacs (baked into image at build time)
+    local tmp_pubkey=$(mktemp)
+    if docker cp "${emacs_container}:/home/emacs-user/.ssh/id_ed25519.pub" "$tmp_pubkey" 2>/dev/null; then
+        log_info "Extracted SSH public key from ${emacs_container}"
+    else
+        log_warning "No SSH key found in ${emacs_container} - SSH access will not work"
+        rm -f "$tmp_pubkey"
+        return 0
+    fi
+    
+    # Ensure .ssh directory exists in lisply-mcp with correct permissions
+    docker exec "${mcp_container}" mkdir -p /home/node/.ssh
+    docker exec "${mcp_container}" chmod 700 /home/node/.ssh
+    docker exec "${mcp_container}" chown node:node /home/node/.ssh
+    
+    # Copy public key to lisply-mcp as authorized_keys
+    docker cp "$tmp_pubkey" "${mcp_container}:/home/node/.ssh/authorized_keys"
+    docker exec "${mcp_container}" chmod 600 /home/node/.ssh/authorized_keys
+    docker exec "${mcp_container}" chown node:node /home/node/.ssh/authorized_keys
+    
+    rm -f "$tmp_pubkey"
+    
+    log_success "SSH key installed in ${mcp_container} - 'ssh lisply-mcp' now works from ${emacs_container}"
+}
+
 
 # Show usage
 show_help() {
@@ -152,7 +197,7 @@ NETWORK:
     - Inter-container: <service-hostname>:<container-port>
 
 EOF
-    show_shell_functions
+    
 }
 
 # Service management
@@ -166,12 +211,9 @@ start_services() {
 
     log_info "Starting services: ${services:-all}"
     $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" up -d $services
-}
-
-show_skew_commands() {
-    printf "\n%b\n" "${BLUE}𝚃𝚘 𝙻𝚊𝚞𝚗𝚌𝚑 𝙴𝚖𝚊𝚌𝚜:${NC}"
-    printf "%b\n" "\`eskew\` ${BLUE}for a terminal emacsclient, or${NC}"
-    printf "%b\n\n" "\`egskew\` ${BLUE}for a graphical one.${NC}"
+    
+    # Setup SSH keys after containers are running
+    setup_ssh_keys
 }
 
 stop_services() {
@@ -183,6 +225,9 @@ restart_services() {
     local services="$*"
     log_info "Restarting services: ${services:-all}"
     $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" restart $services
+    
+    # Re-setup SSH keys after restart
+    setup_ssh_keys
 }
 
 show_logs() {
@@ -321,38 +366,29 @@ show_config() {
 }
 
 
-if [ -f "$SCRIPT_DIR/dot-files/shell-functions.sh" ]; then
-    source "$SCRIPT_DIR/dot-files/shell-functions.sh"
-fi
-
-
-function eskew() {
+# Inline shell functions for convenient Emacs access
+eskew() {
     docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -t "$@"
 }
 
-function egskew() {
-    docker exec -it skewed-emacs emacsclient -c "$@" &
+egskew() {
+    docker exec -it --detach-keys "ctrl-^" skewed-emacs emacsclient -c "$@" &
 }
 
-if [ ! -f "${HOME}/.emacs.d" ] && [ ! -f "${HOME}/.emacs" ]; then
-    function e() {
-	eskew "$@"
-    }
-
-    function egui() {
-	egskew "$@"
-    }
-else
-    function e() {
-	file=${1:-""};
-	emacsclient -t ${file}
-    }
-
-    function egui() {
-	file=${1:-""};
-	emacsclient -c ${file}
-    }
-fi
+# Optional: print welcome message when the functions are defined
+# (this will show every time the script is sourced or run, but only matters for 'up')
+show_skew_welcome() {
+    echo "" 
+    echo "Services are Up."
+    echo ""
+    echo "Shell Commands for the 🦖 Skewed Emacs Stack 🦖"
+    echo ""
+    printf "%b\n" "\`eskew\` ${BLUE}for a terminal emacsclient, or${NC}"
+    printf "%b\n\n" "\`egskew\` ${BLUE}for a graphical one.${NC}"
+    echo ""
+    echo "NOTE: Please exit this shell with Ctrl-D before doing './compose-dev down'."
+    echo "" 
+}
 
 
 # Main command dispatcher
@@ -363,8 +399,10 @@ main() {
         up)
             shift
             start_services "$@"
-            
-	    show_shell_functions
+	    export -f eskew
+	    export -f egskew
+	    show_skew_welcome
+	    exec bash -i
             ;;
         down)
             stop_services

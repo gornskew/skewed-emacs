@@ -138,30 +138,71 @@ if [[ $- == *i* && -z "$DOT_BASH_PROFILE_WELCOME" ]]; then
     echo ""
     echo "Welcome to the 🦖 Skewed Emacs 🦖  Bash Setup"
     echo ""
-    printf "\n%b\n" "${BLUE}𝚃𝚘 𝙻𝚊𝚞𝚗𝚌𝚑 𝙴𝚖𝚊𝚌𝚜:${NC}"
     printf "%b\n" "\`e\` ${BLUE}for a terminal emacsclient, or${NC}"
     printf "%b\n\n" "\`egui\` ${BLUE}for a graphical one.${NC}"
     echo ""
     echo "Terminal colors: 'theme dark|light|solarized|custom'"
     echo ""
-    echo "Use 'claudly', 'geminly', 'codexly' to launch those agents."
+    echo "Try 'claudly', 'geminly', 'codexly' to launch those agents."
+    echo "NOTE: The 👆 above 👆 agent 👆 commands are still under development."
     echo "" 
-    fi
     export DOT_BASH_PROFILE_WELCOME=1
 fi
 
 
-#
-#FLAG -- end of conditional behavior based on interactive shell plus not already ran. 
-#
+# convenience functions
 
-
-
-function egui
-{
+function e() {
     file=${1:-""};
-    emacsclient -c ${file}
+    emacsclient -t ${file}
 }
+
+function egui() {
+    file=${1:-""};
+    emacsclient -c ${file} &
+}
+
+#
+# SSH-based functions for accessing LLM agents in lisply-mcp container
+# SSH keys are baked into the skewed-emacs image and injected into lisply-mcp by compose-dev
+#
+function claudly 
+{
+    # Update Claude Code to latest version
+    echo "Checking for Claude Code updates..."
+    ssh lisply-mcp 'cd ~/.claude/local && npm update @anthropic-ai/claude-code' >/dev/null 2>&1
+    
+    # Merge the MCP configs inside the lisply-mcp container
+    echo "Merging MCP configurations..."
+    ssh lisply-mcp 'node /app/scripts/merge-mcp-config.js' >/dev/null 2>&1
+    
+    # Run Claude with the merged config
+    echo "Starting Claude Code with MCP integration..."
+    ssh -t lisply-mcp '/home/node/.claude/local/claude --mcp-config /tmp/merged-mcp-config.json'
+}
+
+
+function geminly 
+{
+    # Merge the MCP configs inside the lisply-mcp container
+    echo "Merging MCP configurations..."
+    ssh lisply-mcp 'node /app/scripts/merge-mcp-config.js' >/dev/null 2>&1
+    ssh lisply-mcp 'cp /tmp/merged-mcp-config.json /home/node/.gemini/settings.json' >/dev/null 2>&1
+    
+    # Run Gemini with the merged config
+    echo "Starting Gemini CLI with MCP integration..."
+    ssh -t lisply-mcp '/home/node/.gemini/local/gemini'
+}
+
+
+function codexly
+{
+    # TODO: Generate TOML MCP config for codex from SSOT
+    # For now, just run codex without MCP config
+    echo "Starting OpenAI Codex CLI..."
+    ssh -t lisply-mcp '/home/node/.codex/local/codex'
+}
+
 
 
 
@@ -224,3 +265,4 @@ fi
 if [ -f "$HOME/.ssh-aliases.sh" ]; then
     . "$HOME/.ssh-aliases.sh"
 fi
+

@@ -178,7 +178,7 @@ This ensures Emacs knows these characters are displayed as 2 columns wide in ter
 (defconst skewed-icons--colorful-table
   ;; Format: (:key . ("ICON_CHAR" . NEEDS_EXTRA_PADDING?))
   ;; If NEEDS_EXTRA_PADDING is t, we add 1 extra space to compensate for "Ghost" width.
-  '((:bullet          . ("•" . nil))
+  `((:bullet          . ("•" . nil))
     (:bullet-hollow   . ("◦" . nil))
     (:bullet-tri      . ("▸" . nil))
     (:bullet-dash     . ("─" . nil))
@@ -243,6 +243,13 @@ This ensures Emacs knows these characters are displayed as 2 columns wide in ter
     (:lisply-backends . ("👽" . nil))
     (:sys-info        . ("🩺︎"  .  nil))
     (:platform        . ("🎪" . nil))
+
+
+
+    
+    (:index-up-yellow       . ("👆" . nil))
+    (:index-up-white        . ("👆" . nil))
+    
     ))
 
 

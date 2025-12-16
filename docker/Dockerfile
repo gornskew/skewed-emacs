@@ -51,6 +51,22 @@ COPY --chown=emacs-user:emacs-user . /home/emacs-user/skewed-emacs/
 USER emacs-user
 WORKDIR /home/emacs-user
 
+# Generate SSH keys for lisply-mcp access (build-time, baked into image)
+# These keys are shared across all container instances - acceptable since
+# containers are isolated on their own networks
+RUN mkdir -p ~/.ssh && chmod 700 ~/.ssh && \
+    ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -C "emacs-user@skewed-emacs" && \
+    # Create SSH config for easy connection to lisply-mcp
+    echo 'Host lisply-mcp' > ~/.ssh/config && \
+    echo '    HostName lisply-mcp' >> ~/.ssh/config && \
+    echo '    User node' >> ~/.ssh/config && \
+    echo '    IdentityFile ~/.ssh/id_ed25519' >> ~/.ssh/config && \
+    echo '    StrictHostKeyChecking no' >> ~/.ssh/config && \
+    echo '    UserKnownHostsFile /dev/null' >> ~/.ssh/config && \
+    echo '    LogLevel ERROR' >> ~/.ssh/config && \
+    chmod 600 ~/.ssh/config && \
+    echo "SSH keys generated for lisply-mcp access"
+
 # Run setup and initialize Emacs
 RUN cd skewed-emacs && SKEWED_EMACS_DOCKER_BUILD=true ./setup && \
     ls -la ~/.emacs.d/init.el && \
@@ -80,4 +96,3 @@ ENV SKEWED_EMACS_CONTAINER=true
 EXPOSE 7080
 
 ENTRYPOINT ["/home/emacs-user/startup.sh"]
-
