@@ -21,6 +21,10 @@ RUN apt-get -y update && apt-get -y install --no-install-recommends \
     unzip \
     fonts-noto fonts-noto-color-emoji fonts-noto-mono \
     fonts-font-awesome fonts-symbola fonts-powerline \
+    # vterm build dependencies
+    cmake \
+    libtool-bin \
+    libvterm-dev \
     fontconfig && \
     # Install Nerd Fonts with debugging
     mkdir -p /usr/share/fonts/truetype/nerd-fonts && \

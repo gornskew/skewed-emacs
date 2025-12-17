@@ -34,12 +34,6 @@
   (display-graphic-p))
 
 
-;;
-;; Pretend vterm is loaded so it won't try to compile it.
-;; We will use eat instead of vterm so we don't need vterm. 
-;;
-(unless (featurep 'vterm)
-  (provide 'vterm))
 
 (setq
  third-party-packages
@@ -55,6 +49,16 @@
      :hook (prog-mode . company-mode)  
      :defer (not skewed-emacs-docker-build?)
      )
+
+    
+    ;; (vterm
+    ;;  :commands vterm
+    ;;  :bind ("C-c v" . vterm)
+    ;;  :defer (not skewed-emacs-docker-build?)
+    ;;  :config
+    ;;  (setq vterm-max-scrollback 10000)
+    ;;  )
+    
     (eat
      :commands eat
      :bind ("C-c t" . eat)
