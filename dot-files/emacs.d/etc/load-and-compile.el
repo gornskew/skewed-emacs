@@ -76,9 +76,13 @@
 	 (package-dirs (mapcar #'package-desc-dir (mapcar #'car (mapcar #'cl-rest packages)))))
 
     (let ((num-cpus (floor (/ (num-cpus) 2))))
+      
       (when (package-installed-p 'pdf-tools)
-	(require 'pdf-tools) (pdf-tools-install t)
+	(require 'pdf-tools)
+	(unless skewed-emacs-docker-build?
+	  (pdf-tools-install t))
 	(await-async-compilations 'pdf-tools))
+
       (when (package-installed-p 'simple-httpd)
 	(require 'simple-httpd)
 	(httpd-start)(httpd-stop))

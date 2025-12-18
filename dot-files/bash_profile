@@ -144,7 +144,6 @@ if [[ $- == *i* && -z "$DOT_BASH_PROFILE_WELCOME" ]]; then
     echo "Terminal colors: 'theme dark|light|solarized|custom'"
     echo ""
     echo "Try 'claudly', 'geminly', 'codexly' to launch those agents."
-    echo "NOTE: The 👆 above 👆 agent 👆 commands are still under development."
     echo "" 
     export DOT_BASH_PROFILE_WELCOME=1
 fi
@@ -162,50 +161,62 @@ function egui() {
     emacsclient -c ${file} &
 }
 
+
 #
-# SSH-based functions for accessing LLM agents in lisply-mcp container
-# SSH keys are baked into the skewed-emacs image and injected into lisply-mcp by compose-dev
+# Local AI CLI functions - tools run directly in skewed-emacs container
+# (Node.js and AI tools are now installed locally, no longer via SSH to lisply-mcp)
 #
+
 function claudly 
 {
     # Update Claude Code to latest version
     echo "Checking for Claude Code updates..."
-    ssh lisply-mcp 'cd ~/.claude/local && npm update @anthropic-ai/claude-code' >/dev/null 2>&1
+    (cd ~/.claude/local && npm update @anthropic-ai/claude-code) >/dev/null 2>&1
     
-    # Merge the MCP configs inside the lisply-mcp container
-    echo "Merging MCP configurations..."
-    ssh lisply-mcp 'node /app/scripts/merge-mcp-config.js' >/dev/null 2>&1
+    # Merge the MCP configs
+    echo "Preparing MCP configuration..."
+    node ~/skewed-emacs/docker/merge-mcp-config.js >/dev/null 2>&1
     
     # Run Claude with the merged config
-    # Note: TERM=xterm-256color is required for the TUI to work properly
-    # cd /projects sets the working directory
     echo "Starting Claude Code with MCP integration..."
-    ssh -t lisply-mcp 'export TERM=xterm-256color; cd /projects && /home/node/.claude/local/claude --mcp-config /tmp/merged-mcp-config.json'
+    cd /projects && ~/.claude/local/claude --mcp-config /tmp/merged-mcp-config.json
 }
+
+
 
 
 function geminly 
 {
-    # Merge the MCP configs inside the lisply-mcp container
-    echo "Merging MCP configurations..."
-    ssh lisply-mcp 'node /app/scripts/merge-mcp-config.js' >/dev/null 2>&1
-    ssh lisply-mcp 'cp /tmp/merged-mcp-config.json /home/node/.gemini/settings.json' >/dev/null 2>&1
+    # Update Gemini CLI to latest version
+    echo "Checking for Gemini CLI updates..."
+    (cd ~/.gemini/local && npm update @google/gemini-cli) >/dev/null 2>&1
+    
+    # Merge the MCP configs and copy to Gemini settings location
+    echo "Preparing MCP configuration..."
+    node ~/skewed-emacs/docker/merge-mcp-config.js >/dev/null 2>&1
+    mkdir -p ~/.gemini
+    cp /tmp/merged-mcp-config.json ~/.gemini/settings.json
     
     # Run Gemini with the merged config
-    # Note: TERM=xterm-256color is required for the TUI to work properly
     echo "Starting Gemini CLI with MCP integration..."
-    ssh -t lisply-mcp 'export TERM=xterm-256color; cd /projects && /home/node/.gemini/local/gemini'
+    cd /projects && ~/.gemini/local/gemini
 }
+
+
 
 
 function codexly
 {
+    # Update Codex CLI to latest version
+    echo "Checking for OpenAI Codex updates..."
+    (cd ~/.codex/local && npm update @openai/codex) >/dev/null 2>&1
+    
     # TODO: Generate TOML MCP config for codex from SSOT
     # For now, just run codex without MCP config
-    # Note: TERM=xterm-256color is required for the TUI to work properly
     echo "Starting OpenAI Codex CLI..."
-    ssh -t lisply-mcp 'export TERM=xterm-256color; cd /projects && /home/node/.codex/local/codex'
+    cd /projects && ~/.codex/local/codex
 }
+
 
 
 

@@ -2,18 +2,16 @@
 # IMPORTANT: use ./compose-dev rather than calling `docker compose` directly.
 #
 # Docker Composition for:
-# - Skewed Emacs
-# - Gendl Development Environment
-# - Node.js container for Lisply-Mcp and Claude Code.
+# - Skewed Emacs (with Node.js and AI CLI tools)
+# - Gendl Development Environment (CCL and SBCL)
 #
 # Usage:
 #   ./compose-dev up                     # Start all services
 #   ./compose-dev down                   # Stop all services
 #
-# SSH Setup:
-#   SSH keys are baked into the skewed-emacs image at build time.
-#   On startup, skewed-emacs exports its public key to /projects/skewed-emacs/ssh-keys/
-#   lisply-mcp reads this key and installs it for SSH access.
+# Configuration:
+#   MCP configs are managed by skewed-emacs at docker/mcp-config.json
+#   Private configs can be added at private-mcp-config.json (gitignored)
 #
 
 networks:
@@ -155,34 +153,3 @@ services:
       retries: 3
       start_period: 15s
 
-
-  lisply-mcp:
-    image: gornskew/${NODE_IMAGE_BASE}:${NODE_IMAGE_BRANCH:-master}
-    container_name: ${NODE_IMAGE_BASE_NAME:-lisply-mcp}
-    hostname: ${NODE_IMAGE_BASE_NAME:-lisply-mcp}
-    restart: unless-stopped
-    stdin_open: true
-    tty: true
-    ports:
-      - "3001:3000"
-      - "8081:8080"
-    volumes:
-      - type: bind
-        source: ${PROJECTS_DIR}
-        target: /projects
-        bind:
-          create_host_path: true
-      # Note: docker.sock removed - SSH is used for secure access from skewed-emacs
-      - ${USER_CONFIG_DIR}:/home/node/.config
-    environment:
-      - HOST_EMACS_URL=http://host.docker.internal:7080
-      - TERM=xterm-256color
-      - COLORTERM=truecolor
-      - TZ=${TZ:-Etc/UTC}
-    group_add:
-      - "${DOCKER_GROUP_ID:-999}"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    networks:
-      - skewed-network
-    working_dir: /projects

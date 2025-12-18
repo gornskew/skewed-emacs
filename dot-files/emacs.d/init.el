@@ -164,12 +164,16 @@
 
     ,(unless (eql system-type 'android)
        `(pdf-tools
-         :mode ("\\.pdf\\'" . pdf-view-mode)
-         :config
-         (when skewed-emacs-docker-build?
-           (message "pdf-tools: building epdfinfo server non-interactively...")
-           (pdf-tools-install :no-query t)
-           (pdf-loader-install))))
+	 :mode ("\\.pdf\\'" . pdf-view-mode)
+	 :config
+	 (cond
+	  (skewed-emacs-docker-build?
+	   ;; Dockerfile builds epdfinfo via autobuild; never prompt in init.
+	   (message "pdf-tools: docker build mode; skipping pdf-tools-install (epdfinfo built in Dockerfile)"))
+	  (t
+	   (pdf-tools-install :no-query)
+	   (pdf-loader-install)))))
+
     
     (org
      :ensure nil

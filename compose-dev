@@ -92,50 +92,6 @@ init_env() {
 }
 
 
-# Setup SSH keys between skewed-emacs and lisply-mcp containers
-# Called after services are started
-setup_ssh_keys() {
-    log_info "Setting up SSH keys for skewed-emacs -> lisply-mcp access..."
-    
-    # Get container names from compose (handles custom naming via env vars)
-    local emacs_container="skewed-emacs"
-    local mcp_container="lisply-mcp"
-    
-    # Check if both containers are running
-    if ! docker ps --format '{{.Names}}' | grep -q "^${emacs_container}$"; then
-        log_warning "Container ${emacs_container} not running, skipping SSH setup"
-        return 0
-    fi
-    
-    if ! docker ps --format '{{.Names}}' | grep -q "^${mcp_container}$"; then
-        log_warning "Container ${mcp_container} not running, skipping SSH setup"
-        return 0
-    fi
-    
-    # Extract public key from skewed-emacs (baked into image at build time)
-    local tmp_pubkey=$(mktemp)
-    if docker cp "${emacs_container}:/home/emacs-user/.ssh/id_ed25519.pub" "$tmp_pubkey" 2>/dev/null; then
-        log_info "Extracted SSH public key from ${emacs_container}"
-    else
-        log_warning "No SSH key found in ${emacs_container} - SSH access will not work"
-        rm -f "$tmp_pubkey"
-        return 0
-    fi
-    
-    # Ensure .ssh directory exists in lisply-mcp with correct permissions
-    docker exec "${mcp_container}" mkdir -p /home/node/.ssh
-    docker exec "${mcp_container}" chmod 700 /home/node/.ssh
-    docker exec "${mcp_container}" chown node:node /home/node/.ssh
-    
-    # Copy public key to lisply-mcp as authorized_keys
-    docker cp "$tmp_pubkey" "${mcp_container}:/home/node/.ssh/authorized_keys"
-    docker exec "${mcp_container}" chmod 600 /home/node/.ssh/authorized_keys
-    docker exec "${mcp_container}" chown node:node /home/node/.ssh/authorized_keys
-    
-    rm -f "$tmp_pubkey"
-    
-    log_success "SSH key installed in ${mcp_container} - 'ssh lisply-mcp' now works from ${emacs_container}"
-}
 
 
 # Show usage
@@ -167,7 +123,6 @@ SERVICES:
     skewed-emacs       Skewed Emacs container (HTTP API on port 7081)
     gendl              Gendl container (HTTP API on port 9081, SWANK on port 4201)
     genworks-gdl       Genworks GDL container (HTTP API on port 9089, SWANK on port 4209) [optional]
-    lisply-mcp         Node.js development container (ports 3001, 8081, 9001)
 
 EXAMPLES:
     $0 up                    # Start all services
@@ -212,8 +167,6 @@ start_services() {
     log_info "Starting services: ${services:-all}"
     $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" up -d $services
     
-    # Setup SSH keys after containers are running
-    setup_ssh_keys
 }
 
 stop_services() {
@@ -226,8 +179,6 @@ restart_services() {
     log_info "Restarting services: ${services:-all}"
     $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" restart $services
     
-    # Re-setup SSH keys after restart
-    setup_ssh_keys
 }
 
 show_logs() {
@@ -243,7 +194,7 @@ show_status() {
 open_shell() {
     local service="$1"
     if [ -z "$service" ]; then
-        log_error "Please specify a service: skewed-emacs, gendl, genworks-gdl, or lisply-mcp"
+        log_error "Please specify a service: skewed-emacs, gendl-ccl, or gendl-sbcl"
         exit 1
     fi
 

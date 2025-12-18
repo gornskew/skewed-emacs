@@ -120,6 +120,7 @@ fi
 DOCKER_BUILDKIT=1 docker build \
   --progress=plain \
   -t "${IMAGE_NAME}:${TAG}" \
+  --build-arg GIT_BRANCH="${branch}" \
   -f "$DOCKERFILE_PATH" \
   "$BUILD_CONTEXT"
 
