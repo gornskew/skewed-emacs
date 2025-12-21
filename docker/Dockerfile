@@ -245,7 +245,7 @@ WORKDIR /home/emacs-user
 
 RUN set -euxo pipefail; \
   cd skewed-emacs; \
-  SKEWED_EMACS_DOCKER_BUILD=true ./setup
+  SKEWED_EMACS_DOCKER_BUILD=true ./setup; \
   cd ..
 
 
