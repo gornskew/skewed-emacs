@@ -2,14 +2,14 @@
 
 // MCP config setup for skewed-emacs container
 // For now, just copies the base config to /tmp
-// TODO: Add private services overlay protocol
+// FLAG: TODO: Add private services overlay protocol
 
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
 const homeDir = os.homedir();
-const baseConfigPath = path.join(homeDir, 'skewed-emacs/docker/mcp-config.json');
+const baseConfigPath = path.join(homeDir, 'skewed-emacs/mcp/mcp-config.json');
 const outputPath = '/tmp/merged-mcp-config.json';
 
 try {

@@ -243,6 +243,12 @@ RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
 USER emacs-user
 WORKDIR /home/emacs-user
 
+RUN set -euxo pipefail; \
+  cd skewed-emacs; \
+  SKEWED_EMACS_DOCKER_BUILD=true ./setup
+  cd ..
+
+
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
 ENV SKEWED_EMACS_CONTAINER=true
