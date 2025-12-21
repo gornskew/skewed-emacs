@@ -139,13 +139,15 @@
      :defer nil)
     (yaml
      :mode (("\\.ya?ml\\'" . yaml-mode))
+     :hook (yaml-mode . (lambda () (setq yaml-indent-offset 2)))
      :defer nil)
     (ellama
      :commands ellama
      :defer (not skewed-emacs-docker-build?))
     (json-mode
      :mode ("\\.json\\'" . json-mode)
-     :defer nil)
+     :defer nil
+     :hook (json-mode . (lambda () (setq js-indent-level 2))))
     (simple-httpd
      :commands httpd-start
      :defer nil)

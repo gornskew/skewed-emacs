@@ -1,5 +1,6 @@
 # Skewed Emacs — multi-stage, trimmed
-# - builder stage: installs build deps, runs Emacs package installs, builds pdf-tools epdfinfo, installs CLIs
+# - builder stage: installs build deps, runs Emacs package installs,
+#   builds pdf-tools epdfinfo, installs CLIs
 # - runtime stage: only runtime deps + copies built artifacts from builder
 
 FROM debian:stable-slim AS builder
@@ -78,6 +79,8 @@ RUN set -euxo pipefail; \
   git clone --depth 1 --branch "${GIT_BRANCH}" https://github.com/gornskew/lisply-mcp.git; \
   cd lisply-mcp/scripts; \
   npm ci --omit=dev; \
+  cd ../scripts-v2; \
+  npm ci --omit=dev; \
   npm cache clean --force || true
 
 # ---- AI CLIs ----
@@ -114,10 +117,10 @@ RUN set -euxo pipefail; \
   command -v gemini || true; \
   gemini --version || true
 
-# ---- SSH keys (optional; keeping your behavior) ----
-RUN set -euxo pipefail; \
-  mkdir -p ~/.ssh; chmod 700 ~/.ssh; \
-  ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N "" -C "emacs-user@skewed-emacs"
+# FLAG: Add grok-cli when available
+# Expected pattern: npm install @xai/grok-cli --prefix ~/.grok/local
+# Then: ln -sf ~/.grok/local/node_modules/.bin/grok ~/.local/bin/grok
+
 
 # ---- skewed-emacs setup + pdf-tools build ----
 RUN set -euxo pipefail; \
@@ -216,19 +219,26 @@ COPY --from=builder /usr/share/fonts/truetype/nerd-fonts /usr/share/fonts/truety
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/skewed-emacs /home/emacs-user/skewed-emacs
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.emacs.d /home/emacs-user/.emacs.d
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/lisply-mcp /home/emacs-user/lisply-mcp
-COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.ssh /home/emacs-user/.ssh
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.local /home/emacs-user/.local
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.gemini /home/emacs-user/.gemini
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.claude /home/emacs-user/.claude
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.codex /home/emacs-user/.codex
+# FLAG: Add when grok-cli implemented above
+# COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.grok /home/emacs-user/.grok
 
+
+
+# FLAG - we can install copilot-language-server through node now if we
+#  want beause we have node now anyway.
 # keep your symlink
 RUN set -euxo pipefail; \
   ln -sf /home/emacs-user/skewed-emacs/docker/copilot-language-server /usr/local/bin/copilot-language-server; \
   fc-cache -fv
 
 # Startup scripts
-COPY --chown=emacs-user:emacs-user docker/startup.sh /home/emacs-user/startup.sh
+COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
-RUN chmod +x /home/emacs-user/startup.sh /home/emacs-user/emacs-repl.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
 
 USER emacs-user
 WORKDIR /home/emacs-user
@@ -238,5 +248,7 @@ ENV COLORTERM=truecolor
 ENV SKEWED_EMACS_CONTAINER=true
 ENV PATH="/home/emacs-user/.local/bin:${PATH}"
 
-EXPOSE 7080
-ENTRYPOINT ["/home/emacs-user/startup.sh"]
+# EXPOSE 7080
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+

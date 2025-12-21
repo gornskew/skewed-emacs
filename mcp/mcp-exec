@@ -1,0 +1,110 @@
+#!/bin/bash
+#
+# MCP exec wrapper - starts compose stack on demand if needed,
+# then execs into the container to run the MCP wrapper.
+#
+# CRITICAL: This script must not output ANYTHING to stdout except
+# the MCP protocol messages from the final exec. Any stray output
+# will corrupt the MCP stdio protocol and cause the client to fail.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONTAINER_NAME="skewed-emacs"
+LOG_FILE="/tmp/mcp-exec.log"
+MAX_WAIT_SECONDS=90
+
+# All logging goes to file and stderr, NEVER stdout
+log() {
+    echo "[$(date -Iseconds)] $1" >> "$LOG_FILE"
+    echo "[$(date -Iseconds)] $1" >&2
+}
+
+# Wait for container to be healthy using Docker's built-in health check
+wait_for_healthy() {
+    local container="$1"
+    local waited=0
+    
+    log "Waiting for container ${container} to be healthy..."
+    
+    while true; do
+        local health_status
+        health_status=$(docker inspect --format='{{.State.Health.Status}}' "${container}" 2>/dev/null)
+        
+        case "$health_status" in
+            healthy)
+                log "Container ${container} is healthy"
+                return 0
+                ;;
+            unhealthy)
+                log "WARNING: Container ${container} is unhealthy, proceeding anyway..."
+                return 1
+                ;;
+            starting|"")
+                # Still starting or no health check defined - wait
+                ;;
+            *)
+                log "Unknown health status: ${health_status}"
+                ;;
+        esac
+        
+        if [ $waited -ge $MAX_WAIT_SECONDS ]; then
+            log "WARNING: Timeout waiting for ${container} to be healthy (status: ${health_status}), proceeding anyway..."
+            return 1
+        fi
+        
+        sleep 1
+        waited=$((waited + 1))
+        
+        # Log every 5 seconds to avoid spam
+        if [ $((waited % 5)) -eq 0 ]; then
+            log "Still waiting for ${container} to be healthy... ($waited/$MAX_WAIT_SECONDS, status: ${health_status})"
+        fi
+    done
+}
+
+log "mcp-exec starting with args: $@"
+
+# Check if container is running
+if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
+    log "Container ${CONTAINER_NAME} is not running, starting the composition..."
+    
+    # Start compose stack - redirect ALL output to log file
+    # Use subshell to ensure no output leaks to stdout
+    (
+        cd "${SCRIPT_DIR}/.."
+        ./compose-dev up --daemon
+    ) >> "$LOG_FILE" 2>&1
+    
+    compose_exit=$?
+    
+    if [ $compose_exit -ne 0 ]; then
+        log "ERROR: compose-dev up failed with exit code $compose_exit"
+        exit 1
+    fi
+    
+    log "Compose started, waiting for container to appear..."
+    
+    # Wait for container to be running
+    waited=0
+    while ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; do
+        if [ $waited -ge $MAX_WAIT_SECONDS ]; then
+            log "ERROR: Timeout waiting for container ${CONTAINER_NAME} to start"
+            exit 1
+        fi
+        sleep 1
+        waited=$((waited + 1))
+        log "Waiting for container... ($waited/$MAX_WAIT_SECONDS)"
+    done
+    
+    log "Container is running, waiting for health check to pass..."
+    
+    # Wait for Docker's health check to report healthy
+    wait_for_healthy "${CONTAINER_NAME}"
+    
+    log "Container ${CONTAINER_NAME} is ready"
+fi
+
+log "Executing MCP wrapper in container..."
+
+# Run the MCP wrapper - this replaces our process
+# -i keeps stdin open for MCP stdio protocol
+exec docker exec -i "${CONTAINER_NAME}" node /home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js "$@"

@@ -345,15 +345,30 @@ show_skew_welcome() {
 # Main command dispatcher
 main() {
     check_docker_compose
-
+    
     case "${1:-help}" in
         up)
             shift
-            start_services "$@"
-	    export -f eskew
-	    export -f egskew
-	    show_skew_welcome
-	    exec bash -i
+            daemon_mode=false
+            remaining_args=()
+            for arg in "$@"; do
+                case "$arg" in
+                    --daemon|-d)
+                        daemon_mode=true
+                        ;;
+                    *)
+                        remaining_args+=("$arg")
+                        ;;
+                esac
+            done
+            start_services "${remaining_args[@]}"
+            
+            if [ "$daemon_mode" = false ]; then
+                export -f eskew
+                export -f egskew
+                show_skew_welcome
+                exec bash -i
+            fi
             ;;
         down)
             stop_services
