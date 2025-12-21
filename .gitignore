@@ -1,4 +1,7 @@
 *~
+.#*
+**/#*#
+
 *.log
 
 # Git directory (not needed in container)

@@ -175,7 +175,7 @@ function claudly
     
     # Merge the MCP configs
     echo "Preparing MCP configuration..."
-    node ~/skewed-emacs/docker/merge-mcp-config.js >/dev/null 2>&1
+    node ~/skewed-emacs/mcp/merge-mcp-config.js >/dev/null 2>&1
     
     # Run Claude with the merged config
     echo "Starting Claude Code with MCP integration..."
@@ -193,7 +193,7 @@ function geminly
     
     # Merge the MCP configs and copy to Gemini settings location
     echo "Preparing MCP configuration..."
-    node ~/skewed-emacs/docker/merge-mcp-config.js >/dev/null 2>&1
+    node ~/skewed-emacs/mcp/merge-mcp-config.js >/dev/null 2>&1
     mkdir -p ~/.gemini
     cp /tmp/merged-mcp-config.json ~/.gemini/settings.json
     
@@ -213,9 +213,11 @@ function codexly
     
     # TODO: Generate TOML MCP config for codex from SSOT
     # For now, just run codex without MCP config
-    echo "Starting OpenAI Codex CLI..."
+    echo "Starting OpenAI Codex CLI without MCP services for now..."
+    echo "FLAG -- need to add mcp toml config generating in dot-files/base_profile..."
     cd /projects && ~/.codex/local/codex
 }
+
 
 # FLAG: Add grokly when grok-cli available
 # function grokly
@@ -225,7 +227,6 @@ function codexly
 #     echo "Starting xAI Grok CLI..."
 #     cd /projects && ~/.grok/local/grok
 # }
-
 
 
 
