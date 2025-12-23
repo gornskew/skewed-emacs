@@ -146,11 +146,18 @@ RUN set -euxo pipefail; \
     --load "~/.emacs.d/init.el" \
     --eval "(require 'pdf-tools)"
 
+# Build vterm native module
+RUN set -euxo pipefail; \
+  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+    --load "~/.emacs.d/init.el" \
+    --eval "(require 'vterm)" \
+    --eval "(vterm-module-compile)"
+
 # Recompile packages + nerd-icons fonts
 RUN set -euxo pipefail; \
   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
     --load "~/.emacs.d/init.el" \
-    --eval "(progn (vterm-module-compile) (recompile-all-packages))"; \
+    --eval "(recompile-all-packages)"; \
   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
     --load "~/.emacs.d/init.el" \
     --eval "(when (package-installed-p 'nerd-icons) (nerd-icons-install-fonts t))"; \
