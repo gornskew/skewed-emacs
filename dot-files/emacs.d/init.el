@@ -64,6 +64,14 @@
      :bind ("C-c t" . eat)
      :defer (not skewed-emacs-docker-build?)
      )
+
+    (vterm
+     :commands vterm
+     :defer (not skewed-emacs-docker-build?)
+     :config (setq vterm-max-scrollback 10000
+		   vterm-kill-buffer-on-exit t))
+    
+    
     (doom-themes
      :demand t				; Load immediately for UI
      :config (load-theme 'modus-vivendi t)

@@ -179,7 +179,9 @@ function claudly
     
     # Run Claude with the merged config
     echo "Starting Claude Code with MCP integration..."
-    cd /projects && ~/.claude/local/claude --mcp-config /tmp/merged-mcp-config.json
+    # cd /projects && ~/.local/bin/claude --mcp-config /tmp/merged-mcp-config.json
+
+    cd /projects && ~/.local/bin/claude
 }
 
 
@@ -199,7 +201,7 @@ function geminly
     
     # Run Gemini with the merged config
     echo "Starting Gemini CLI with MCP integration..."
-    cd /projects && ~/.gemini/local/gemini
+    cd /projects && ~/.local/bin/gemini
 }
 
 
@@ -215,7 +217,7 @@ function codexly
     # For now, just run codex without MCP config
     echo "Starting OpenAI Codex CLI without MCP services for now..."
     echo "FLAG -- need to add mcp toml config generating in dot-files/base_profile..."
-    cd /projects && ~/.codex/local/codex
+    cd /projects && ~/.local/bin/codex
 }
 
 
@@ -225,7 +227,7 @@ function codexly
 #     echo "Checking for xAI Grok updates..."
 #     (cd ~/.grok/local && npm update @xai/grok-cli) >/dev/null 2>&1
 #     echo "Starting xAI Grok CLI..."
-#     cd /projects && ~/.grok/local/grok
+#     cd /projects && ~/.local/bin/grok
 # }
 
 
@@ -286,8 +288,4 @@ if [ -f "$HOME/.private-config/dot-files/bash_profile" ]; then
 fi
 
 
-# FLAG -- is this fully implemented or not?: 
-if [ -f "$HOME/.ssh-aliases.sh" ]; then
-    . "$HOME/.ssh-aliases.sh"
-fi
 

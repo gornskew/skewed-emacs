@@ -32,6 +32,7 @@ RUN set -euxo pipefail; \
     automake autoconf make gcc g++ pkg-config \
     libpng-dev \
     libpoppler-glib-dev libpoppler-private-dev \
+    libvterm-dev \
   ; \
   rm -rf /var/lib/apt/lists/*
 
@@ -149,7 +150,7 @@ RUN set -euxo pipefail; \
 RUN set -euxo pipefail; \
   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
     --load "~/.emacs.d/init.el" \
-    --eval "(recompile-all-packages)"; \
+    --eval "(progn (vterm-module-compile) (recompile-all-packages))"; \
   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
     --load "~/.emacs.d/init.el" \
     --eval "(when (package-installed-p 'nerd-icons) (nerd-icons-install-fonts t))"; \
@@ -201,7 +202,7 @@ RUN set -euxo pipefail; \
   echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
     > /etc/apt/sources.list.d/nodesource.list; \
   apt-get update; \
-  apt-get install -y --no-install-recommends nodejs; \
+  apt-get install -y --no-install-recommends nodejs libvterm-dev; \
   rm -rf /var/lib/apt/lists/*
 
 # user + dirs
