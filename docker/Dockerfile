@@ -32,9 +32,96 @@ RUN set -euxo pipefail; \
     automake autoconf make gcc g++ pkg-config \
     libpng-dev \
     libpoppler-glib-dev libpoppler-private-dev \
+    cmake libtool \
     libvterm-dev \
   ; \
   rm -rf /var/lib/apt/lists/*
+
+
+
+# ---- Nerd Fonts (builder) ----
+# Do it now cause the emacs loads of init.el might need them.
+RUN set -euxo pipefail; \
+  mkdir -p /usr/share/fonts/truetype/nerd-fonts; \
+  curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/NerdFontsSymbolsOnly.zip \
+    -o /tmp/NerdFontsSymbolsOnly.zip; \
+  unzip -q /tmp/NerdFontsSymbolsOnly.zip -d /usr/share/fonts/truetype/nerd-fonts; \
+  rm -f /tmp/NerdFontsSymbolsOnly.zip; \
+  fc-cache -fv
+
+
+# ---- user + dirs ----
+RUN set -euxo pipefail; \
+  groupadd -g 1000 emacs-user; \
+  useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user; \
+  mkdir -p /projects; \
+  chown emacs-user:emacs-user /projects; \
+  ln -s /projects /home/emacs-user/projects
+
+# Copy skewed-emacs repo into image (builder)
+COPY --chown=emacs-user:emacs-user . /home/emacs-user/skewed-emacs/
+
+
+USER emacs-user
+WORKDIR /home/emacs-user
+
+
+# ---- skewed-emacs setup + pdf-tools build ----
+RUN set -euxo pipefail; \
+  cd skewed-emacs; \
+  SKEWED_EMACS_DOCKER_BUILD=true ./setup
+
+
+# Start emacs once in batch mode just to shake everything out
+# and isolate any generate init issues.
+RUN set -euxo pipefail; \
+  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+    --load "~/.emacs.d/init.el"
+
+
+# Build vterm native module
+RUN set -euxo pipefail; \
+  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+    --load "~/.emacs.d/init.el" \
+    --eval "(vterm-module-compile)"
+
+
+#
+# FLAG - try without this, should be done already by now. 
+# # Ensure pdf-tools installed + build epdfinfo
+# RUN set -euxo pipefail; \
+#   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+#     --load "~/.emacs.d/init.el" \
+#     --eval "(require 'package)" \
+#     --eval "(package-initialize)" \
+#     --eval "(unless (package-installed-p 'pdf-tools) (package-refresh-contents) (package-install 'pdf-tools))"
+
+
+
+RUN set -euxo pipefail; \
+  PDFDIR="$(ls -d /home/emacs-user/.emacs.d/elpa/pdf-tools-* | head -n1)"; \
+  cd "$PDFDIR"; \
+  ./build/server/autobuild -i "$PDFDIR"
+
+RUN set -euxo pipefail; \
+  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+    --load "~/.emacs.d/init.el" \
+    --eval "(require 'pdf-tools)"
+
+
+# Recompile packages + nerd-icons fonts
+RUN set -euxo pipefail; \
+  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+    --load "~/.emacs.d/init.el" \
+    --eval "(recompile-all-packages)"; \
+  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+    --load "~/.emacs.d/init.el" \
+    --eval "(when (package-installed-p 'nerd-icons) (nerd-icons-install-fonts t))"; \
+  fc-cache -fv
+
+
+
+USER root
 
 # ---- Node.js (builder) ----
 RUN set -euxo pipefail; \
@@ -47,25 +134,6 @@ RUN set -euxo pipefail; \
   apt-get install -y --no-install-recommends nodejs; \
   rm -rf /var/lib/apt/lists/*
 
-# ---- Nerd Fonts (builder) ----
-RUN set -euxo pipefail; \
-  mkdir -p /usr/share/fonts/truetype/nerd-fonts; \
-  curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/NerdFontsSymbolsOnly.zip \
-    -o /tmp/NerdFontsSymbolsOnly.zip; \
-  unzip -q /tmp/NerdFontsSymbolsOnly.zip -d /usr/share/fonts/truetype/nerd-fonts; \
-  rm -f /tmp/NerdFontsSymbolsOnly.zip; \
-  fc-cache -fv
-
-# ---- user + dirs ----
-RUN set -euxo pipefail; \
-  groupadd -g 1000 emacs-user; \
-  useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user; \
-  mkdir -p /projects; \
-  chown emacs-user:emacs-user /projects; \
-  ln -s /projects /home/emacs-user/projects
-
-# Copy skewed-emacs repo into image (builder)
-COPY --chown=emacs-user:emacs-user . /home/emacs-user/skewed-emacs/
 
 # keep your symlink behavior
 RUN set -euxo pipefail; \
@@ -123,45 +191,6 @@ RUN set -euxo pipefail; \
 # Then: ln -sf ~/.grok/local/node_modules/.bin/grok ~/.local/bin/grok
 
 
-# ---- skewed-emacs setup + pdf-tools build ----
-RUN set -euxo pipefail; \
-  cd skewed-emacs; \
-  SKEWED_EMACS_DOCKER_BUILD=true ./setup
-
-# Ensure pdf-tools installed + build epdfinfo
-RUN set -euxo pipefail; \
-  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-    --load "~/.emacs.d/init.el" \
-    --eval "(require 'package)" \
-    --eval "(package-initialize)" \
-    --eval "(unless (package-installed-p 'pdf-tools) (package-refresh-contents) (package-install 'pdf-tools))"
-
-RUN set -euxo pipefail; \
-  PDFDIR="$(ls -d /home/emacs-user/.emacs.d/elpa/pdf-tools-* | head -n1)"; \
-  cd "$PDFDIR"; \
-  ./build/server/autobuild -i "$PDFDIR"
-
-RUN set -euxo pipefail; \
-  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-    --load "~/.emacs.d/init.el" \
-    --eval "(require 'pdf-tools)"
-
-# Build vterm native module
-RUN set -euxo pipefail; \
-  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-    --load "~/.emacs.d/init.el" \
-    --eval "(require 'vterm)" \
-    --eval "(vterm-module-compile)"
-
-# Recompile packages + nerd-icons fonts
-RUN set -euxo pipefail; \
-  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-    --load "~/.emacs.d/init.el" \
-    --eval "(recompile-all-packages)"; \
-  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-    --load "~/.emacs.d/init.el" \
-    --eval "(when (package-installed-p 'nerd-icons) (nerd-icons-install-fonts t))"; \
-  fc-cache -fv
 
 # Start daemon once to let your async init settle (keeping your behavior)
 RUN set -euxo pipefail; \
@@ -225,7 +254,6 @@ COPY --from=builder /usr/share/fonts/truetype/nerd-fonts /usr/share/fonts/truety
 
 # Copy user content from builder
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/skewed-emacs /home/emacs-user/skewed-emacs
-COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.emacs.d /home/emacs-user/.emacs.d
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/lisply-mcp /home/emacs-user/lisply-mcp
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.local /home/emacs-user/.local
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.gemini /home/emacs-user/.gemini
@@ -233,7 +261,6 @@ COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.claude /home
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.codex /home/emacs-user/.codex
 # FLAG: Add when grok-cli implemented above
 # COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.grok /home/emacs-user/.grok
-
 
 
 # FLAG - we can install copilot-language-server through node now if we

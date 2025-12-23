@@ -68,6 +68,7 @@
     (vterm
      :commands vterm
      :defer (not skewed-emacs-docker-build?)
+     :init (setq vterm-always-compile-module t)
      :config (setq vterm-max-scrollback 10000
 		   vterm-kill-buffer-on-exit t))
     
