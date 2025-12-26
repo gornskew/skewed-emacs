@@ -466,6 +466,7 @@ gendl-ccl/4200.")
   (global-set-key (kbd "ESC C-M-b") 'backward-sexp)
   (global-set-key (kbd "ESC C-M-k") 'kill-sexp)
   (global-set-key (kbd "ESC C-M-q") 'indent-sexp)
+  (global-set-key (kbd "M-]") 'kill-region)
   (message "Done with keybindings setup."))
 
 (defun setup-graphical-keybindings-and-faces ()
