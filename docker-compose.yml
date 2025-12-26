@@ -1,18 +1,6 @@
 #
 # IMPORTANT: use ./compose-dev rather than calling `docker compose` directly.
 #
-# Docker Composition for:
-# - Skewed Emacs (with Node.js and AI CLI tools)
-# - Gendl Development Environment (CCL and SBCL)
-#
-# Usage:
-#   ./compose-dev up                     # Start all services
-#   ./compose-dev down                   # Stop all services
-#
-# Configuration:
-#   MCP configs are managed by skewed-emacs at docker/mcp-config.json
-#   Private configs can be added at private-mcp-config.json (gitignored)
-#
 
 networks:
   skewed-network:
@@ -22,7 +10,11 @@ networks:
 services:
 
   skewed-emacs:
-    image: gornskew/${EMACS_IMAGE_BASE:-skewed-emacs}:${EMACS_IMAGE_BRANCH:-master}
+    image: gornskew/${EMACS_IMAGE_BASE:-skewed-emacs}:${EMACS_IMAGE_BRANCH:-dev}
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      # Optional: cache_from if you want faster CI later
     container_name: ${EMACS_IMAGE_BASE:-skewed-emacs}
     hostname: ${EMACS_IMAGE_BASE:-skewed-emacs}
     restart: unless-stopped
@@ -30,6 +22,7 @@ services:
     tty: true
     ports:
       - "7081:7080"
+      - "6942:6942"  # Web terminal port
     environment:
       - HTTP_PORT=7080
       - HTTP_HOST_PORT=7081
@@ -40,15 +33,18 @@ services:
       - TERM=xterm-256color
       - COLORTERM=truecolor
       - TZ=${TZ:-Etc/UTC}
+      # Web terminal selection: ttyd (default), wetty, gotty-soren, gotty-yudai
+      - WEBTERM=${WEBTERM:-ttyd}
+      - WEBTERM_PORT=6942
     volumes:
       - type: bind
         source: ${PROJECTS_DIR}
         target: /projects
         bind:
           create_host_path: true
-      - ${EMACS_LOCAL_SRC}/.gemini/google_accounts.json:/home/emacs-user/.gemini/google_accounts.json
-      - ${EMACS_LOCAL_SRC}/.gemini/oauth_creds.json:/home/emacs-user/.gemini/oauth_creds.json
-      - ${EMACS_LOCAL_SRC}/.codex/auth.json:/home/emacs-user/.codex/auth.json
+      - ${USER_HOME}/.gemini/google_accounts.json:/home/emacs-user/.gemini/google_accounts.json
+      - ${USER_HOME}/.gemini/oauth_creds.json:/home/emacs-user/.gemini/oauth_creds.json
+      - ${USER_HOME}/.codex/auth.json:/home/emacs-user/.codex/auth.json
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ${EMACS_LOCAL_SRC:-/this-path-definitely-does-not-exist}/.emacs-local:/home/emacs-user/.emacs-local:ro
     group_add:
@@ -62,6 +58,7 @@ services:
       retries: 3
       start_period: 10s
 
+  # gendl-ccl and gendl-sbcl remain unchanged
   gendl-ccl:
     image: genworks/${GENDL_IMAGE_BASE:-gendl}:${GENDL_IMAGE_BRANCH}-ccl
     container_name: ${GENDL_IMAGE_BASE:-gendl}-ccl
@@ -155,4 +152,3 @@ services:
       timeout: 3s
       retries: 3
       start_period: 15s
-

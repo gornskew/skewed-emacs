@@ -114,29 +114,62 @@ if [ ! -f "$DOCKERFILE_PATH" ]; then
   exit 1
 fi
 
+
+# For local development, always also tag as gornskew/skewed-emacs:* so compose picks it up
+if [[ "$PUSH_IMAGE" == "false" ]]; then
+  FINAL_IMAGE="gornskew/skewed-emacs"
+  EXTRA_TAGS="-t ${FINAL_IMAGE}:${TAG} -t ${FINAL_IMAGE}:latest"
+else
+  FINAL_IMAGE="${IMAGE_NAME}"
+  EXTRA_TAGS=""
+fi
+
 # -----------------------------
 # Build
 # -----------------------------
+
+# For local development, always tag as gornskew/skewed-emacs:* so compose picks it up
+if [[ "$PUSH_IMAGE" == "false" ]]; then
+  FINAL_IMAGE="gornskew/skewed-emacs"
+  LOCAL_TAGS="-t ${FINAL_IMAGE}:${TAG} -t ${FINAL_IMAGE}:latest"
+else
+  FINAL_IMAGE="${IMAGE_NAME}"
+  LOCAL_TAGS=""
+fi
+
+echo "=== Building Skewed Emacs Docker Image ==="
+echo "Project root:     $PROJECT_ROOT"
+echo "Dockerfile:       $DOCKERFILE_PATH"
+echo "Build context:    $BUILD_CONTEXT"
+echo "Primary tag:      ${IMAGE_NAME}:${TAG}"
+echo "Additional tags:  ${FINAL_IMAGE}:${TAG} ${FINAL_IMAGE}:latest (if applicable)"
+echo "Push:             ${PUSH_IMAGE}"
+
 DOCKER_BUILDKIT=1 docker build \
   --progress=plain \
   -t "${IMAGE_NAME}:${TAG}" \
+  ${LOCAL_TAGS} \
   --build-arg GIT_BRANCH="${branch}" \
   -f "$DOCKERFILE_PATH" \
   "$BUILD_CONTEXT"
 
+# Always tag :latest on main/master/devo branches — using the FINAL_IMAGE
 if [[ "${TAG}" == "main" || "${TAG}" == "master" || "${TAG}" == "devo" ]]; then
-  docker tag "${IMAGE_NAME}:${TAG}" "${IMAGE_NAME}:latest"
+  docker tag "${IMAGE_NAME}:${TAG}" "${FINAL_IMAGE}:latest"
+  echo "Also tagged as:  ${FINAL_IMAGE}:latest"
 fi
-
 
 echo ""
 echo "=== Build Complete ==="
 echo "Image tagged as: ${IMAGE_NAME}:${TAG}"
-echo "Also tagged as:  ${IMAGE_NAME}:latest"
+if [[ -n "$LOCAL_TAGS" ]]; then
+  echo "Also tagged as:  ${FINAL_IMAGE}:${TAG}"
+  echo "And:             ${FINAL_IMAGE}:latest"
+fi
 echo ""
 echo "To test the container:"
-echo "  ./run"
-echo "  docker run -p 7081:7080 ${IMAGE_NAME}:${TAG}"
+echo "  ./compose-dev up --build"
+echo "  docker run -p 7081:7080 -p 6942:6942 ${FINAL_IMAGE}:${TAG}"
 echo ""
 
 # -----------------------------
@@ -151,9 +184,8 @@ if [[ "$PUSH_IMAGE" == "true" ]]; then
     exit 2
   fi
 
-  # Optional non-interactive login if provided (CI)
   if [ -n "${DOCKER_PASSWORD:-}" ]; then
-    echo "Logging into Docker Hub (non-interactive) for push user '${DOCKER_USERNAME}'..."
+    echo "Logging into Docker Hub (non-interactive)..."
     echo "${DOCKER_PASSWORD}" | docker --config "$PUSH_DOCKER_CONFIG" login -u "${DOCKER_USERNAME}" --password-stdin
   else
     echo "No DOCKER_PASSWORD provided; assuming existing credentials in: $PUSH_DOCKER_CONFIG"
@@ -162,12 +194,14 @@ if [[ "$PUSH_IMAGE" == "true" ]]; then
   echo "Pushing ${IMAGE_NAME}:${TAG} ..."
   docker --config "$PUSH_DOCKER_CONFIG" push "${IMAGE_NAME}:${TAG}"
 
-  echo "Pushing ${IMAGE_NAME}:latest ..."
-  docker --config "$PUSH_DOCKER_CONFIG" push "${IMAGE_NAME}:latest"
+  if [[ "${TAG}" == "main" || "${TAG}" == "master" || "${TAG}" == "devo" ]]; then
+    echo "Pushing ${IMAGE_NAME}:latest ..."
+    docker --config "$PUSH_DOCKER_CONFIG" push "${IMAGE_NAME}:latest"
+  fi
 
   echo "Push complete."
 else
-  echo "Skipping push (public repo default)."
+  echo "Skipping push (--no-push or no credentials)."
 fi
 
 echo ""

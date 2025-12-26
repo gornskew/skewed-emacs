@@ -1,276 +1,200 @@
-# Skewed Emacs — multi-stage, trimmed
-# - builder stage: installs build deps, runs Emacs package installs,
-#   builds pdf-tools epdfinfo, installs CLIs
-# - runtime stage: only runtime deps + copies built artifacts from builder
+# Skewed Emacs — multi-stage, optimized for fast web-terminal iteration
+# - builder: heavy Emacs setup, pdf-tools, vterm, package compilation
+# - runtime-base: minimal runtime with Node.js and core artifacts
+# - runtime-webterm-experiment: fast-rebuilding layer with Gotty/Wetty/ttyd
 
 FROM debian:stable-slim AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG NODE_MAJOR=23
 ARG GIT_BRANCH=master
-# Pin Codex version explicitly for reproducible builds (update as desired)
 ARG CODEX_VERSION=0.73.0
-# If you later confirm Gemini has stable release asset names, you can flip this
 ARG INSTALL_GEMINI_VIA_NPM=true
 
 SHELL ["/bin/bash", "-lc"]
 
 # ---- base deps (builder) ----
-# NOTE: includes build toolchain + poppler dev headers for pdf-tools epdfinfo build
 RUN set -euxo pipefail; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends \
-    emacs-gtk \
-    ncurses-term \
-    curl wget git ca-certificates openssh-client \
-    ghostscript poppler-utils \
-    unzip gnupg \
-    fontconfig \
-    fonts-noto fonts-noto-color-emoji fonts-noto-mono \
-    fonts-font-awesome fonts-symbola fonts-powerline \
-    # pdf-tools build deps
-    automake autoconf make gcc g++ pkg-config \
-    libpng-dev \
-    libpoppler-glib-dev libpoppler-private-dev \
-    cmake libtool \
-    libvterm-dev \
-  ; \
-  rm -rf /var/lib/apt/lists/*
-
-
+   apt-get update; \
+   apt-get install -y --no-install-recommends \
+     emacs-gtk \
+     ncurses-term \
+     curl wget git ca-certificates openssh-client \
+     ghostscript poppler-utils \
+     unzip gnupg \
+     fontconfig \
+     fonts-noto fonts-noto-color-emoji fonts-noto-mono \
+     fonts-font-awesome fonts-symbola fonts-powerline \
+     automake autoconf make gcc g++ pkg-config \
+     libpng-dev \
+     libpoppler-glib-dev libpoppler-private-dev \
+     cmake libtool \
+     libvterm-dev \
+   ; \
+   rm -rf /var/lib/apt/lists/*
 
 # ---- Nerd Fonts (builder) ----
-# Do it now cause the emacs loads of init.el might need them.
 RUN set -euxo pipefail; \
-  mkdir -p /usr/share/fonts/truetype/nerd-fonts; \
-  curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/NerdFontsSymbolsOnly.zip \
-    -o /tmp/NerdFontsSymbolsOnly.zip; \
-  unzip -q /tmp/NerdFontsSymbolsOnly.zip -d /usr/share/fonts/truetype/nerd-fonts; \
-  rm -f /tmp/NerdFontsSymbolsOnly.zip; \
-  fc-cache -fv
-
+   mkdir -p /usr/share/fonts/truetype/nerd-fonts; \
+   curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/NerdFontsSymbolsOnly.zip \
+     -o /tmp/NerdFontsSymbolsOnly.zip; \
+   unzip -q /tmp/NerdFontsSymbolsOnly.zip -d /usr/share/fonts/truetype/nerd-fonts; \
+   rm -f /tmp/NerdFontsSymbolsOnly.zip; \
+   fc-cache -fv
 
 # ---- user + dirs ----
 RUN set -euxo pipefail; \
-  groupadd -g 1000 emacs-user; \
-  useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user; \
-  mkdir -p /projects; \
-  chown emacs-user:emacs-user /projects; \
-  ln -s /projects /home/emacs-user/projects
+   groupadd -g 1000 emacs-user; \
+   useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user; \
+   mkdir -p /projects; \
+   chown emacs-user:emacs-user /projects; \
+   ln -s /projects /home/emacs-user/projects
 
-# Copy skewed-emacs repo into image (builder)
+# Copy repo
 COPY --chown=emacs-user:emacs-user . /home/emacs-user/skewed-emacs/
 
-
 USER emacs-user
 WORKDIR /home/emacs-user
 
-
-# ---- skewed-emacs setup + pdf-tools build ----
+# ---- skewed-emacs setup + pdf-tools/vterm build ----
 RUN set -euxo pipefail; \
-  cd skewed-emacs; \
-  SKEWED_EMACS_DOCKER_BUILD=true ./setup
-
-
-# Start emacs once in batch mode just to shake everything out
-# and isolate any generate init issues.
-RUN set -euxo pipefail; \
-  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-    --load "~/.emacs.d/init.el"
-
-
-# Build vterm native module
-RUN set -euxo pipefail; \
-  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-    --load "~/.emacs.d/init.el" \
-    --eval "(vterm-module-compile)"
-
-
-#
-# FLAG - try without this, should be done already by now. 
-# # Ensure pdf-tools installed + build epdfinfo
-# RUN set -euxo pipefail; \
-#   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-#     --load "~/.emacs.d/init.el" \
-#     --eval "(require 'package)" \
-#     --eval "(package-initialize)" \
-#     --eval "(unless (package-installed-p 'pdf-tools) (package-refresh-contents) (package-install 'pdf-tools))"
-
-
+   cd skewed-emacs; \
+   SKEWED_EMACS_DOCKER_BUILD=true ./setup
 
 RUN set -euxo pipefail; \
-  PDFDIR="$(ls -d /home/emacs-user/.emacs.d/elpa/pdf-tools-* | head -n1)"; \
-  cd "$PDFDIR"; \
-  ./build/server/autobuild -i "$PDFDIR"
+   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+     --load "~/.emacs.d/init.el"
 
 RUN set -euxo pipefail; \
-  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-    --load "~/.emacs.d/init.el" \
-    --eval "(require 'pdf-tools)"
+   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+     --load "~/.emacs.d/init.el" \
+     --eval "(vterm-module-compile)"
 
-
-# Recompile packages + nerd-icons fonts
 RUN set -euxo pipefail; \
-  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-    --load "~/.emacs.d/init.el" \
-    --eval "(recompile-all-packages)"; \
-  START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-    --load "~/.emacs.d/init.el" \
-    --eval "(when (package-installed-p 'nerd-icons) (nerd-icons-install-fonts t))"; \
-  fc-cache -fv
+   PDFDIR="$(ls -d /home/emacs-user/.emacs.d/elpa/pdf-tools-* | head -n1)"; \
+   cd "$PDFDIR"; \
+   ./build/server/autobuild -i "$PDFDIR"
 
+RUN set -euxo pipefail; \
+   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+     --load "~/.emacs.d/init.el" \
+     --eval "(require 'pdf-tools)"
 
+RUN set -euxo pipefail; \
+   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+     --load "~/.emacs.d/init.el" \
+     --eval "(recompile-all-packages)"; \
+   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+     --load "~/.emacs.d/init.el" \
+     --eval "(when (package-installed-p 'nerd-icons) (nerd-icons-install-fonts t))"; \
+   fc-cache -fv
 
 USER root
-
 # ---- Node.js (builder) ----
 RUN set -euxo pipefail; \
-  mkdir -p /etc/apt/keyrings; \
-  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-    | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg; \
-  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
-    > /etc/apt/sources.list.d/nodesource.list; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends nodejs; \
-  rm -rf /var/lib/apt/lists/*
+   mkdir -p /etc/apt/keyrings; \
+   curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+     | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg; \
+   echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
+     > /etc/apt/sources.list.d/nodesource.list; \
+   apt-get update; \
+   apt-get install -y --no-install-recommends nodejs; \
+   rm -rf /var/lib/apt/lists/*
 
-
-# keep your symlink behavior
 RUN set -euxo pipefail; \
-  ln -sf /home/emacs-user/skewed-emacs/docker/copilot-language-server /usr/local/bin/copilot-language-server
+   ln -sf /home/emacs-user/skewed-emacs/docker/copilot-language-server /usr/local/bin/copilot-language-server
 
 USER emacs-user
-WORKDIR /home/emacs-user
-
-# ---- lisply-mcp (builder) ----
-# Keep it local and runnable from skewed-emacs
+# ---- lisply-mcp + AI CLIs ----
 RUN set -euxo pipefail; \
-  git clone --depth 1 --branch "${GIT_BRANCH}" https://github.com/gornskew/lisply-mcp.git; \
-  cd lisply-mcp/scripts; \
-  npm ci --omit=dev; \
-  cd ../scripts-v2; \
-  npm ci --omit=dev; \
-  npm cache clean --force || true
-
-# ---- AI CLIs ----
+   git clone --depth 1 --branch "${GIT_BRANCH}" https://github.com/gornskew/lisply-mcp.git; \
+   cd lisply-mcp/scripts; npm ci --omit=dev; \
+   cd ../scripts-v2; npm ci --omit=dev; npm cache clean --force || true
 
 ENV PATH="/home/emacs-user/.local/bin:${PATH}"
 
-# ---- Claude Code via npm (avoids native installer side-effects) ----
 RUN set -euxo pipefail; \
-  mkdir -p ~/.claude/local ~/.local/bin; \
-  npm install --omit=dev @anthropic-ai/claude-code --prefix ~/.claude/local; \
-  ln -sf ~/.claude/local/node_modules/.bin/claude ~/.local/bin/claude; \
-  npm cache clean --force || true; \
-  ~/.local/bin/claude --version || true
+   mkdir -p ~/.claude/local ~/.local/bin; \
+   npm install --omit=dev @anthropic-ai/claude-code --prefix ~/.claude/local; \
+   ln -sf ~/.claude/local/node_modules/.bin/claude ~/.local/bin/claude; npm cache clean --force || true
 
-
-# OpenAI Codex: install via npm (no GitHub release tarball)
 RUN set -euxo pipefail; \
-  mkdir -p ~/.codex/local ~/.local/bin; \
-  npm install --omit=dev @openai/codex --prefix ~/.codex/local; \
-  ln -sf ~/.codex/local/node_modules/.bin/codex ~/.local/bin/codex; \
-  npm cache clean --force || true; \
-  ~/.local/bin/codex --version || true
+   mkdir -p ~/.codex/local ~/.local/bin; \
+   npm install --omit=dev @openai/codex --prefix ~/.codex/local; \
+   ln -sf ~/.codex/local/node_modules/.bin/codex ~/.local/bin/codex; npm cache clean --force || true
 
-
-
-# Gemini CLI: keep npm for now (until we pin stable release asset names)
 RUN set -euxo pipefail; \
-  if [[ "${INSTALL_GEMINI_VIA_NPM}" == "true" ]]; then \
-    mkdir -p ~/.gemini/local; \
-    npm install --omit=dev @google/gemini-cli --prefix ~/.gemini/local; \
-    ln -sf ~/.gemini/local/node_modules/.bin/gemini ~/.local/bin/gemini; \
-    npm cache clean --force || true; \
-  fi; \
-  command -v gemini || true; \
-  gemini --version || true
+   if [[ "${INSTALL_GEMINI_VIA_NPM}" == "true" ]]; then \
+     mkdir -p ~/.gemini/local; \
+     npm install --omit=dev @google/gemini-cli --prefix ~/.gemini/local; \
+     ln -sf ~/.gemini/local/node_modules/.bin/gemini ~/.local/bin/gemini; npm cache clean --force || true; \
+   fi
 
-# FLAG: Add grok-cli when available
-# Expected pattern: npm install @xai/grok-cli --prefix ~/.grok/local
-# Then: ln -sf ~/.grok/local/node_modules/.bin/grok ~/.local/bin/grok
-
-
-
-# Start daemon once to let your async init settle (keeping your behavior)
+# Start daemon to settle async init
 RUN set -euxo pipefail; \
-  START_HTTP=true SKEWED_EMACS_DOCKER_BUILD=true emacs --daemon --load "~/.emacs.d/init.el"; \
-  sleep 8; \
-  emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")"
+   START_HTTP=true SKEWED_EMACS_DOCKER_BUILD=true emacs --daemon --load "~/.emacs.d/init.el"; \
+   sleep 8; \
+   emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")"
 
-# Cleanup (builder) — trims caches before copy to runtime
+# Cleanup
 RUN set -euxo pipefail; \
-  rm -rf ~/.cache /tmp/*; \
-  rm -rf ~/.emacs.d/elpa/*/.git 2>/dev/null || true
+   rm -rf ~/.cache /tmp/*; \
+   rm -rf ~/.emacs.d/elpa/*/.git 2>/dev/null || true
 
 
 # ============================================================
-# Runtime image
+# Runtime base (shared, minimal)
 # ============================================================
-FROM debian:stable-slim AS runtime
+FROM debian:stable-slim AS runtime-base
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG NODE_MAJOR=23
 
 SHELL ["/bin/bash", "-lc"]
 
-# Runtime deps only (NO compiler toolchain, NO poppler dev headers, NO imagemagick, NO docker CLI)
 RUN set -euxo pipefail; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends \
-    emacs-gtk \
-    ncurses-term \
-    curl wget git ca-certificates openssh-client \
-    ghostscript poppler-utils \
-    libpoppler-glib8 \
-    unzip gnupg \
-    fontconfig \
-    fonts-noto fonts-noto-color-emoji fonts-noto-mono \
-    fonts-font-awesome fonts-symbola fonts-powerline \
-  ; \
-  rm -rf /var/lib/apt/lists/*
+   apt-get update; \
+   apt-get install -y --no-install-recommends \
+     emacs-gtk ncurses-term curl wget git ca-certificates openssh-client \
+     ghostscript poppler-utils libpoppler-glib8 unzip gnupg fontconfig \
+     fonts-noto fonts-noto-color-emoji fonts-noto-mono \
+     fonts-font-awesome fonts-symbola fonts-powerline \
+     libvterm-dev \
+   ; \
+   rm -rf /var/lib/apt/lists/*
 
 # Node.js (runtime)
 RUN set -euxo pipefail; \
-  mkdir -p /etc/apt/keyrings; \
-  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-    | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg; \
-  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
-    > /etc/apt/sources.list.d/nodesource.list; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends nodejs libvterm-dev; \
-  rm -rf /var/lib/apt/lists/*
+   mkdir -p /etc/apt/keyrings; \
+   curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+     | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg; \
+   echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
+     > /etc/apt/sources.list.d/nodesource.list; \
+   apt-get update; \
+   apt-get install -y --no-install-recommends nodejs; \
+   rm -rf /var/lib/apt/lists/*
 
-# user + dirs
+# User setup
 RUN set -euxo pipefail; \
-  groupadd -g 1000 emacs-user; \
-  useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user; \
-  mkdir -p /projects; \
-  chown emacs-user:emacs-user /projects; \
-  ln -s /projects /home/emacs-user/projects
+   groupadd -g 1000 emacs-user; \
+   useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user; \
+   mkdir -p /projects; \
+   chown emacs-user:emacs-user /projects; \
+   ln -s /projects /home/emacs-user/projects
 
-# Copy fonts + caches from builder (nerd fonts + nerd-icons installed fonts)
+# Copy core artifacts
 COPY --from=builder /usr/share/fonts/truetype/nerd-fonts /usr/share/fonts/truetype/nerd-fonts
-
-# Copy user content from builder
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/skewed-emacs /home/emacs-user/skewed-emacs
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/lisply-mcp /home/emacs-user/lisply-mcp
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.local /home/emacs-user/.local
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.gemini /home/emacs-user/.gemini
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.claude /home/emacs-user/.claude
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.codex /home/emacs-user/.codex
-# FLAG: Add when grok-cli implemented above
-# COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.grok /home/emacs-user/.grok
 
-
-# FLAG - we can install copilot-language-server through node now if we
-#  want beause we have node now anyway.
-# keep your symlink
 RUN set -euxo pipefail; \
-  ln -sf /home/emacs-user/skewed-emacs/docker/copilot-language-server /usr/local/bin/copilot-language-server; \
-  fc-cache -fv
+   ln -sf /home/emacs-user/skewed-emacs/docker/copilot-language-server /usr/local/bin/copilot-language-server; \
+   fc-cache -fv
 
-# Startup scripts
 COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
@@ -278,18 +202,44 @@ RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
 USER emacs-user
 WORKDIR /home/emacs-user
 
-RUN set -euxo pipefail; \
-  cd skewed-emacs; \
-  SKEWED_EMACS_DOCKER_BUILD=true ./setup; \
-  cd ..
-
-
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
 ENV SKEWED_EMACS_CONTAINER=true
 ENV PATH="/home/emacs-user/.local/bin:${PATH}"
 
-# EXPOSE 7080
+RUN set -euxo pipefail; \
+   ./skewed-emacs/setup
+
+
+# ============================================================
+# Web terminal experiment layer (fast to rebuild)
+# ============================================================
+FROM runtime-base AS runtime-webterm-experiment
+
+USER root
+
+RUN set -euxo pipefail; \
+   apt-get update; \
+   apt-get install -y --no-install-recommends golang-go; \
+   \
+   # Gotty latest (active fork, good xterm.js alternative)
+   go install github.com/sorenisanerd/gotty@latest; \
+   mv /root/go/bin/gotty /usr/local/bin/gotty-soren; \
+   chmod +x /usr/local/bin/gotty-soren; \
+   \
+   # ttyd (BEST for emoji/double-width support, hterm frontend)
+   wget -O /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64; \
+   chmod +x /usr/local/bin/ttyd; \
+   \
+   # Cleanup
+   apt-get purge -y --auto-remove golang-go; \
+   apt-get clean; \
+   rm -rf /var/lib/apt/lists/* /root/go
+
+# Default to ttyd (override with WEBTERM env)
+RUN ln -sf /usr/local/bin/ttyd /usr/local/bin/webterm
+
+USER emacs-user
+
+FROM runtime-webterm-experiment
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
-
-

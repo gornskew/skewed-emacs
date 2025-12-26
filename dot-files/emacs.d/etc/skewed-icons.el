@@ -28,6 +28,8 @@
 
 ;;; Code:
 
+(defvar skewed-icons-gotty-context nil "Set to t when running in a gotty context.")
+
 (defgroup skewed-icons nil
   "Icon configuration for skewed-emacs."
   :group 'skewed-emacs
@@ -51,20 +53,22 @@
 (defun skewed-icons--fix-widths ()
   "Set Emacs character widths to 2 for all emojis in the colorful table.
 This ensures Emacs knows these characters are displayed as 2 columns wide in terminals."
-  (dolist (entry skewed-icons--colorful-table)
-    (let* ((icon-data (cdr entry))
-           (icon-string (if (consp icon-data) (car icon-data) icon-data)))
-      (when (stringp icon-string)
-        ;; Set width=2 for each character in the icon string
-        (dotimes (i (length icon-string))
-          (let ((char (aref icon-string i)))
-            ;; Only set width if it's not a variation selector or other combining char
-            (unless (or (= char #xFE0E)  ; VS15 text presentation
-                        (= char #xFE0F)  ; VS16 emoji presentation
-                        (<= #x0300 char #x036F))  ; Combining diacriticals
-              (set-char-table-range char-width-table char 2)))))))
-  (message "Skewed-icons: Set width=2 for %d colorful emoji entries."
-           (length skewed-icons--colorful-table)))
+  (unless skewed-icons-gotty-context
+    (dolist (entry skewed-icons--colorful-table)
+      (let* ((icon-data (cdr entry))
+             (icon-string (if (consp icon-data) (car icon-data) icon-data)))
+        (when (stringp icon-string)
+          ;; Set width=2 for each character in the icon string
+          (dotimes (i (length icon-string))
+            (let ((char (aref icon-string i)))
+              ;; Only set width if it's not a variation selector or other combining char
+              (unless (or (= char #xFE0E)  ; VS15 text presentation
+                          (= char #xFE0F)  ; VS16 emoji presentation
+                          (<= #x0300 char #x036F))  ; Combining diacriticals
+                (set-char-table-range char-width-table char 2)))))))
+    (message "Skewed-icons: Set width=2 for %d colorful emoji entries."
+             (length skewed-icons--colorful-table))))
+
 
 
 ;;; Icon Tables ================================================================
@@ -362,7 +366,8 @@ Only returns t if style is 'colorful' and the icon is flagged."
   (setq skewed-icons-style style)
   
   ;; THE CRITICAL FIX: If using colorful, enforce width=2
-  (when (eq style 'colorful)
+  (when (and (eq style 'colorful)
+             (not skewed-icons-gotty-context))
     (skewed-icons--fix-widths))
 
   (message "Icon style: %s" style)
@@ -371,7 +376,8 @@ Only returns t if style is 'colorful' and the icon is flagged."
     (dashboard-refresh-buffer)))
 
 ;; Run fix automatically if style is already set to colorful at load time
-(when (eq skewed-icons-style 'colorful)
+(when (and (eq skewed-icons-style 'colorful)
+           (not skewed-icons-gotty-context))
   (skewed-icons--fix-widths))
 
 

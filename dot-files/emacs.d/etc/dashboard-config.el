@@ -56,19 +56,21 @@
 (defun skewed-dashboard-is-wide-char-p (icon-str)
   "Return t if the first char of ICON-STR is in a known wide Unicode range.
 This detects 'Ghost' icons (like ⚙) that Emacs claims are width 1 but display as 2."
-  (let ((char (aref icon-str 0)))
-    (or 
-     (and (>= char #x2600) (<= char #x27BF))   ;; Misc Symbols & Dingbats (e.g. ⚙, ✈, ✔)
-     (and (>= char #x1F300) (<= char #x1F9FF)) ;; Modern Emoji / Symbols (e.g. 🚀, 🤖)
-     (and (>= char #x1F680) (<= char #x1F6FF)) ;; Transport / Map
-     (>= (string-width icon-str) 2))))         ;; Trust Emacs if it already says 2
+  (and (not (string-empty-p icon-str))
+       (let ((char (aref icon-str 0)))
+         (or
+          (and (>= char #x2600) (<= char #x27BF))   ;; Misc Symbols & Dingbats (e.g. ⚙, ✈, ✔)
+          (and (>= char #x1F300) (<= char #x1F9FF)) ;; Modern Emoji / Symbols (e.g. 🚀, 🤖)
+          (and (>= char #x1F680) (<= char #x1F6FF)) ;; Transport / Map
+          (>= (string-width icon-str) 2)))))         ;; Trust Emacs if it already says 2
 
 (defun skewed-dashboard-pad-icon (icon-key)
   "Lookup icon by KEY and pad it.
 If the icon is a 'ghost' (visual width > Emacs width), we add extra padding."
-  (let* ((icon-str (skewed-icon icon-key))
-         (is-ghost (skewed-icon-is-ghost icon-key)))
-    (if is-ghost
+  (let* ((icon-str (skewed-icon icon-key)))
+    (if (and (not (bound-and-true-p skewed-icons-gotty-context))
+             (or (skewed-icon-is-ghost icon-key)
+                 (skewed-dashboard-is-wide-char-p icon-str)))
         (concat icon-str "  ") ;; Ghost: 2 spaces (Icon overlaps 1st space)
       (concat icon-str " ")))) ;; Honest: 1 space
 

@@ -56,7 +56,31 @@ for i in {1..30}; do
     fi
 done
 
+# === Optionally start web terminal in background ===
+if [ -n "${WEBTERM:-}" ] && [ "${WEBTERM}" != "none" ]; then
+    case "${WEBTERM}" in
+      ttyd)
+        WEBTERM_CMD="/usr/local/bin/ttyd -p ${WEBTERM_PORT:-6942} -W --scrollback 10800"
+        ;;
+      gotty-soren)
+        WEBTERM_CMD="/usr/local/bin/gotty-soren -w --port ${WEBTERM_PORT:-6942}"
+        ;;
+      none)
+        echo "Web terminal explicitly disabled"
+        exit 0
+        ;;
+      *)
+        echo "Invalid WEBTERM: $WEBTERM (supported: ttyd, gotty-soren, none)" >&2
+        exit 1
+        ;;
+    esac
 
-# Present elisp repl on stdio if attached: 
+    echo "Starting web terminal in background: $WEBTERM on port ${WEBTERM_PORT:-6942}"
+    $WEBTERM_CMD /bin/bash -c "emacsclient -t" &
+else
+    echo "No web terminal requested — only interactive REPL on stdio"
+fi
+
+# === Always run Emacs REPL in foreground on stdio (your invariant) ===
+echo "Starting interactive Emacs REPL on container stdio..."
 exec /home/emacs-user/emacs-repl.sh
-
