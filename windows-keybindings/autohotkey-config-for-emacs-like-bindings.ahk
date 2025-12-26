@@ -7,7 +7,8 @@
 #HotIf WinActive("ahk_exe msedge.exe")
 ^p::Send "{Up}"
 ^n::Send "{Down}"
-^f::Send "{Right}"
+;;^f::Send "{Right}"
+^f::return 
 ^b::Send "{Left}"
 ^d::Send "{Delete}"
 ^v::Send "{PgDn}"
@@ -39,14 +40,20 @@
 ^k::Send "{Shift down}{End}{Shift up}{Ctrl down}x{Ctrl up}"
 #HotIf
 
-; Chrome: Block browser shortcuts so they pass through to web terminal (for Emacs inside)
-; No Emacs remaps here — arrows work natively in terminals
+; Chrome: Block browser shortcuts so raw Ctrl combos pass to web terminal (Emacs)
 #HotIf WinActive("ahk_exe chrome.exe")
+
+; Remap these for regular web pages (optional — remove if you want pure pass-through)
 ^p::Send "{Up}"
 ^n::Send "{Down}"
-^t::Send "{Ctrl t}"
-^w::Send "{Ctrl w}"          ; Block Ctrl+W (close tab)
-^+t::return         ; Block Ctrl+Shift+T (reopen closed tab)
-^+n::return         ; Block Ctrl+Shift+N (incognito window) — optional
-; Add more if needed, e.g. ^+w::return for Ctrl+Shift+W (close window)
+
+; Block browser actions — do NOTHING, so raw keys go to page
+^t::return          ; New tab
+^w::return          ; Close tab
+^/::return          ; Find (Ctrl+/ is "Find on page" in some Chrome versions/layouts)
+^l::return          ; Focus address bar (common conflict)
+^+t::return         ; Reopen closed tab
+^+n::return         ; Incognito
+^+w::return         ; Close window
+
 #HotIf

@@ -184,7 +184,6 @@ RUN set -euxo pipefail; \
 
 # Copy core artifacts
 COPY --from=builder /usr/share/fonts/truetype/nerd-fonts /usr/share/fonts/truetype/nerd-fonts
-COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/skewed-emacs /home/emacs-user/skewed-emacs
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/lisply-mcp /home/emacs-user/lisply-mcp
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.local /home/emacs-user/.local
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.gemini /home/emacs-user/.gemini
@@ -195,6 +194,8 @@ RUN set -euxo pipefail; \
    ln -sf /home/emacs-user/skewed-emacs/docker/copilot-language-server /usr/local/bin/copilot-language-server; \
    fc-cache -fv
 
+
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/skewed-emacs /home/emacs-user/skewed-emacs
 COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
@@ -239,7 +240,24 @@ RUN set -euxo pipefail; \
 # Default to ttyd (override with WEBTERM env)
 RUN ln -sf /usr/local/bin/ttyd /usr/local/bin/webterm
 
-USER emacs-user
 
 FROM runtime-webterm-experiment
+
+USER emacs-user
+
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/skewed-emacs /home/emacs-user/skewed-emacs
+WORKDIR /home/emacs-user/skewed-emacs
+COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
+WORKDIR /home/emacs-user
+RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
+
+ENV TERM=xterm-256color
+ENV COLORTERM=truecolor
+ENV SKEWED_EMACS_CONTAINER=true
+ENV PATH="/home/emacs-user/.local/bin:${PATH}"
+
+RUN set -euxo pipefail; \
+   ./skewed-emacs/setup
+
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
