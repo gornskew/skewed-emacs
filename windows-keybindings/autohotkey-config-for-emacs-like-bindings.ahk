@@ -1,29 +1,28 @@
 #Requires AutoHotkey v2.0
 #SingleInstance Force
 
-^+v::Send "{Ctrl down}v{Ctrl up}" ; Ctrl + Shift + V: Paste (system-wide)
+; -------------------------------------------------------------------
+; Global toggle: Emacs-like navigation in browsers ON/OFF
+; -------------------------------------------------------------------
+global EmacsNavMode := true  ; start enabled; toggle when using ttyd
 
-; Edge bindings (Emacs-like in text fields)
-#HotIf WinActive("ahk_exe msedge.exe")
-^p::Send "{Up}"
-^n::Send "{Down}"
-;;^f::Send "{Right}"
-^f::return 
-^b::Send "{Left}"
-^d::Send "{Delete}"
-^v::Send "{PgDn}"
-!f::Send "{Ctrl down}{Right}{Ctrl up}"
-!b::Send "{Ctrl down}{Left}{Ctrl up}"
-^!f::Send "{Ctrl down}{Right}{Ctrl up}"
-^!b::Send "{Ctrl down}{Left}{Ctrl up}"
-!d::Send "{Ctrl down}{Delete}{Ctrl up}"
-^a::Send "{Home}"
-^e::Send "{End}"
-^k::Send "{Shift down}{End}{Shift up}{Ctrl down}x{Ctrl up}"
-#HotIf
+F12:: {  ; Press F12 to toggle browser Emacs mode
+    global EmacsNavMode
+    EmacsNavMode := !EmacsNavMode
+    ToolTip "Browser Emacs nav: " (EmacsNavMode ? "ON" : "OFF")
+    SetTimer () => ToolTip(), -1000
+}
 
-; Claude bindings
-#HotIf WinActive("ahk_exe claude.exe")
+; -------------------------------------------------------------------
+; System-wide: Ctrl+Shift+V → Ctrl+V (paste)
+; -------------------------------------------------------------------
+^+v::Send "{Ctrl down}v{Ctrl up}"
+
+; -------------------------------------------------------------------
+; EDGE: Emacs-like navigation ONLY when EmacsNavMode is ON
+; -------------------------------------------------------------------
+#HotIf WinActive("ahk_exe msedge.exe") && EmacsNavMode
+
 ^p::Send "{Up}"
 ^n::Send "{Down}"
 ^f::Send "{Right}"
@@ -38,22 +37,58 @@
 ^a::Send "{Home}"
 ^e::Send "{End}"
 ^k::Send "{Shift down}{End}{Shift up}{Ctrl down}x{Ctrl up}"
-#HotIf
 
-; Chrome: Block browser shortcuts so raw Ctrl combos pass to web terminal (Emacs)
-#HotIf WinActive("ahk_exe chrome.exe")
+#HotIf  ; end Edge scope
 
-; Remap these for regular web pages (optional — remove if you want pure pass-through)
+; -------------------------------------------------------------------
+; Claude app: same idea
+; -------------------------------------------------------------------
+#HotIf WinActive("ahk_exe claude.exe") && EmacsNavMode
+
 ^p::Send "{Up}"
 ^n::Send "{Down}"
+^f::Send "{Right}"
+^b::Send "{Left}"
+^d::Send "{Delete}"
+^v::Send "{PgDn}"
+!f::Send "{Ctrl down}{Right}{Ctrl up}"
+!b::Send "{Ctrl down}{Left}{Ctrl up}"
+^!f::Send "{Ctrl down}{Right}{Ctrl up}"
+^!b::Send "{Ctrl down}{Left}{Ctrl up}"
+!d::Send "{Ctrl down}{Delete}{Ctrl up}"
+^a::Send "{Home}"
+^e::Send "{End}"
+^k::Send "{Shift down}{End}{Shift up}{Ctrl down}x{Ctrl up}"
 
-; Block browser actions — do NOTHING, so raw keys go to page
-^t::return          ; New tab
-^w::return          ; Close tab
-^/::return          ; Find (Ctrl+/ is "Find on page" in some Chrome versions/layouts)
-^l::return          ; Focus address bar (common conflict)
-^+t::return         ; Reopen closed tab
-^+n::return         ; Incognito
-^+w::return         ; Close window
+#HotIf  ; end Claude scope
 
-#HotIf
+; -------------------------------------------------------------------
+; Chrome: OPTIONAL Emacs nav for normal pages
+;         (Again, only when EmacsNavMode is ON)
+; -------------------------------------------------------------------
+#HotIf WinActive("ahk_exe chrome.exe") && EmacsNavMode
+
+^p::Send "{Up}"
+^n::Send "{Down}"
+^f::Send "{Right}"
+^b::Send "{Left}"
+^d::Send "{Delete}"
+^v::Send "{PgDn}"
+!f::Send "{Ctrl down}{Right}{Ctrl up}"
+!b::Send "{Ctrl down}{Left}{Ctrl up}"
+^!f::Send "{Ctrl down}{Right}{Ctrl up}"
+^!b::Send "{Ctrl down}{Left}{Ctrl up}"
+!d::Send "{Ctrl down}{Delete}{Ctrl up}"
+^a::Send "{Home}"
+^e::Send "{End}"
+^k::Send "{Shift down}{End}{Shift up}{Ctrl down}x{Ctrl up}"
+
+; Optional: block a few browser shortcuts even in Emacs mode
+; (note: these will be blocked everywhere in Chrome, including ttyd)
+; Comment them out if you want Emacs/ttyd to see these chords.
+
+; ^+t::return     ; block reopen closed tab
+; ^+n::return     ; block incognito
+; ^+w::return     ; block close window
+
+#HotIf  ; end Chrome scope
