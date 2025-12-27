@@ -260,4 +260,9 @@ ENV PATH="/home/emacs-user/.local/bin:${PATH}"
 RUN set -euxo pipefail; \
    ./skewed-emacs/setup
 
+# Regenerate configs from services.sexp (ensures mcp/*.json have correct placeholders)
+RUN set -euxo pipefail; \
+   cd ~/skewed-emacs; \
+   emacs --batch -l generate-configs.el -f skewed-generate-all-configs
+
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

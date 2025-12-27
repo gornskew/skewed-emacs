@@ -159,6 +159,19 @@ if [[ "${TAG}" == "main" || "${TAG}" == "master" || "${TAG}" == "devo" ]]; then
   echo "Also tagged as:  ${FINAL_IMAGE}:latest"
 fi
 
+# -----------------------------
+# Exfiltrate generated configs from image back to repo
+# -----------------------------
+echo ""
+echo "Extracting generated configs from image..."
+TEMP_CONTAINER=$(docker create "${IMAGE_NAME}:${TAG}")
+docker cp "${TEMP_CONTAINER}:/home/emacs-user/skewed-emacs/mcp/mcp-windows.json" "${PROJECT_ROOT}/mcp/mcp-windows.json" 2>/dev/null || true
+docker cp "${TEMP_CONTAINER}:/home/emacs-user/skewed-emacs/mcp/mcp-container.json" "${PROJECT_ROOT}/mcp/mcp-container.json" 2>/dev/null || true
+docker cp "${TEMP_CONTAINER}:/home/emacs-user/skewed-emacs/mcp/mcp.toml" "${PROJECT_ROOT}/mcp/mcp.toml" 2>/dev/null || true
+docker cp "${TEMP_CONTAINER}:/home/emacs-user/skewed-emacs/docker-compose.yml" "${PROJECT_ROOT}/docker-compose.yml" 2>/dev/null || true
+docker rm "${TEMP_CONTAINER}" > /dev/null
+echo "Generated configs extracted to repo."
+
 echo ""
 echo "=== Build Complete ==="
 echo "Image tagged as: ${IMAGE_NAME}:${TAG}"
