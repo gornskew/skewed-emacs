@@ -206,9 +206,9 @@
       (json-encode (list (cons 'mcpServers (nreverse servers)))))))
 
 (defun skewed--generate-mcp-json-windows (config)
-  "Generate MCP config for Windows Claude Desktop via WSL."
-  (let* ((mcp-config (skewed--get-prop config :mcp))
-         (exec-path (skewed--get-prop mcp-config :exec-path-wsl))
+  "Generate MCP config for Windows Claude Desktop via WSL.
+Uses placeholder ${SKEWED_CLONE_PATH} which gets substituted at merge time."
+  (let* ((exec-path "${SKEWED_CLONE_PATH}/mcp/mcp-exec")
          (services (skewed--get-prop config :services))
          (servers '()))
 

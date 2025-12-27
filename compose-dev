@@ -168,12 +168,26 @@ start_services() {
     $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" up -d $services
 
     # Merge MCP configs for Claude/Gemini/Codex CLI tools (all formats)
+    # Pass SKEWED_CLONE_PATH so merge can construct correct host paths for Windows MCP config
     log_info "Preparing MCP configurations (JSON + TOML)..."
-    if $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" exec -T skewed-emacs emacsclient --eval \
-        "(progn (load-file \"/projects/skewed-emacs/mcp/merge-mcp-configs.el\") \
-                (skewed-merge-all-mcp-configs \"/projects/skewed-emacs/mcp\"))" \
+    if $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" exec -T \
+        -e SKEWED_CLONE_PATH="${SCRIPT_DIR}" \
+        skewed-emacs emacsclient --eval \
+        "(progn (load-file \"/home/emacs-user/skewed-emacs/mcp/merge-mcp-configs.el\") \
+                (skewed-merge-all-mcp-configs \"/home/emacs-user/skewed-emacs/mcp\"))" \
         > /dev/null 2>&1; then
-        log_success "MCP configurations ready (container CLI, Windows, Codex)"
+        
+        # Copy merged Windows config to host clone directory
+        $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" cp \
+            skewed-emacs:/tmp/merged-mcp-windows.json \
+            "${SCRIPT_DIR}/mcp/claude_desktop_config.json" 2>/dev/null || true
+        
+        if [ -f "${SCRIPT_DIR}/mcp/claude_desktop_config.json" ]; then
+            log_success "MCP configurations ready (container CLI, Windows, Codex)"
+            log_info "Claude Desktop users: copy mcp/claude_desktop_config.json to %APPDATA%\\Claude\\"
+        else
+            log_success "MCP configurations ready (container CLI, Codex)"
+        fi
     else
         log_warning "MCP config merge failed (emacsclient not ready yet?)"
     fi

@@ -31,8 +31,8 @@
   :timezone "${TZ:-Etc/UTC}")
 
  :mcp
- (:wrapper-path-container "/home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js"
-  :exec-path-wsl "~/projects/skewed-emacs/mcp/mcp-exec")
+ (:wrapper-path-container "/home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js")
+ ;; :exec-path-wsl removed - now derived from SKEWED_CLONE_PATH env var at merge time
 
  :services
  (

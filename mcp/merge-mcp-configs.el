@@ -8,12 +8,15 @@
 ;;; Call this at container startup time (from compose-dev or similar)
 ;;;
 ;;; Usage:
-;;;   (load "/path/to/merge-mcp-configs.el")
+;;;   (load-file "/path/to/merge-mcp-configs.el")
 ;;;   (skewed-merge-all-mcp-configs "/path/to/mcp/")
 ;;;
 ;;; Or individually:
 ;;;   (skewed-merge-mcp-json "/path/to/mcp/" "mcp-container.json" "/tmp/output.json")
 ;;;   (skewed-merge-mcp-toml "/path/to/mcp/" "/tmp/output.toml")
+;;;
+;;; For Windows config, set SKEWED_CLONE_PATH environment variable to the
+;;; host path where skewed-emacs is cloned (done by compose-dev).
 
 ;;; Code:
 
@@ -107,11 +110,26 @@ Reads mcp.toml as base, then merges any *-mcp.toml overlay files."
 
 (defun skewed-merge-all-mcp-configs (mcp-dir)
   "Merge all MCP config formats from MCP-DIR to /tmp.
+For Windows config, substitutes ${SKEWED_CLONE_PATH} placeholder with
+the value from the environment (set by compose-dev via docker exec -e).
 Returns list of generated files."
-  (list
-   (skewed-merge-mcp-json mcp-dir "mcp-container.json" "/tmp/merged-mcp-config.json")
-   (skewed-merge-mcp-json mcp-dir "mcp-windows.json" "/tmp/merged-mcp-windows.json")
-   (skewed-merge-mcp-toml mcp-dir "/tmp/merged-mcp.toml")))
+  (let ((container-config (skewed-merge-mcp-json mcp-dir "mcp-container.json" "/tmp/merged-mcp-config.json"))
+        (windows-config (skewed-merge-mcp-json mcp-dir "mcp-windows.json" "/tmp/merged-mcp-windows.json"))
+        (toml-config (skewed-merge-mcp-toml mcp-dir "/tmp/merged-mcp.toml"))
+        ;; Get clone path from environment
+        (clone-path (getenv "SKEWED_CLONE_PATH")))
+    
+    ;; Substitute host clone path in Windows config if env var is set
+    (when (and clone-path (not (string-empty-p clone-path)))
+      (with-temp-buffer
+        (insert-file-contents windows-config)
+        (goto-char (point-min))
+        (while (search-forward "${SKEWED_CLONE_PATH}" nil t)
+          (replace-match clone-path t t))
+        (write-region (point-min) (point-max) windows-config))
+      (message "Substituted SKEWED_CLONE_PATH=%s in %s" clone-path windows-config))
+    
+    (list container-config windows-config toml-config)))
 
 ;; Backwards compatibility wrapper
 (defun skewed-merge-mcp-configs (mcp-dir output-file)
