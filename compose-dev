@@ -168,12 +168,11 @@ start_services() {
     $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" up -d $services
 
     # Merge MCP configs for Claude/Gemini/Codex CLI tools (all formats)
-    # Pass SKEWED_CLONE_PATH so merge can construct correct host paths for Windows MCP config
+    # Pass SKEWED_CLONE_PATH into elisp so merge can construct correct host paths for Windows MCP config
     log_info "Preparing MCP configurations (JSON + TOML)..."
-    if $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" exec -T \
-        -e SKEWED_CLONE_PATH="${SCRIPT_DIR}" \
-        skewed-emacs emacsclient --eval \
-        "(progn (load-file \"/home/emacs-user/skewed-emacs/mcp/merge-mcp-configs.el\") \
+    if $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" exec -T skewed-emacs emacsclient --eval \
+        "(progn (setenv \"SKEWED_CLONE_PATH\" \"${SCRIPT_DIR}\")
+                (load-file \"/home/emacs-user/skewed-emacs/mcp/merge-mcp-configs.el\")
                 (skewed-merge-all-mcp-configs \"/home/emacs-user/skewed-emacs/mcp\"))" \
         > /dev/null 2>&1; then
         
