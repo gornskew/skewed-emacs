@@ -170,11 +170,25 @@ start_services() {
     # Merge MCP configs for Claude/Gemini/Codex CLI tools (all formats)
     # Pass SKEWED_CLONE_PATH into elisp so merge can construct correct host paths for Windows MCP config
     log_info "Preparing MCP configurations (JSON + TOML)..."
-    if $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" exec -T skewed-emacs emacsclient --eval \
-        "(progn (setenv \"SKEWED_CLONE_PATH\" \"${SCRIPT_DIR}\")
-                (load-file \"/home/emacs-user/skewed-emacs/mcp/merge-mcp-configs.el\")
-                (skewed-merge-all-mcp-configs \"/home/emacs-user/skewed-emacs/mcp\"))" \
-        > /dev/null 2>&1; then
+    
+    # Retry loop - emacs daemon may still be initializing on fresh container start
+    MCP_MERGE_SUCCESS=false
+    for attempt in 1 2 3 4 5; do
+        if $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" exec -T skewed-emacs emacsclient --eval \
+            "(progn (setenv \"SKEWED_CLONE_PATH\" \"${SCRIPT_DIR}\")
+                    (load-file \"/home/emacs-user/skewed-emacs/mcp/merge-mcp-configs.el\")
+                    (skewed-merge-all-mcp-configs \"/home/emacs-user/skewed-emacs/mcp\"))" \
+            > /dev/null 2>&1; then
+            MCP_MERGE_SUCCESS=true
+            break
+        fi
+        if [ $attempt -lt 5 ]; then
+            log_info "Waiting for emacs daemon (attempt $attempt/5)..."
+            sleep 2
+        fi
+    done
+    
+    if [ "$MCP_MERGE_SUCCESS" = true ]; then
         
         # Copy merged Windows config to host clone directory
         $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" cp \
