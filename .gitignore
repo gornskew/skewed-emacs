@@ -78,3 +78,6 @@ history.*
 custom.el*
 genworks-gdl*.yml
 private-mcp-config.json
+
+# Local overlay (user-specific, not committed)
+overlays/local.sexp

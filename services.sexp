@@ -1,0 +1,81 @@
+;;; services.sexp - Single Source of Truth for skewed-emacs stack
+;;; -*- mode: lisp-data; -*-
+;;;
+;;; This file defines the base services for the stack.
+;;; Edit this file, then run (skewed-generate-all-configs) to regenerate:
+;;;
+;;;   - docker-compose.yml         (base compose config)
+;;;   - mcp/mcp-container.json     (for claude/gemini CLI inside container)
+;;;   - mcp/mcp-windows.json       (for Claude Desktop on Windows via WSL)
+;;;   - mcp/mcp.toml               (for Codex CLI)
+;;;   - dot-files/emacs.d/etc/services-generated.el
+;;;
+;;; For overlays (e.g., betatest or commercial images):
+;;;   - Create a separate services.sexp for the overlay
+;;;   - Generate with prefix: (skewed-generate-configs "overlay.sexp" dir "betatest-")
+;;;   - This produces betatest-compose.yml, betatest-mcp-container.json, etc.
+;;;   - Docker Compose merges automatically (compose-dev picks up all .yml files)
+;;;   - MCP configs merge via: mcp/merge-mcp-configs.sh
+;;;
+;;; DO NOT EDIT the generated files directly.
+
+(
+ :meta
+ (:version "2.0"
+  :description "Skewed Emacs + Gendl development stack")
+
+ :defaults
+ (:network "skewed-network"
+  :restart "unless-stopped"
+  :volumes ((:source "${PROJECTS_DIR}" :target "/projects"))
+  :timezone "${TZ:-Etc/UTC}")
+
+ :mcp
+ (:wrapper-path-container "/home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js"
+  :exec-path-wsl "~/projects/skewed-emacs/mcp/mcp-exec")
+
+ :services
+ (
+  (:name "skewed-emacs"
+   :type "emacs-lisp"
+   :lisp-impl "Emacs"
+   :image "gornskew/${EMACS_IMAGE_BASE:-skewed-emacs}:${EMACS_IMAGE_BRANCH:-devo}"
+   :ports ((:name "http" :container 7080)
+           (:name "webterm" :container 6942 :host 6942 :external t))
+   :environment (("WEBTERM" . "${WEBTERM:-ttyd}")
+                 ("WEBTERM_PORT" . "6942")
+                 ("TERM" . "xterm-256color")
+                 ("COLORTERM" . "truecolor"))
+   :volumes ((:source "${USER_HOME}/.gemini/google_accounts.json"
+              :target "/home/emacs-user/.gemini/google_accounts.json")
+             (:source "${USER_HOME}/.gemini/oauth_creds.json"
+              :target "/home/emacs-user/.gemini/oauth_creds.json")
+             (:source "${USER_HOME}/.codex/auth.json"
+              :target "/home/emacs-user/.codex/auth.json")
+             (:source "/tmp/.X11-unix" :target "/tmp/.X11-unix" :mode "rw")
+             (:source "${EMACS_LOCAL_SRC:-/nonexistent}/.emacs-local"
+              :target "/home/emacs-user/.emacs-local" :mode "ro"))
+   :mcp t
+   :healthcheck (:endpoint "/lisply/ping-lisp" :interval "108s"))
+
+  (:name "gendl-ccl"
+   :type "common-lisp"
+   :lisp-impl "CCL"
+   :image "genworks/${GENDL_IMAGE_BASE:-gendl}:${GENDL_IMAGE_BRANCH:-devo}-ccl"
+   :ports ((:name "http" :container 9080)
+           (:name "swank" :container 4200))
+   :user "root"
+   :mcp t
+   :healthcheck (:endpoint "/lisply/ping-lisp" :interval "72s"))
+
+  (:name "gendl-sbcl"
+   :type "common-lisp"
+   :lisp-impl "SBCL"
+   :image "genworks/${GENDL_IMAGE_BASE:-gendl}:${GENDL_IMAGE_BRANCH:-devo}-sbcl"
+   :ports ((:name "http" :container 9090)
+           (:name "swank" :container 4210))
+   :user "root"
+   :mcp t
+   :healthcheck (:endpoint "/lisply/ping-lisp" :interval "90s"))
+ )
+)

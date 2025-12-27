@@ -99,7 +99,7 @@ docker exec -it skewed-emacs emacsclient -t
 - **Host Ports**: 
   - `7081` → `7080` (HTTP API - deprecated in favor of MCP)
 - **MCP Service**: Available via `mcp__skewed-emacs__*` functions
-- **Mount**: `/home/dcooper8/projects` → `/projects`
+- **Mount**: `~/projects` → `/projects`
 
 ### Gendl Container (`gendl-ccl`)  
 - **Base**: `genworks/gendl:devo-ccl`
@@ -108,7 +108,7 @@ docker exec -it skewed-emacs emacsclient -t
   - `4201` → `4200` (Swank/SLIME)
   - `9081` → `9080` (HTTP API - deprecated in favor of MCP)
 - **MCP Service**: Available via `mcp__gendl__*` functions
-- **Mount**: `/home/dcooper8/projects` → `/home/gendl-user/projects`
+- **Mount**: `~/projects` → `/home/gendl-user/projects`
 
 ### Docker Network
 - **Network Name**: `emacs-gendl-network`
@@ -275,8 +275,8 @@ gendl_result = mcp__gendl__gendl__lisp_eval(code="(+ 1 2 3)")
    - Check network connectivity: `docker exec skewed-emacs telnet gendl-ccl 4200`
 
 4. **Mount issues**:
-   - Ensure `/home/dcooper8/projects` exists on host
-   - Check permissions: `ls -la /home/dcooper8/projects`
+   - Ensure `~/projects` exists on host
+   - Check permissions: `ls -la ~/projects`
 
 ### Reset Environment
 ```bash
@@ -295,7 +295,7 @@ docker network create emacs-gendl-network
 This environment is designed to work seamlessly with Claude Code:
 
 1. **MCP Service Access**: Claude Code can use MCP services directly without HTTP calls
-2. **File System Access**: Both containers mount `/home/dcooper8/projects` for shared file access
+2. **File System Access**: Both containers mount `~/projects` for shared file access
 3. **Real-time Monitoring**: Use `docker exec` to connect to Emacs and watch Claude's activities
 4. **Development Feedback Loop**: Edit files, test with Claude, see results in real-time
 

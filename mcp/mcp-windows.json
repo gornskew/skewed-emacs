@@ -1,0 +1,43 @@
+// DO NOT EDIT - Generated from services.sexp
+// For Windows: merge with base config or copy to %APPDATA%\Claude\
+{
+  "mcpServers": {
+    "skewed-emacs": {
+      "command": "wsl",
+      "args": [
+        "~/projects/skewed-emacs/mcp/mcp-exec",
+        "--server-name",
+        "skewed-emacs",
+        "--backend-host",
+        "skewed-emacs",
+        "--http-port",
+        "7080"
+      ]
+    },
+    "gendl-ccl": {
+      "command": "wsl",
+      "args": [
+        "~/projects/skewed-emacs/mcp/mcp-exec",
+        "--server-name",
+        "gendl-ccl",
+        "--backend-host",
+        "gendl-ccl",
+        "--http-port",
+        "9080"
+      ]
+    },
+    "gendl-sbcl": {
+      "command": "wsl",
+      "args": [
+        "~/projects/skewed-emacs/mcp/mcp-exec",
+        "--server-name",
+        "gendl-sbcl",
+        "--backend-host",
+        "gendl-sbcl",
+        "--http-port",
+        "9090"
+      ]
+    }
+  },
+  "globalShortcut": ""
+}

@@ -144,7 +144,9 @@ if [[ $- == *i* && -z "$DOT_BASH_PROFILE_WELCOME" ]]; then
     echo "Terminal colors: 'theme dark|light|solarized|custom'"
     echo ""
     echo "Try 'claudly', 'geminly', 'codexly' to launch those agents."  # FLAG: add 'grokly' when available
-    echo "" 
+    echo ""
+    echo "Windows users: Run 'export-windows-mcp-config' to get Claude Desktop config."
+    echo ""
     export DOT_BASH_PROFILE_WELCOME=1
 fi
 
@@ -167,38 +169,31 @@ function egui() {
 # (Node.js and AI tools are now installed locally, no longer via SSH to lisply-mcp)
 #
 
-function claudly 
+function claudly
 {
     # Update Claude Code to latest version
     echo "Checking for Claude Code updates..."
     (cd ~/.claude/local && npm update @anthropic-ai/claude-code) >/dev/null 2>&1
-    
-    # Merge the MCP configs
-    echo "Preparing MCP configuration..."
-    node ~/skewed-emacs/mcp/merge-mcp-config.js >/dev/null 2>&1
-    
-    # Run Claude with the merged config
-    echo "Starting Claude Code with MCP integration..."
-    # cd /projects && ~/.local/bin/claude --mcp-config /tmp/merged-mcp-config.json
 
-    cd /projects && ~/.local/bin/claude
+    # Run Claude with the merged config (prepared at container startup)
+    echo "Starting Claude Code with MCP integration..."
+    cd /projects && ~/.local/bin/claude --mcp-config /tmp/merged-mcp-config.json
 }
 
 
 
 
-function geminly 
+function geminly
 {
     # Update Gemini CLI to latest version
     echo "Checking for Gemini CLI updates..."
     (cd ~/.gemini/local && npm update @google/gemini-cli) >/dev/null 2>&1
-    
-    # Merge the MCP configs and copy to Gemini settings location
+
+    # Copy pre-merged MCP config to Gemini settings location
     echo "Preparing MCP configuration..."
-    node ~/skewed-emacs/mcp/merge-mcp-config.js >/dev/null 2>&1
     mkdir -p ~/.gemini
     cp /tmp/merged-mcp-config.json ~/.gemini/settings.json
-    
+
     # Run Gemini with the merged config
     echo "Starting Gemini CLI with MCP integration..."
     cd /projects && ~/.local/bin/gemini
@@ -212,12 +207,10 @@ function codexly
     # Update Codex CLI to latest version
     echo "Checking for OpenAI Codex updates..."
     (cd ~/.codex/local && npm update @openai/codex) >/dev/null 2>&1
-    
-    # TODO: Generate TOML MCP config for codex from SSOT
-    # For now, just run codex without MCP config
-    echo "Starting OpenAI Codex CLI without MCP services for now..."
-    echo "FLAG -- need to add mcp toml config generating in dot-files/base_profile..."
-    cd /projects && ~/.local/bin/codex
+
+    # Use pre-merged MCP TOML config (prepared at container startup)
+    echo "Starting OpenAI Codex CLI with MCP integration..."
+    cd /projects && ~/.local/bin/codex --mcp-config /tmp/merged-mcp.toml
 }
 
 
@@ -229,6 +222,34 @@ function codexly
 #     echo "Starting xAI Grok CLI..."
 #     cd /projects && ~/.local/bin/grok
 # }
+
+
+# Windows Claude Desktop MCP config helper
+function export-windows-mcp-config
+{
+    local output_path="${1:-/projects/merged-mcp-windows.json}"
+
+    if [ ! -f "/tmp/merged-mcp-windows.json" ]; then
+        echo "Error: Merged Windows MCP config not found."
+        echo "Make sure the container stack has been started with './compose-dev up'"
+        return 1
+    fi
+
+    echo "Copying merged Windows MCP config to: $output_path"
+    cp /tmp/merged-mcp-windows.json "$output_path"
+
+    echo ""
+    echo "Windows Claude Desktop Setup Instructions:"
+    echo "1. Copy this file from your Linux/WSL environment to Windows:"
+    echo "   - File location: $output_path"
+    echo "2. On Windows, copy to: %APPDATA%\\Claude\\claude_desktop_config.json"
+    echo "   (typically: C:\\Users\\<username>\\AppData\\Roaming\\Claude\\claude_desktop_config.json)"
+    echo "3. Restart Claude Desktop to load the new configuration"
+    echo ""
+    echo "From Windows PowerShell, you can use:"
+    echo "   wsl.exe cat $output_path > \$env:APPDATA\\Claude\\claude_desktop_config.json"
+    echo ""
+}
 
 
 

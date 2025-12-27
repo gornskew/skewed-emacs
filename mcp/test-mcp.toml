@@ -1,0 +1,3 @@
+[test-overlay-toml]
+command = "test-cmd"
+args = ["--arg1", "value1"]

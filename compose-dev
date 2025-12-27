@@ -166,7 +166,18 @@ start_services() {
 
     log_info "Starting services: ${services:-all}"
     $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" up -d $services
-    
+
+    # Merge MCP configs for Claude/Gemini/Codex CLI tools (all formats)
+    log_info "Preparing MCP configurations (JSON + TOML)..."
+    if $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" exec -T skewed-emacs emacsclient --eval \
+        "(progn (load-file \"/projects/skewed-emacs/mcp/merge-mcp-configs.el\") \
+                (skewed-merge-all-mcp-configs \"/projects/skewed-emacs/mcp\"))" \
+        > /dev/null 2>&1; then
+        log_success "MCP configurations ready (container CLI, Windows, Codex)"
+    else
+        log_warning "MCP config merge failed (emacsclient not ready yet?)"
+    fi
+
 }
 
 stop_services() {
