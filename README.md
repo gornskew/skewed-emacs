@@ -121,6 +121,13 @@ containerized skewed emacs daemon.
 After you are in, see the "Getting Started" section near the top of
 the default landing dashboard.
 
+### Claude Desktop Integration
+
+If you prefer to interact via Claude Desktop rather than directly with
+Emacs, see [Claude Desktop Integration](docs/CLAUDE_DESKTOP.md) for
+setup instructions. The MCP configuration is automatically generated
+when you run `./compose-dev up`.
+
 ### Pulling Updates
 
 While the `./compose-dev up` will pull fresh container images, it will
