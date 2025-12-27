@@ -5,7 +5,7 @@
     "skewed-emacs": {
       "command": "wsl",
       "args": [
-        "~/projects/skewed-emacs/mcp/mcp-exec",
+        "${SKEWED_CLONE_PATH}/mcp/mcp-exec",
         "--server-name",
         "skewed-emacs",
         "--backend-host",
@@ -17,7 +17,7 @@
     "gendl-ccl": {
       "command": "wsl",
       "args": [
-        "~/projects/skewed-emacs/mcp/mcp-exec",
+        "${SKEWED_CLONE_PATH}/mcp/mcp-exec",
         "--server-name",
         "gendl-ccl",
         "--backend-host",
@@ -29,7 +29,7 @@
     "gendl-sbcl": {
       "command": "wsl",
       "args": [
-        "~/projects/skewed-emacs/mcp/mcp-exec",
+        "${SKEWED_CLONE_PATH}/mcp/mcp-exec",
         "--server-name",
         "gendl-sbcl",
         "--backend-host",
