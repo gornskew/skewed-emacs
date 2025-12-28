@@ -258,6 +258,173 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(
 )
 ```
 
+## CRITICAL: Detecting and Handling Unbalanced Buffers
+
+**â ï¸ WARNING: LLM agents can accidentally circumvent paredit-mode guardrails!**
+
+### How Unbalanced States Occur
+
+**Two scenarios lead to unbalanced buffers:**
+
+1. **LLM Agent Circumvention (Agent's Fault):**
+   - The MCP `lisp_eval` tool allows arbitrary Elisp evaluation
+   - This includes running shell commands: `(shell-command "sed -i 's/foo/bar/' file.el")`
+   - External editors invoked via shell bypass paredit-mode completely
+   - **This has been observed in the field** - agents sometimes resort to shell-based editing
+   - Result: Paredit-mode enabled but buffer contains unbalanced code
+
+2. **External File Modification (Not Agent's Fault):**
+   - User edits file in external editor
+   - Emacs auto-reverts the buffer
+   - Paredit-mode remains enabled despite unbalanced content from disk
+   - Result: Same inconsistent state
+
+### Why This is Dangerous
+
+**Normal users CANNOT create this state:**
+- Paredit-mode prevents unbalanced edits through normal Emacs commands
+- Paredit-mode refuses to enable in an already-unbalanced buffer
+
+**But LLM agents CAN create this state:**
+- Shell commands bypass Emacs entirely: `(shell-command "sed ...")`
+- Direct file writes bypass buffer protections: `(write-region ... overwrite)`
+- String manipulation then write: `(with-temp-file ... (insert (replace-regexp-in-string ...)))`
+
+**This inconsistent state breaks all assumptions:**
+- Paredit-mode thinks it's safe to edit, but isn't
+- Structural navigation commands (`forward-sexp`) fail
+- Further edits can cascade into worse corruption
+- Syntax becomes unparseable
+
+### MANDATORY: Pre-Edit Balance Check
+
+**ALWAYS check balance BEFORE any editing or analysis of Lisp files:**
+
+```python
+# REQUIRED before any Lisp file operation
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(with-current-buffer "file.el"
+               (condition-case err
+                   (progn
+                     (check-parens)
+                     (list :status "BALANCED" :safe-to-edit t))
+                 (error (list :status "UNBALANCED"
+                             :safe-to-edit nil
+                             :error (error-message-string err)))))'''
+)
+```
+
+**If unbalanced detected:**
+1. â **STOP IMMEDIATELY** - Do not attempt any edits
+2. â **Report to user** with clear diagnostic information
+3. â **Back off** - Let user fix manually
+4. â **Do not try to fix it yourself** - This rarely goes well
+
+### Detection Pattern for Confusing States
+
+**Check for the impossible state (paredit-mode ON but unbalanced):**
+
+```python
+# Detect the confusing state
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(with-current-buffer "file.el"
+               (list :paredit-enabled paredit-mode
+                     :balanced (condition-case err
+                                   (progn (check-parens) t)
+                                 (error nil))
+                     :auto-reverted auto-revert-mode))'''
+)
+```
+
+**Diagnostic Results:**
+- `{:paredit-enabled t, :balanced nil}` â **CONFUSING STATE** - agent or external edit caused this
+- `{:paredit-enabled t, :balanced t}` â Safe to proceed
+- `{:paredit-enabled nil, :balanced nil}` â Expected for non-Lisp or damaged files
+
+### Best Practices to Avoid Creating Unbalanced States
+
+**â DO NOT use these methods for editing Lisp files:**
+```python
+# WRONG: Shell-based editing bypasses paredit
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='(shell-command "sed -i \"s/old/new/\" /path/to/file.el")'
+)
+
+# WRONG: String manipulation then write bypasses paredit
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(let ((content (with-temp-buffer
+                              (insert-file-contents "/path/to/file.el")
+                              (buffer-string))))
+                (with-temp-file "/path/to/file.el"
+                  (insert (replace-regexp-in-string "old" "new" content))))'''
+)
+
+# WRONG: Direct file write bypasses paredit
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='(write-region "(defun foo" nil "/path/to/file.el" append)'
+)
+```
+
+**â DO use native Emacs buffer operations with paredit:**
+```python
+# RIGHT: Buffer-based editing with paredit protection
+mcp__skewed_emacs__skewed_emacs__lisp_eval(
+    code='''(with-current-buffer (find-file-noselect "/path/to/file.el")
+               (save-excursion
+                 (when (fboundp 'paredit-mode) (paredit-mode 1))
+                 (goto-char (point-min))
+                 (search-forward "old")
+                 (paredit-kill-word)
+                 (insert "new")
+                 (check-parens)
+                 (save-buffer)))'''
+)
+```
+
+### When Rogue Editing Might Be Justified
+
+**Very rarely, shell-based editing might be necessary for:**
+- Bulk operations across hundreds of files where buffer operations are too slow
+- Files too large for Emacs to handle efficiently
+- Non-Lisp files where paredit doesn't apply
+
+**If you must use rogue editing methods:**
+1. â Document why native Emacs methods won't work
+2. â Use only on non-Lisp files, or
+3. â If on Lisp files, immediately verify balance afterward
+4. â Be prepared to detect and report any resulting imbalance
+
+### Recovery from Unbalanced State
+
+**If you detect an unbalanced buffer, report like this:**
+
+```
+â ï¸ UNBALANCED BUFFER DETECTED
+
+File: /path/to/file.el
+Status: Paredit-mode enabled but buffer is UNBALANCED
+Error: "Unbalanced parentheses" at position 2552
+
+Possible Causes:
+1. Shell-based editing bypassed paredit-mode
+2. External file modification while buffer was open
+3. String manipulation write bypassed paredit-mode
+
+Action Required:
+Please manually fix the unbalanced parentheses/quotes.
+I am backing off and will not attempt any edits.
+```
+
+### Summary: The Golden Rules
+
+1. **ALWAYS check balance** before editing or analyzing Lisp files
+2. **NEVER use shell commands** to edit Lisp files
+3. **NEVER use string manipulation + write** for Lisp files
+4. **ALWAYS use buffer operations** with paredit-mode enabled
+5. **If unbalanced detected**: Report clearly and back off immediately
+6. **If using rogue methods**: Double-check balance afterward
+7. **Remember**: Paredit-mode on + unbalanced = IMPOSSIBLE for humans, POSSIBLE for agents
+
 ## PAREDIT COMMAND REFERENCE
 
 ### Critical Paredit Commands for Structural Editing

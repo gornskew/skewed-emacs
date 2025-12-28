@@ -65,14 +65,13 @@ This detects 'Ghost' icons (like ⚙) that Emacs claims are width 1 but display 
           (>= (string-width icon-str) 2)))))         ;; Trust Emacs if it already says 2
 
 (defun skewed-dashboard-pad-icon (icon-key)
-  "Lookup icon by KEY and pad it.
-If the icon is a 'ghost' (visual width > Emacs width), we add extra padding."
-  (let* ((icon-str (skewed-icon icon-key)))
-    (if (and (not (bound-and-true-p skewed-icons-gotty-context))
-             (or (skewed-icon-is-ghost icon-key)
-                 (skewed-dashboard-is-wide-char-p icon-str)))
-        (concat icon-str "  ") ;; Ghost: 2 spaces (Icon overlaps 1st space)
-      (concat icon-str " ")))) ;; Honest: 1 space
+  "Lookup icon by KEY and pad selectively.
+Ghost emojis get 2 spaces, normal emojis get 1 space."
+  (let ((icon-str (skewed-icon icon-key)))
+    (if (skewed-icon-is-ghost icon-key)
+        (concat icon-str "  ") ;; Ghost: 2 spaces
+      (concat icon-str " ")))) ;; Normal: 1 space
+
 
 ;;; Item Generators ============================================================
 
