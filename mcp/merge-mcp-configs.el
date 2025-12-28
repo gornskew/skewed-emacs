@@ -108,6 +108,57 @@ Reads mcp.toml as base, then merges any *-mcp.toml overlay files."
     (message "Merged MCP TOML written to: %s" output-file)
     output-file))
 
+(defun skewed--codex-config-path ()
+  "Return the Codex config path inside the container."
+  (or (getenv "CODEX_CONFIG_PATH")
+      "/home/emacs-user/.codex/config.toml"))
+
+(defun skewed--mcp-toml-to-codex (toml-path)
+  "Return TOML content from TOML-PATH with MCP tables prefixed for Codex."
+  (with-temp-buffer
+    (insert-file-contents toml-path)
+    (goto-char (point-min))
+    (while (re-search-forward "^\\[\\([^]]+\\)\\]" nil t)
+      (let ((table (match-string 1)))
+        (unless (string-prefix-p "mcp_servers." table)
+          (replace-match (format "[mcp_servers.%s]" table) t t))))
+    (buffer-string)))
+
+(defun skewed-update-codex-config-from-mcp (toml-path)
+  "Write MCP server entries from TOML-PATH into Codex config.toml.
+Replaces the managed block if it already exists."
+  (let* ((codex-config (skewed--codex-config-path))
+         (begin-marker "# BEGIN SKEWED-EMACS MCP")
+         (end-marker "# END SKEWED-EMACS MCP")
+         (mcp-content (skewed--mcp-toml-to-codex toml-path)))
+    (make-directory (file-name-directory codex-config) t)
+    (with-temp-buffer
+      (when (file-exists-p codex-config)
+        (insert-file-contents codex-config))
+
+      ;; Remove any existing managed block.
+      (goto-char (point-min))
+      (when (re-search-forward (concat "^" (regexp-quote begin-marker) "$" ) nil t)
+        (let ((start (match-beginning 0)))
+          (when (re-search-forward (concat "^" (regexp-quote end-marker) "$" ) nil t)
+            (delete-region start (match-end 0))
+            (delete-blank-lines))))
+
+      ;; Append managed block at end.
+      (goto-char (point-max))
+      (unless (bolp)
+        (insert "\n"))
+      (insert begin-marker "\n")
+      (insert mcp-content)
+      (unless (bolp)
+        (insert "\n"))
+      (insert end-marker "\n")
+
+      (write-region (point-min) (point-max) codex-config))
+
+    (message "Updated Codex config with MCP servers: %s" codex-config)
+    codex-config))
+
 (defun skewed-merge-all-mcp-configs (mcp-dir)
   "Merge all MCP config formats from MCP-DIR to /tmp.
 For Windows config, substitutes ${SKEWED_CLONE_PATH} placeholder with
@@ -128,6 +179,9 @@ Returns list of generated files."
           (replace-match clone-path t t))
         (write-region (point-min) (point-max) windows-config))
       (message "Substituted SKEWED_CLONE_PATH=%s in %s" clone-path windows-config))
+
+    ;; Update Codex config with MCP servers from merged TOML
+    (skewed-update-codex-config-from-mcp toml-config)
     
     (list container-config windows-config toml-config)))
 

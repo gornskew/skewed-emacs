@@ -181,6 +181,16 @@ start_services() {
                 skewed-emacs:/home/emacs-user/skewed-emacs/mcp/ 2>/dev/null || true
         fi
     done
+
+    # Step 1b: Copy any overlay services-generated files for dashboard discovery
+    for overlay_file in "${SCRIPT_DIR}/dot-files/emacs.d/etc/"*-services-generated.el; do
+        if [ -f "$overlay_file" ]; then
+            log_info "Copying overlay: $(basename "$overlay_file")"
+            $COMPOSE_CMD "${COMPOSE_FILES_ARGS[@]}" cp \
+                "$overlay_file" \
+                skewed-emacs:/home/emacs-user/skewed-emacs/dot-files/emacs.d/etc/ 2>/dev/null || true
+        fi
+    done
     
     # Step 2: Run the merge inside the container (retry loop for daemon startup)
     MCP_MERGE_SUCCESS=false

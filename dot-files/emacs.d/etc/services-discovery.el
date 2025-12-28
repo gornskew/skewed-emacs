@@ -36,18 +36,44 @@
   "Seconds before reloading services config.")
 
 ;;; ============================================================================
+;;; Merge Helpers
+;;; ============================================================================
+
+(defun skewed--merge-services-by-name (services)
+  "Merge SERVICES by :name, preserving order and letting later entries win."
+  (let ((table (make-hash-table :test 'equal))
+        (order '()))
+    (dolist (svc services)
+      (let ((name (plist-get svc :name)))
+        (unless (gethash name table)
+          (push name order))
+        (puthash name svc table)))
+    (mapcar (lambda (name) (gethash name table)) (nreverse order))))
+
+;;; ============================================================================
 ;;; Loading from Generated File (preferred)
 ;;; ============================================================================
 
 (defun skewed--load-from-generated ()
   "Load services from pre-generated elisp file."
-  (let ((generated-file (expand-file-name 
-                         "dot-files/emacs.d/etc/services-generated.el"
-                         skewed-services-base-dir)))
-    (when (file-exists-p generated-file)
-      (load generated-file t t)
+  (let* ((generated-dir (expand-file-name "dot-files/emacs.d/etc/"
+                                          skewed-services-base-dir))
+         (base-file (expand-file-name "services-generated.el" generated-dir))
+         (overlay-files (when (file-directory-p generated-dir)
+                          (directory-files generated-dir t ".*-services-generated\\.el$")))
+         (services '()))
+    (when (file-exists-p base-file)
+      (load base-file t t)
       (when (boundp 'skewed-generated-services)
-        skewed-generated-services))))
+        (setq services (append services skewed-generated-services))))
+    (dolist (overlay-file overlay-files)
+      (load overlay-file t t)
+      (when (boundp 'skewed-generated-services)
+        (setq services (append services skewed-generated-services))))
+    (when services
+      (setq services (skewed--merge-services-by-name services))
+      (setq skewed-generated-services services)
+      services)))
 
 ;;; ============================================================================
 ;;; Loading from JSON (legacy fallback)

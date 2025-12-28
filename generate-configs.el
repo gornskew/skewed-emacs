@@ -265,7 +265,8 @@ Uses placeholder ${SKEWED_CLONE_PATH} which gets substituted at merge time."
     (push ";;; services-generated.el --- Generated from services.sexp -*- lexical-binding: t; -*-" lines)
     (push ";;; DO NOT EDIT - Regenerate with: (skewed-generate-all-configs)" lines)
     (push "" lines)
-    (push "(defvar skewed-generated-services" lines)
+    (push "(defvar skewed-generated-services nil)" lines)
+    (push "(setq skewed-generated-services" lines)
     (push "  '(" lines)
     
     (dolist (svc services)
@@ -290,8 +291,8 @@ Uses placeholder ${SKEWED_CLONE_PATH} which gets substituted at merge time."
             (push (format "     :swank-host-port %s" (skewed--get-prop swank-port :host)) lines)))
         (push "    )" lines)))
     
-    (push "   )" lines)
-    (push "  \"Services configuration generated from services.sexp.\")" lines)
+    (push "   ))" lines)
+    (push ";; Services configuration generated from services.sexp." lines)
     (push "" lines)
     (push "(provide 'services-generated)" lines)
     (push ";;; services-generated.el ends here" lines)
@@ -369,12 +370,14 @@ Examples:
         (insert (skewed--generate-mcp-toml config)))
       (message "Generated: %s" codex-toml))
     
-    ;; Generate Elisp services file (only for base, not overlays)
-    (when (string-empty-p prefix)
-      (let ((elisp-file (expand-file-name "services-generated.el" elisp-dir)))
-        (with-temp-file elisp-file
-          (insert (skewed--generate-elisp config)))
-        (message "Generated: %s" elisp-file)))
+    ;; Generate Elisp services file (base or overlay, using prefix)
+    (let* ((elisp-name (if (string-empty-p skewed-gen-output-prefix)
+                           "services-generated.el"
+                         (format "%sservices-generated.el" skewed-gen-output-prefix)))
+           (elisp-file (expand-file-name elisp-name elisp-dir)))
+      (with-temp-file elisp-file
+        (insert (skewed--generate-elisp config)))
+      (message "Generated: %s" elisp-file))
     
     (message "=== Generation complete ===")))
 

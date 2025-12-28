@@ -43,7 +43,9 @@ Falls back to hardcoded container names if services.json not available."
                               :impl lisp-impl
                               :icon (cond ((string-equal lisp-impl "CCL") :svc-ccl)
                                          ((string-equal lisp-impl "SBCL") :svc-sbcl)
-                                         ((string-match "Commercial" lisp-impl) :svc-gdl)
+                                         ((string-match-p "SMP" lisp-impl) :svc-smp)
+                                         ((string-match-p "Allegro" lisp-impl) :svc-commercial)
+                                         ((string-match-p "Commercial" lisp-impl) :svc-commercial)
                                          (t :svc-lisp)))))
                     services)
           '()))
