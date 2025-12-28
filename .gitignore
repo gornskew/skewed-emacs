@@ -76,9 +76,19 @@ history.*
 *token*
 .env
 custom.el*
+
 genworks-gdl*.yml
 **/genworks-gdl*.*
 mcp/genworks-gdl*
+
+betatest*.yml
+**/betatest*.*
+mcp/betatest*
+
+enterprise*.yml
+**/enterprise*.*
+mcp/enterprise*
+
 private-mcp-config.json
 
 mcp/claude_desktop_config.json
