@@ -69,6 +69,8 @@ Questions: [any blockers or clarifications needed]
 ```
 
 ## Quick Reference
+- **projects.org location**: `/home/emacs-user/projects/org/projects.org` (NOT `/projects/projects.org`)
+- **Navigate via agenda**: Use `org-agenda-goto` from *Org Agenda* buffer to jump directly to task headings
 - **D&D = Dashboard & Daily Focus** (your context source)
 - **MCP docs first** (basic skills before attempting work)
 - **Paredit-mode mandatory** for Lisp file editing

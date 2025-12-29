@@ -195,6 +195,83 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(
 (insert "new-function")
 ```
 
+### CRITICAL: Think in Structures, Not Lines
+
+**This is the most important paredit concept for LLM agents.**
+
+The fundamental mistake that leads to unbalanced buffers is **thinking in lines rather than structures**. Lisp code is not a sequence of lines—it's a tree of nested s-expressions. Paredit-mode enforces structural integrity, but only if you use structural operations.
+
+**❌ WRONG MENTAL MODEL (Line-Based):**
+> "I need to add two new let bindings. I'll insert text after line 15."
+
+This thinking leads to:
+```elisp
+;; Attempt to add bindings by inserting text after a line
+(search-forward "(backend-port (getf rule :port))")
+(end-of-line)
+(insert "\n            (target-path (getf rule :target-path))")
+(insert "\n            (rule-path (getf rule :path))")
+```
+
+**Result**: Broken s-expression structure. The let binding list is now malformed because you inserted text without considering the enclosing structure.
+
+**✅ CORRECT MENTAL MODEL (Structure-Based):**
+> "I need to add two sibling s-expressions to this let's binding list. The binding list is the second element of the let form."
+
+This thinking leads to:
+```elisp
+;; Navigate to the let form structurally
+(search-forward "(let ((")
+(backward-char 2)           ; Position on opening paren of let
+(down-list)                 ; Enter the let form
+(down-list)                 ; Enter the binding list
+(forward-sexp 2)            ; Skip past existing bindings
+;; Now positioned correctly to add sibling binding forms
+(insert "\n            ")
+(insert "(target-path (getf rule :target-path))")
+(insert "\n            ")
+(insert "(rule-path (getf rule :path))")
+```
+
+**The Key Questions to Ask Before Any Edit:**
+
+1. **What s-expression am I modifying?** (The binding list? A function call? A defun body?)
+2. **What structural relationship should the new code have?** (Sibling? Child? Replacement?)
+3. **Which paredit operations achieve that structural change?** (Slurp? Insert? Wrap?)
+
+**Concrete Example: Adding a Binding to `let`**
+
+Given:
+```lisp
+(let ((x 1)
+      (y 2))
+  body...)
+```
+
+Goal: Add `(z 3)` as a third binding.
+
+**Line-based thinking** says: "Insert `(z 3)` after line 2."  
+**Structural thinking** says: "Add a sibling form after `(y 2)` within the binding list."
+
+```elisp
+;; Structural approach
+(search-forward "(let ")
+(down-list)                    ; Into binding list
+(forward-sexp 2)               ; Past (x 1) and (y 2)
+(insert "\n      (z 3)")       ; Insert new sibling
+```
+
+**When Paredit Blocks You, STOP**
+
+If paredit-mode prevents an operation, that's a signal that your mental model is wrong:
+
+1. **Don't disable paredit-mode** to force the edit through
+2. **Don't use shell commands** (sed, etc.) to bypass paredit
+3. **Do step back** and reconsider the structural operation you're attempting
+4. **Do ask for help** if you can't figure out the correct structural approach
+
+**Remember**: Paredit-mode is not an obstacle—it's a guardrail that catches incorrect thinking.
+
 ### Safe Lisp Editing Workflow
 
 **Step-by-Step Safe Editing Pattern (Shared-Buffer-Safe):**
@@ -424,6 +501,8 @@ I am backing off and will not attempt any edits.
 5. **If unbalanced detected**: Report clearly and back off immediately
 6. **If using rogue methods**: Double-check balance afterward
 7. **Remember**: Paredit-mode on + unbalanced = IMPOSSIBLE for humans, POSSIBLE for agents
+8. **Think structurally**: Ask "what s-expression am I modifying?" before any edit
+9. **If paredit blocks you**: STOP and reconsider your approach—don't force it
 
 ## PAREDIT COMMAND REFERENCE
 
@@ -642,6 +721,104 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(
                  (when (buffer-modified-p) (save-buffer))))'''
 )
 ```
+
+## SLIME/SWANK BACKDOOR: Alternative Backend Access 🚪🔌
+
+**Experimental Feature**: Claude can interact with SWANK-enabled Lisp backends through Emacs's Slime connection as an alternative to direct MCP connections.
+
+### Why Use Slime/Swank?
+
+The Slime/Swank pathway offers potential advantages:
+
+- **Mature error handling**: Slime has robust stack trace and debugger integration
+- **Better REPL state management**: Established continuation and context handling
+- **Rich inspection**: Swank provides comprehensive object introspection
+- **Debugger integration**: Access to Slime's interactive debugger
+- **Completion support**: Tab completion and symbol lookup via Swank
+
+### Available SWANK Services
+
+Check the Dashboard (*dashboard* buffer) for available SWANK services:
+
+```
+🍸 𝓢𝓦𝓐𝓝𝓚 Services (hosts and ports):
+    🖥  gendl-ccl on 4200
+    🏭 gendl-sbcl on 4210
+    🚀 genworks-gdl-smp on 4218
+    ✈  genworks-gdl-non-smp on 4208
+    🚀 genworks-gdl-enterprise-smp on 4218
+    ✈  genworks-gdl-enterprise-non-smp on 4208
+```
+
+### Connecting to SWANK Backends
+
+You can connect to any SWANK service listed in the Dashboard:
+
+```elisp
+;; Connect to a SWANK service
+(slime-connect "localhost" 4218)  ; Connect to genworks-gdl-enterprise-smp
+```
+
+This creates a `*slime-repl allegro*` buffer (or similar) that shares state with any existing user REPL session.
+
+### Evaluating Through Slime
+
+Once connected, use `slime-eval` to send expressions:
+
+```elisp
+;; Evaluate a form through Slime/Swank
+(slime-eval '(+ 1 2 3))  ; Returns 6
+
+;; More complex operations
+(slime-eval '(ql:quickload :cyclops))
+(slime-eval '(cyclops:start-proxy :port 19069 :debug? t))
+```
+
+### Shared REPL Considerations ⚠️
+
+**IMPORTANT**: SLIME REPLs may be shared with active user sessions!
+
+- **Check for existing REPLs**: Look for `*slime-repl allegro*` buffers
+- **Alert user before taking control**: If REPL exists, warn user it will be used
+- **Treat as read-only by default**: User may be actively working in that REPL
+- **Create private REPL if needed**: Consider establishing a dedicated background connection
+
+### When to Use Slime vs Direct MCP
+
+**Use Direct MCP (`genworks-gdl-enterprise-smp:lisp_eval`) when:**
+- Simple evaluations needed
+- No debugger interaction required  
+- Stateless operations
+- User is not actively using a REPL
+
+**Use Slime/Swank when:**
+- Complex debugging needed
+- Interactive development desired
+- Need symbol completion/inspection
+- Dealing with complex error conditions
+- Multiple related operations in sequence
+
+### Example: Hybrid Approach
+
+```elisp
+;; Use direct MCP for simple checks
+(genworks-gdl-enterprise-smp:lisp_eval 
+  :code "(list :packages (list-all-packages))")
+
+;; Switch to Slime for interactive debugging
+(when (and (error-detected?) (not (slime-connected-p)))
+  (slime-connect "localhost" 4218)
+  (slime-eval '(describe-error-in-detail)))
+```
+
+### Current Status
+
+**Experimental**: The Slime/Swank backdoor is being evaluated for:
+- Improved error handling for LLM agents
+- Better REPL state continuity
+- Enhanced debugging capabilities
+
+**Learnings welcome**: If you use the Slime backdoor, document what works well and what doesn't!
 
 ## General File Editing Best Practices
 
@@ -872,3 +1049,23 @@ The original document buried paredit instructions deep in the text (around line 
 **Solution**: This updated guide makes paredit mode usage the first and most prominent instruction for any Lisp file editing, with clear warnings about the consequences of not using it.
 
 The key insight: **Structural editing is not optional for Lisp - it's essential for maintaining code integrity.**
+
+
+**Why Structural Thinking Matters (December 2025 Session):**
+
+During a Cyclops proxy development session, an LLM agent attempted to add new bindings to a `let` form by inserting text "after a line" rather than thinking about the structural operation of adding sibling s-expressions to a binding list. This resulted in:
+
+1. Malformed let bindings with mismatched parentheses
+2. Paredit-mode initially blocking the broken structure
+3. The agent **circumventing paredit** by disabling it (`(paredit-mode -1)`) to force through a "fix"
+4. A confusing state where `check-parens` showed balanced but the code was semantically broken
+
+**Root Cause**: The agent was thinking "insert text after line X" instead of "add sibling forms within the binding list structure."
+
+**Solution**: The agent should have:
+1. Identified the target structure (the let binding list)
+2. Navigated structurally (`down-list`, `forward-sexp`)
+3. Inserted complete, balanced forms as siblings
+4. **When paredit blocked the operation**: Stopped and asked for human review instead of disabling paredit
+
+**Key Takeaway**: When paredit-mode blocks an operation, treat it as a signal that your mental model is wrong—not as an obstacle to work around.
