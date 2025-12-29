@@ -363,3 +363,33 @@ When using MCP file editing, remember that you **share the global current buffer
   (search-forward "target"))
 ```
 
+
+## Emacs-Native Tool Preference
+
+**Prefer Emacs native tools over shell commands:**
+
+| Task | Prefer | Avoid |
+|------|--------|-------|
+| File listing | `(dired-noselect "/path/")` | `(shell-command-to-string "ls")` |
+| Git status | `(magit-status)` or `(vc-dir)` | `(shell-command-to-string "git status")` |
+| File operations | `(rename-file)`, `(copy-file)` | `(shell-command "mv ...")` |
+| Search in files | `(grep-find)`, `(project-find-regexp)` | `(shell-command "grep ...")` |
+
+**Always refresh stale buffers before consulting:**
+```elisp
+;; Dired: refresh before reading
+(with-current-buffer (dired-noselect "/projects/skewed-emacs/")
+  (revert-buffer)  ;; Same as pressing 'g' interactively
+  ...)
+
+;; File buffers: revert if file changed on disk
+(with-current-buffer (find-file-noselect "/path/to/file")
+  (when (not (verify-visited-file-modtime (current-buffer)))
+    (revert-buffer t t t))
+  ...)
+```
+
+**Why this matters:**
+- Native Emacs tools integrate with the shared buffer state
+- Shell commands bypass Emacs's knowledge of file system state
+- Dired buffers can become stale; always `(revert-buffer)` before trusting contents
