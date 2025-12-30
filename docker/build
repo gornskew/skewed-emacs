@@ -13,6 +13,7 @@ BUILD_CONTEXT="$PROJECT_ROOT"   # original script used ".." as context
 # -----------------------------
 # CLI args
 # -----------------------------
+VARIANT="full"  # Build variant: full or lite
 # CLI overrides (higher priority than auto-detect)
 CLI_SET_PUSH=""
 while [[ $# -gt 0 ]]; do
@@ -25,6 +26,22 @@ while [[ $# -gt 0 ]]; do
       CLI_SET_PUSH="true"
       shift
       ;;
+    --variant=*)
+      VARIANT="${1#*=}"
+      if [[ "$VARIANT" != "full" && "$VARIANT" != "lite" ]]; then
+        echo "Error: Invalid variant '$VARIANT'. Must be 'full' or 'lite'." >&2
+        exit 1
+      fi
+      shift
+      ;;
+    --lite)
+      VARIANT="lite"
+      shift
+      ;;
+    --full)
+      VARIANT="full"
+      shift
+      ;;
     -h|--help)
       cat <<EOF
 Usage: $0 [OPTIONS]
@@ -32,6 +49,9 @@ Usage: $0 [OPTIONS]
 Options:
   --push       Enable pushing the built image to Docker Hub
   --no-push    Skip pushing (build only)
+  --variant=X  Build variant: 'full' (default) or 'lite'
+  --full       Shorthand for --variant=full
+  --lite       Shorthand for --variant=lite (no TUI LLM CLIs)
   -h, --help   Show this help message
 
 Behavior:
@@ -62,7 +82,7 @@ elif git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; the
   branch="$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD)"
 fi
 branch="${branch//\//--}"
-TAG="$branch"
+TAG="${branch}-${VARIANT}"
 
 # -----------------------------
 # Push defaults (public-friendly)
@@ -106,6 +126,7 @@ echo "Project root:     $PROJECT_ROOT"
 echo "Dockerfile:       $DOCKERFILE_PATH"
 echo "Build context:    $BUILD_CONTEXT"
 echo "Tag:              ${IMAGE_NAME}:${TAG}"
+echo "Variant:          ${VARIANT}"
 echo "Push:             ${PUSH_IMAGE}"
 echo "Push docker cfg:  ${PUSH_DOCKER_CONFIG}"
 
@@ -150,6 +171,7 @@ DOCKER_BUILDKIT=1 docker build \
   -t "${IMAGE_NAME}:${TAG}" \
   ${LOCAL_TAGS} \
   --build-arg GIT_BRANCH="${branch}" \
+  --build-arg BUILD_VARIANT="${VARIANT}" \
   -f "$DOCKERFILE_PATH" \
   "$BUILD_CONTEXT"
 

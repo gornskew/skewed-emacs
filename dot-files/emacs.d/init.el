@@ -210,28 +210,7 @@
 
 (setq
  second-party-packages
- `((claude-code
-     :load-path ,(lambda () (get-config-path "sideloaded/claude-code"))
-     :ensure nil		    ; Don't try to download from MELPA
-     :defer (not skewed-emacs-docker-build?)
-     :commands (claude-code claude-code-transient claude-code-mode)
-     :init
-     (setq claude-code-terminal-backend 'eat)
-     :config
-     (unless skewed-emacs-docker-build?
-       (claude-code-mode 1)
-       (setq claude-code-program
-             (or (when (file-exists-p "/projects/skewed-emacs/scripts/claudely.sh")
-		   "/projects/skewed-emacs/scripts/claudely.sh")
-		 (when (file-exists-p "~/projects/skewed-emacs/scripts/claudely.sh")
-		   (expand-file-name "~/projects/skewed-emacs/scripts/claudely.sh"))
-		 (when (file-exists-p "~/skewed-emacs/scripts/claudely.sh")
-		   (expand-file-name "~/skewed-emacs/scripts/claudely.sh"))
-		 (message "claude-code: claudely.sh not found – disabled")
-		 nil)))
-     :bind-keymap ("C-c C" . claude-code-command-map))
-
-   (org-config
+ `(   (org-config
     :ensure nil
     :defer (not skewed-emacs-docker-build?)
     :load-path ,(lambda () (get-config-path "etc"))

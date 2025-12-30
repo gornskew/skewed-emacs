@@ -19,6 +19,26 @@
 ;;;
 ;;; DO NOT EDIT the generated files directly.
 
+;;; BUILD VARIANTS
+;;; ==============
+;;; The skewed-emacs image supports build variants:
+;;;
+;;;   full  - Complete installation including TUI LLM CLIs (claude, codex, gemini)
+;;;           Best for: Emacs power users, developers who use terminal-based AI tools
+;;;
+;;;   lite  - Core Emacs + MCP services only, no TUI LLM CLIs
+;;;           Best for: Claude Desktop users, MCP-only workflows, smaller image size
+;;;
+;;; Image tag format: {branch}-{variant}
+;;;   Examples: devo-full, devo-lite, master-full, master-lite
+;;;
+;;; To use lite variant, set EMACS_IMAGE_VARIANT=lite in your environment
+;;; or in .env file before running compose-dev.
+;;;
+;;; The MCP configuration is identical for both variants - only the
+;;; docker-compose.yml image tag changes based on variant.
+
+
 (
  :meta
  (:version "2.0"
@@ -39,7 +59,7 @@
   (:name "skewed-emacs"
    :type "emacs-lisp"
    :lisp-impl "Emacs"
-   :image "gornskew/${EMACS_IMAGE_BASE:-skewed-emacs}:${EMACS_IMAGE_BRANCH:-devo}"
+   :image "gornskew/${EMACS_IMAGE_BASE:-skewed-emacs}:${EMACS_IMAGE_BRANCH:-devo}-${EMACS_IMAGE_VARIANT:-full}"
    :ports ((:name "http" :container 7080)
            (:name "webterm" :container 6942 :host 6942 :external t))
    :environment (("WEBTERM" . "${WEBTERM:-ttyd}")

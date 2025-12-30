@@ -1,7 +1,7 @@
 # Skewed Emacs — multi-stage, optimized for fast web-terminal iteration
 # - builder: heavy Emacs setup, pdf-tools, vterm, package compilation
 # - runtime-base: minimal runtime with Node.js and core artifacts
-# - runtime-webterm-experiment: fast-rebuilding layer with Gotty/Wetty/ttyd
+# - runtime-webterm-experiment: fast-rebuilding layer with ttyd web terminal
 
 FROM debian:stable-slim AS builder
 
@@ -10,6 +10,7 @@ ARG NODE_MAJOR=23
 ARG GIT_BRANCH=master
 ARG CODEX_VERSION=0.73.0
 ARG INSTALL_GEMINI_VIA_NPM=true
+ARG BUILD_VARIANT=full  # Options: full, lite (lite skips TUI LLM CLIs)
 
 SHELL ["/bin/bash", "-lc"]
 
@@ -113,22 +114,34 @@ RUN set -euxo pipefail; \
 
 ENV PATH="/home/emacs-user/.local/bin:${PATH}"
 
+# TUI LLM CLIs (only in full build)
 RUN set -euxo pipefail; \
-   mkdir -p ~/.claude/local ~/.local/bin; \
-   npm install --omit=dev @anthropic-ai/claude-code --prefix ~/.claude/local; \
-   ln -sf ~/.claude/local/node_modules/.bin/claude ~/.local/bin/claude; npm cache clean --force || true
+   if [[ "${BUILD_VARIANT}" == "full" ]]; then \
+     mkdir -p ~/.claude/local ~/.local/bin; \
+     npm install --omit=dev @anthropic-ai/claude-code --prefix ~/.claude/local; \
+     ln -sf ~/.claude/local/node_modules/.bin/claude ~/.local/bin/claude; \
+     npm cache clean --force || true; \
+   fi
+
 
 RUN set -euxo pipefail; \
-   mkdir -p ~/.codex/local ~/.local/bin; \
-   npm install --omit=dev @openai/codex --prefix ~/.codex/local; \
-   ln -sf ~/.codex/local/node_modules/.bin/codex ~/.local/bin/codex; npm cache clean --force || true
+   if [[ "${BUILD_VARIANT}" == "full" ]]; then \
+     mkdir -p ~/.codex/local ~/.local/bin; \
+     npm install --omit=dev @openai/codex --prefix ~/.codex/local; \
+     ln -sf ~/.codex/local/node_modules/.bin/codex ~/.local/bin/codex; \
+     npm cache clean --force || true; \
+   fi
 
 RUN set -euxo pipefail; \
-   if [[ "${INSTALL_GEMINI_VIA_NPM}" == "true" ]]; then \
+   if [[ "${BUILD_VARIANT}" == "full" && "${INSTALL_GEMINI_VIA_NPM}" == "true" ]]; then \
      mkdir -p ~/.gemini/local; \
      npm install --omit=dev @google/gemini-cli --prefix ~/.gemini/local; \
-     ln -sf ~/.gemini/local/node_modules/.bin/gemini ~/.local/bin/gemini; npm cache clean --force || true; \
+     ln -sf ~/.gemini/local/node_modules/.bin/gemini ~/.local/bin/gemini; \
+     npm cache clean --force || true; \
    fi
+
+# Ensure directories exist for COPY (empty in lite build)
+RUN mkdir -p ~/.claude/local ~/.codex/local ~/.gemini/local ~/.local/bin
 
 # Start daemon to settle async init
 RUN set -euxo pipefail; \
@@ -219,23 +232,10 @@ FROM runtime-base AS runtime-webterm-experiment
 
 USER root
 
+# ttyd web terminal (best emoji/double-width support, hterm frontend)
 RUN set -euxo pipefail; \
-   apt-get update; \
-   apt-get install -y --no-install-recommends golang-go; \
-   \
-   # Gotty latest (active fork, good xterm.js alternative)
-   go install github.com/sorenisanerd/gotty@latest; \
-   mv /root/go/bin/gotty /usr/local/bin/gotty-soren; \
-   chmod +x /usr/local/bin/gotty-soren; \
-   \
-   # ttyd (BEST for emoji/double-width support, hterm frontend)
    wget -O /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64; \
-   chmod +x /usr/local/bin/ttyd; \
-   \
-   # Cleanup
-   apt-get purge -y --auto-remove golang-go; \
-   apt-get clean; \
-   rm -rf /var/lib/apt/lists/* /root/go
+   chmod +x /usr/local/bin/ttyd
 
 # Default to ttyd (override with WEBTERM env)
 RUN ln -sf /usr/local/bin/ttyd /usr/local/bin/webterm
