@@ -143,9 +143,12 @@
                        '(if (my/org-has-urgent-inbox-p) nil '(goto-char (point-max))))
                       (org-agenda-overriding-header
                        (if (my/org-has-urgent-inbox-p) (concat (skewed-icon :lightning) " Urgent (from Inbox)") ""))))
-          (tags-todo "must"   ((org-agenda-overriding-header "Must Do")))
-          (tags-todo "should" ((org-agenda-overriding-header "Should Do")))
-          (tags-todo "could"  ((org-agenda-overriding-header "Could Do"))))
+          (tags-todo "must"   ((org-agenda-files (delq nil (list my/org-projects-file my/org-future-file)))
+                               (org-agenda-overriding-header "Must Do")))
+          (tags-todo "should" ((org-agenda-files (delq nil (list my/org-projects-file my/org-future-file)))
+                               (org-agenda-overriding-header "Should Do")))
+          (tags-todo "could"  ((org-agenda-files (delq nil (list my/org-projects-file my/org-future-file)))
+                               (org-agenda-overriding-header "Could Do"))))
          ((org-agenda-tag-filter-preset '("-meta"))))
         ("i" "Inbox Review"
          ((alltodo "" ((org-agenda-files ',(when my/org-future-file (list my/org-future-file)))
