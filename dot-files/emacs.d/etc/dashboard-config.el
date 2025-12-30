@@ -146,24 +146,16 @@ LIST-SIZE used as boolean"
                        'face 'button
                        'help-echo "Open daily focus agenda view (C-c a d)"))
 
+   
    (concat "    "
-           (propertize (concat (skewed-dashboard-pad-icon :help-rocket)
-                               "Gendl Repl: M-x slime-connect RET\n")
-                       'keymap (let ((map (make-sparse-keymap)))
-                                 (define-key map (kbd "RET") 'slime-connect)
-                                 (define-key map [mouse-1] 'slime-connect)
-                                 map)
-                       'face 'button
-                       'help-echo "Connect to Gendl REPL (slime-connect)"))
-   (concat "    "
-        (propertize (concat (skewed-dashboard-pad-icon :help-robot) "Claude Code: M-x claude-code\n")
+        (propertize (concat (skewed-dashboard-pad-icon :help-robot) "AI TUIs (claude code, gemini-cli, codex...): M-x vterm\n")
                        'keymap (let ((map (make-sparse-keymap))
                                      (function (lambda () (interactive) (eat))))
                                  (define-key map (kbd "RET") function)
                                  (define-key map [mouse-1] function)
                                  map)
                        'face 'button
-                       'help-echo "Run claude-code.el in a *eat* terminal"))
+                       'help-echo "Run in a *vterm* terminal"))
 
    (concat "    "
         (propertize (concat (skewed-dashboard-pad-icon :help-palette) "M-x light-theme, dark-theme, load-theme\n")

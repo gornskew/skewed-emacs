@@ -1,24 +1,29 @@
-# Skewed Emacs — multi-stage, optimized for fast web-terminal iteration
-# - builder: heavy Emacs setup, pdf-tools, vterm, package compilation
-# - runtime-base: minimal runtime with Node.js and core artifacts
-# - runtime-webterm-experiment: fast-rebuilding layer with ttyd web terminal
+# Skewed Emacs — Additive Multi-Stage Build with Clean Layering
+# Build tree:
+#   common-runtime-base (ttyd, Node.js, lisply-mcp) - shared foundation
+#   ├── runtime-base (+ emacs-nox)        → Tag: lite
+#   │   └── runtime-aituis                → Tags: -aituis, -tui
+#   └── runtime-gui-base (+ emacs-gtk + fonts)
+#       └── runtime-gui                   → Tag: -gui
+#           └── runtime-gui-aituis        → Tags: -gui-aituis, full, latest
 
 FROM debian:stable-slim AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG NODE_MAJOR=23
 ARG GIT_BRANCH=master
-ARG CODEX_VERSION=0.73.0
-ARG INSTALL_GEMINI_VIA_NPM=true
-ARG BUILD_VARIANT=full  # Options: full, lite (lite skips TUI LLM CLIs)
 
 SHELL ["/bin/bash", "-lc"]
 
-# ---- base deps (builder) ----
+# ============================================================
+# Builder: Build ALL artifacts (GUI + AI CLIs)
+# ============================================================
+
+# Install ALL build dependencies (both GUI and non-GUI)
 RUN set -euxo pipefail; \
    apt-get update; \
    apt-get install -y --no-install-recommends \
-     emacs-gtk \
+     emacs-gtk emacs-nox \
      ncurses-term \
      curl wget git ca-certificates openssh-client \
      ghostscript poppler-utils \
@@ -34,7 +39,7 @@ RUN set -euxo pipefail; \
    ; \
    rm -rf /var/lib/apt/lists/*
 
-# ---- Nerd Fonts (builder) ----
+# Install Nerd Fonts (for GUI builds)
 RUN set -euxo pipefail; \
    mkdir -p /usr/share/fonts/truetype/nerd-fonts; \
    curl -fsSL https://github.com/ryanoasis/nerd-fonts/releases/download/v3.2.1/NerdFontsSymbolsOnly.zip \
@@ -43,7 +48,7 @@ RUN set -euxo pipefail; \
    rm -f /tmp/NerdFontsSymbolsOnly.zip; \
    fc-cache -fv
 
-# ---- user + dirs ----
+# Create user
 RUN set -euxo pipefail; \
    groupadd -g 1000 emacs-user; \
    useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user; \
@@ -57,41 +62,52 @@ COPY --chown=emacs-user:emacs-user . /home/emacs-user/skewed-emacs/
 USER emacs-user
 WORKDIR /home/emacs-user
 
-# ---- skewed-emacs setup + pdf-tools/vterm build ----
+# Setup skewed-emacs config
 RUN set -euxo pipefail; \
    cd skewed-emacs; \
    SKEWED_EMACS_DOCKER_BUILD=true ./setup
 
+# Initial package load
 RUN set -euxo pipefail; \
    START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
      --load "~/.emacs.d/init.el"
 
+# Build vterm (needed for all variants)
 RUN set -euxo pipefail; \
    START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
      --load "~/.emacs.d/init.el" \
      --eval "(vterm-module-compile)"
 
+# Build pdf-tools (for GUI variants)
 RUN set -euxo pipefail; \
-   PDFDIR="$(ls -d /home/emacs-user/.emacs.d/elpa/pdf-tools-* | head -n1)"; \
-   cd "$PDFDIR"; \
-   ./build/server/autobuild -i "$PDFDIR"
+   PDFDIR="$(ls -d /home/emacs-user/.emacs.d/elpa/pdf-tools-* 2>/dev/null | head -n1)"; \
+   if [ -n "$PDFDIR" ]; then \
+     cd "$PDFDIR"; \
+     ./build/server/autobuild -i "$PDFDIR"; \
+     cd /home/emacs-user; \
+     START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
+       --load "~/.emacs.d/init.el" \
+       --eval "(require 'pdf-tools)"; \
+   else \
+     echo "pdf-tools not found, skipping build"; \
+   fi
 
+# Recompile packages
 RUN set -euxo pipefail; \
    START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
      --load "~/.emacs.d/init.el" \
-     --eval "(require 'pdf-tools)"
+     --eval "(recompile-all-packages)"
 
+# Install nerd-icons fonts (for GUI variants)
 RUN set -euxo pipefail; \
-   START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
-     --load "~/.emacs.d/init.el" \
-     --eval "(recompile-all-packages)"; \
    START_HTTP=false SKEWED_EMACS_DOCKER_BUILD=true emacs --batch \
      --load "~/.emacs.d/init.el" \
      --eval "(when (package-installed-p 'nerd-icons) (nerd-icons-install-fonts t))"; \
    fc-cache -fv
 
 USER root
-# ---- Node.js (builder) ----
+
+# Install Node.js (needed for all variants - lisply-mcp)
 RUN set -euxo pipefail; \
    mkdir -p /etc/apt/keyrings; \
    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
@@ -106,42 +122,34 @@ RUN set -euxo pipefail; \
    ln -sf /home/emacs-user/skewed-emacs/docker/copilot-language-server /usr/local/bin/copilot-language-server
 
 USER emacs-user
-# ---- lisply-mcp + AI CLIs ----
+
+# Install lisply-mcp (needed for all variants)
 RUN set -euxo pipefail; \
    git clone --depth 1 --branch "${GIT_BRANCH}" https://github.com/gornskew/lisply-mcp.git; \
    cd lisply-mcp/scripts; npm ci --omit=dev; \
-   cd ../scripts-v2; npm ci --omit=dev; npm cache clean --force || true
+   cd ../scripts-v2; npm ci --omit=dev; \
+   npm cache clean --force || true
 
 ENV PATH="/home/emacs-user/.local/bin:${PATH}"
 
-# TUI LLM CLIs (only in full build)
+# Install AI TUI CLIs (for -aituis variants)
 RUN set -euxo pipefail; \
-   if [[ "${BUILD_VARIANT}" == "full" ]]; then \
-     mkdir -p ~/.claude/local ~/.local/bin; \
-     npm install --omit=dev @anthropic-ai/claude-code --prefix ~/.claude/local; \
-     ln -sf ~/.claude/local/node_modules/.bin/claude ~/.local/bin/claude; \
-     npm cache clean --force || true; \
-   fi
-
+   mkdir -p ~/.claude/local ~/.local/bin; \
+   npm install --omit=dev @anthropic-ai/claude-code --prefix ~/.claude/local; \
+   ln -sf ~/.claude/local/node_modules/.bin/claude ~/.local/bin/claude; \
+   npm cache clean --force || true
 
 RUN set -euxo pipefail; \
-   if [[ "${BUILD_VARIANT}" == "full" ]]; then \
-     mkdir -p ~/.codex/local ~/.local/bin; \
-     npm install --omit=dev @openai/codex --prefix ~/.codex/local; \
-     ln -sf ~/.codex/local/node_modules/.bin/codex ~/.local/bin/codex; \
-     npm cache clean --force || true; \
-   fi
+   mkdir -p ~/.codex/local; \
+   npm install --omit=dev @openai/codex --prefix ~/.codex/local; \
+   ln -sf ~/.codex/local/node_modules/.bin/codex ~/.local/bin/codex; \
+   npm cache clean --force || true
 
 RUN set -euxo pipefail; \
-   if [[ "${BUILD_VARIANT}" == "full" && "${INSTALL_GEMINI_VIA_NPM}" == "true" ]]; then \
-     mkdir -p ~/.gemini/local; \
-     npm install --omit=dev @google/gemini-cli --prefix ~/.gemini/local; \
-     ln -sf ~/.gemini/local/node_modules/.bin/gemini ~/.local/bin/gemini; \
-     npm cache clean --force || true; \
-   fi
-
-# Ensure directories exist for COPY (empty in lite build)
-RUN mkdir -p ~/.claude/local ~/.codex/local ~/.gemini/local ~/.local/bin
+   mkdir -p ~/.gemini/local; \
+   npm install --omit=dev @google/gemini-cli --prefix ~/.gemini/local; \
+   ln -sf ~/.gemini/local/node_modules/.bin/gemini ~/.local/bin/gemini; \
+   npm cache clean --force || true
 
 # Start daemon to settle async init
 RUN set -euxo pipefail; \
@@ -149,34 +157,35 @@ RUN set -euxo pipefail; \
    sleep 8; \
    emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")"
 
-# Cleanup
+# Cleanup builder caches
 RUN set -euxo pipefail; \
    rm -rf ~/.cache /tmp/*; \
    rm -rf ~/.emacs.d/elpa/*/.git 2>/dev/null || true
 
 
 # ============================================================
-# Runtime base (shared, minimal)
+# Common Runtime Base: Shared foundation (ttyd, Node.js, lisply-mcp)
+# This layer is inherited by BOTH GUI and non-GUI branches
 # ============================================================
-FROM debian:stable-slim AS runtime-base
+FROM debian:stable-slim AS common-runtime-base
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG NODE_MAJOR=23
 
 SHELL ["/bin/bash", "-lc"]
 
+# Install minimal common runtime deps (NO Emacs yet)
 RUN set -euxo pipefail; \
    apt-get update; \
    apt-get install -y --no-install-recommends \
-     emacs-gtk ncurses-term curl wget git ca-certificates openssh-client \
-     ghostscript poppler-utils libpoppler-glib8 unzip gnupg fontconfig \
-     fonts-noto fonts-noto-color-emoji fonts-noto-mono \
-     fonts-font-awesome fonts-symbola fonts-powerline \
+     ncurses-term \
+     curl wget git ca-certificates openssh-client \
      libvterm-dev \
+     gnupg \
    ; \
    rm -rf /var/lib/apt/lists/*
 
-# Node.js (runtime)
+# Install Node.js (needed for lisply-mcp in all variants)
 RUN set -euxo pipefail; \
    mkdir -p /etc/apt/keyrings; \
    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
@@ -187,7 +196,13 @@ RUN set -euxo pipefail; \
    apt-get install -y --no-install-recommends nodejs; \
    rm -rf /var/lib/apt/lists/*
 
-# User setup
+# Install ttyd (web terminal - needed for all variants)
+RUN set -euxo pipefail; \
+   wget -O /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64; \
+   chmod +x /usr/local/bin/ttyd; \
+   ln -sf /usr/local/bin/ttyd /usr/local/bin/webterm
+
+# Create user
 RUN set -euxo pipefail; \
    groupadd -g 1000 emacs-user; \
    useradd -m -s /bin/bash -u 1000 -g emacs-user emacs-user; \
@@ -195,23 +210,11 @@ RUN set -euxo pipefail; \
    chown emacs-user:emacs-user /projects; \
    ln -s /projects /home/emacs-user/projects
 
-# Copy core artifacts
-COPY --from=builder /usr/share/fonts/truetype/nerd-fonts /usr/share/fonts/truetype/nerd-fonts
-COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/lisply-mcp /home/emacs-user/lisply-mcp
-COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.local /home/emacs-user/.local
-COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.gemini /home/emacs-user/.gemini
-COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.claude /home/emacs-user/.claude
-COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.codex /home/emacs-user/.codex
-
-RUN set -euxo pipefail; \
-   ln -sf /home/emacs-user/skewed-emacs/docker/copilot-language-server /usr/local/bin/copilot-language-server; \
-   fc-cache -fv
-
-
+# Copy common artifacts from builder (Emacs config, lisply-mcp, vterm)
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/skewed-emacs /home/emacs-user/skewed-emacs
-COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
-COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
-RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/lisply-mcp /home/emacs-user/lisply-mcp
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.emacs.d /home/emacs-user/.emacs.d
+COPY --from=builder /usr/local/bin/copilot-language-server /usr/local/bin/copilot-language-server
 
 USER emacs-user
 WORKDIR /home/emacs-user
@@ -221,48 +224,101 @@ ENV COLORTERM=truecolor
 ENV SKEWED_EMACS_CONTAINER=true
 ENV PATH="/home/emacs-user/.local/bin:${PATH}"
 
-RUN set -euxo pipefail; \
-   ./skewed-emacs/setup
-
 
 # ============================================================
-# Web terminal experiment layer (fast to rebuild)
+# Runtime Base: Common base + emacs-nox (TUI only)
+# Tagged as: {branch}-lite
 # ============================================================
-FROM runtime-base AS runtime-webterm-experiment
+FROM common-runtime-base AS runtime-base
 
 USER root
 
-# ttyd web terminal (best emoji/double-width support, hterm frontend)
+# Install emacs-nox (terminal-only Emacs)
 RUN set -euxo pipefail; \
-   wget -O /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64; \
-   chmod +x /usr/local/bin/ttyd
-
-# Default to ttyd (override with WEBTERM env)
-RUN ln -sf /usr/local/bin/ttyd /usr/local/bin/webterm
-
-
-FROM runtime-webterm-experiment
+   apt-get update; \
+   apt-get install -y --no-install-recommends emacs-nox; \
+   rm -rf /var/lib/apt/lists/*
 
 USER emacs-user
 
-COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/skewed-emacs /home/emacs-user/skewed-emacs
-WORKDIR /home/emacs-user/skewed-emacs
-COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
-COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
-WORKDIR /home/emacs-user
-RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
-
-ENV TERM=xterm-256color
-ENV COLORTERM=truecolor
-ENV SKEWED_EMACS_CONTAINER=true
-ENV PATH="/home/emacs-user/.local/bin:${PATH}"
-
-RUN set -euxo pipefail; \
-   ./skewed-emacs/setup
-
-# Regenerate configs from services.sexp (ensures mcp/*.json have correct placeholders)
+# Regenerate configs
 RUN set -euxo pipefail; \
    cd ~/skewed-emacs; \
    emacs --batch -l generate-configs.el -f skewed-generate-all-configs
 
+COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
+
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+
+# ============================================================
+# Runtime AI TUIs: Base + AI CLIs
+# Tagged as: {branch}-aituis, {branch}-tui
+# ============================================================
+FROM runtime-base AS runtime-aituis
+
+# Copy AI CLI installations from builder
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.claude /home/emacs-user/.claude
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.codex /home/emacs-user/.codex
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.gemini /home/emacs-user/.gemini
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.local/bin /home/emacs-user/.local/bin
+
+
+# ============================================================
+# Runtime GUI Base: Common base + emacs-gtk + fonts
+# This is the GUI equivalent of runtime-base
+# ============================================================
+FROM common-runtime-base AS runtime-gui-base
+
+USER root
+
+# Install GUI-specific packages (emacs-gtk, fonts, PDF support)
+RUN set -euxo pipefail; \
+   apt-get update; \
+   apt-get install -y --no-install-recommends \
+     emacs-gtk \
+     ghostscript poppler-utils libpoppler-glib8 \
+     fontconfig \
+     fonts-noto fonts-noto-color-emoji fonts-noto-mono \
+     fonts-font-awesome fonts-symbola fonts-powerline \
+   ; \
+   rm -rf /var/lib/apt/lists/*
+
+# Copy GUI-specific artifacts (Nerd Fonts)
+COPY --from=builder /usr/share/fonts/truetype/nerd-fonts /usr/share/fonts/truetype/nerd-fonts
+RUN fc-cache -fv
+
+USER emacs-user
+
+# Regenerate configs
+RUN set -euxo pipefail; \
+   cd ~/skewed-emacs; \
+   emacs --batch -l generate-configs.el -f skewed-generate-all-configs
+
+COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
+COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+
+
+# ============================================================
+# Runtime GUI: Alias for runtime-gui-base
+# Tagged as: {branch}-gui
+# ============================================================
+FROM runtime-gui-base AS runtime-gui
+
+
+# ============================================================
+# Runtime GUI + AI TUIs: Everything
+# Tagged as: {branch}-gui-aituis, {branch}-full, {branch}, latest
+# ============================================================
+FROM runtime-gui-base AS runtime-gui-aituis
+
+# Copy AI CLI installations from builder
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.claude /home/emacs-user/.claude
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.codex /home/emacs-user/.codex
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.gemini /home/emacs-user/.gemini
+COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.local/bin /home/emacs-user/.local/bin

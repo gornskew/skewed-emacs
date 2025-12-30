@@ -9,7 +9,7 @@ networks:
 services:
 
   skewed-emacs:
-    image: gornskew/${EMACS_IMAGE_BASE:-skewed-emacs}:${EMACS_IMAGE_BRANCH:-devo}
+    image: gornskew/${EMACS_IMAGE_BASE:-skewed-emacs}:${EMACS_IMAGE_BRANCH:-devo}-${EMACS_IMAGE_VARIANT:-full}
     container_name: skewed-emacs
     hostname: skewed-emacs
     restart: unless-stopped
