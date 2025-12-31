@@ -1,7 +1,8 @@
 ;;; services-generated.el --- Generated from services.sexp -*- lexical-binding: t; -*-
 ;;; DO NOT EDIT - Regenerate with: (skewed-generate-all-configs)
 
-(defvar skewed-generated-services
+(defvar skewed-generated-services nil)
+(setq skewed-generated-services
   '(
     (:name "skewed-emacs"
      :type "emacs-lisp"
@@ -25,8 +26,8 @@
      :swank-host "gendl-sbcl"
      :swank-port 4210
     )
-   )
-  "Services configuration generated from services.sexp.")
+   ))
+;; Services configuration generated from services.sexp.
 
 (provide 'services-generated)
 ;;; services-generated.el ends here

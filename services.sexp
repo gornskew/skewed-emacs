@@ -74,8 +74,10 @@
               :target "/home/emacs-user/.codex/auth.json")
              (:source "/tmp/.X11-unix" :target "/tmp/.X11-unix" :mode "rw")
              (:source "${EMACS_LOCAL_SRC:-/nonexistent}/.emacs-local"
-              :target "/home/emacs-user/.emacs-local" :mode "ro"))
-   :mcp t
+              :target "/home/emacs-user/.emacs-local" :mode "ro")
+             (:source "${EMACS_LOCAL_SRC:-/nonexistent}/.emacs-local-early"
+              :target "/home/emacs-user/.emacs-local-early" :mode "ro"))
+
    :healthcheck (:endpoint "/lisply/ping-lisp" :interval "108s"))
 
   (:name "gendl-ccl"

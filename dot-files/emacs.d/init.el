@@ -605,7 +605,7 @@ gendl-ccl/4200.")
     (message "Starting skewed-initialize at %s."
 	     start-time)
     
-    (when (file-exists-p "~/.emacs-local-early")
+    (when (file-regular-p "~/.emacs-local-early")
       (load-file "~/.emacs-local-early"))
 
     (message "Calling main-setup at %s."
@@ -649,7 +649,7 @@ gendl-ccl/4200.")
 
     (require 'org) (require 'org-config)
     
-    (when (file-exists-p "~/.emacs-local")
+    (when (file-regular-p "~/.emacs-local")
       (load-file "~/.emacs-local"))
 
     (message "Done with skewed-initialize in %s seconds."

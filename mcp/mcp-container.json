@@ -1,18 +1,6 @@
 // DO NOT EDIT - Generated from services.sexp
 {
   "mcpServers": {
-    "skewed-emacs": {
-      "command": "node",
-      "args": [
-        "/home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js",
-        "--server-name",
-        "skewed-emacs",
-        "--backend-host",
-        "skewed-emacs",
-        "--http-port",
-        "7080"
-      ]
-    },
     "gendl-ccl": {
       "command": "node",
       "args": [
