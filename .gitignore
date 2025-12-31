@@ -81,6 +81,9 @@ enterprise*.yml
 
 # Development overlay files (local, not committed)
 *-overlay.yml
+
+# Runtime-generated overrides (from generate-env.sh)
+zz-runtime-override.yml
 *-dev-overlay.yml
 
 # ==============================================================================
@@ -112,3 +115,4 @@ tmp/
 # ==============================================================================
 .bash_history
 history.*
+.#*

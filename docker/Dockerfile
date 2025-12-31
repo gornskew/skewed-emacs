@@ -23,7 +23,7 @@ SHELL ["/bin/bash", "-lc"]
 RUN set -euxo pipefail; \
    apt-get update; \
    apt-get install -y --no-install-recommends \
-     emacs-gtk emacs-nox \
+     emacs-gtk \
      ncurses-term \
      curl wget git ca-certificates openssh-client \
      ghostscript poppler-utils \
