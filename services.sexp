@@ -54,6 +54,42 @@
  (:wrapper-path-container "/home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js")
  ;; :exec-path-wsl removed - now derived from SKEWED_CLONE_PATH env var at merge time
 
+ :gdl-search-config
+ (:path "dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-config.json"
+  :sources ((:name "gdl-docs"
+             :entries ((:root "gendl/docs"
+                        :repo "gendl"
+                        :repo-root "gendl")))
+            (:name "gendl-src"
+             :entries ((:root "gendl"
+                        :repo "gendl"
+                        :repo-root "gendl")))
+            (:name "skewed-emacs-docs"
+             :entries ((:root "skewed-emacs"
+                        :repo "skewed-emacs"
+                        :repo-root "skewed-emacs")))
+            (:name "examples"
+             :entries ((:root "gendl/demos"
+                        :repo "gendl"
+                        :repo-root "gendl")
+                       (:root "tutorials"
+                        :repo "tutorials"
+                        :repo-root "tutorials")
+                       (:root "training"
+                        :repo "training"
+                        :repo-root "training")
+                       (:root "gdl"
+                        :repo "gdl"
+                        :repo-root "gdl"))))
+  :ignore-dirs (".git" "node_modules" "dist" "build" "vendor" "target" ".cache" "logs" "tmp" "docker" "docker-v2")
+  :exclude-paths ("**/training/ChatGPT-2022-12-10.txt")
+  :extensions (:default (".lisp" ".lsp" ".cl" ".gdl" ".gendl" ".asd" ".isc"
+                         ".md" ".markdown" ".org" ".txt" ".rst"
+                         ".el" ".js" ".ts" ".json" ".yml" ".yaml" ".html" ".css")
+               :lisp (".lisp" ".lsp" ".cl" ".asd")
+               :gdl (".gdl" ".gendl" ".lisp" ".lsp" ".cl")
+               :markdown (".md" ".markdown" ".org" ".rst")))
+
  :services
  (
   (:name "skewed-emacs"

@@ -48,6 +48,46 @@
   (plist-get plist key))
 
 ;;; ============================================================================
+;;; gdl_search Config Generation
+;;; ============================================================================
+
+(defun skewed--gdl-search-extensions-alist (extensions)
+  (when extensions
+    `(("default" . ,(plist-get extensions :default))
+      ("lisp" . ,(plist-get extensions :lisp))
+      ("gdl" . ,(plist-get extensions :gdl))
+      ("markdown" . ,(plist-get extensions :markdown)))))
+
+(defun skewed--gdl-search-sources-alist (sources)
+  (when sources
+    (mapcar
+     (lambda (source)
+       (let ((name (plist-get source :name))
+             (entries (plist-get source :entries)))
+         (cons name
+               (mapcar
+                (lambda (entry)
+                  `(("root" . ,(plist-get entry :root))
+                    ("repo" . ,(plist-get entry :repo))
+                    ("repo_root" . ,(plist-get entry :repo-root))))
+                entries))))
+     sources)))
+
+(defun skewed--generate-gdl-search-config (config)
+  "Generate gdl-search-config.json content from CONFIG."
+  (let* ((gdl-config (skewed--get-prop config :gdl-search-config))
+         (sources (skewed--get-prop gdl-config :sources))
+         (ignore-dirs (skewed--get-prop gdl-config :ignore-dirs))
+         (exclude-paths (skewed--get-prop gdl-config :exclude-paths))
+         (extensions (skewed--get-prop gdl-config :extensions)))
+    (when gdl-config
+      (json-encode
+       `(("sources" . ,(skewed--gdl-search-sources-alist sources))
+         ("ignore_dirs" . ,ignore-dirs)
+         ("exclude_paths" . ,exclude-paths)
+         ("extensions" . ,(skewed--gdl-search-extensions-alist extensions)))))))
+
+;;; ============================================================================
 ;;; Docker Compose Generation
 ;;; ============================================================================
 
@@ -456,6 +496,19 @@ Examples:
       (with-temp-file elisp-file
         (insert (skewed--generate-elisp config)))
       (message "Generated: %s" elisp-file))
+
+    ;; Generate gdl_search config only when explicitly enabled
+    (let* ((gdl-config (skewed--get-prop config :gdl-search-config))
+           (gdl-path (and gdl-config (skewed--get-prop gdl-config :path)))
+           (write-gdl-config (and (getenv "SKEWED_WRITE_GDL_SEARCH_CONFIG")
+                                  (not (string-empty-p (getenv "SKEWED_WRITE_GDL_SEARCH_CONFIG"))))))
+      (when (and gdl-config write-gdl-config)
+        (let* ((output-path (expand-file-name gdl-path skewed-gen-output-dir))
+               (output-dir (file-name-directory output-path)))
+          (make-directory output-dir t)
+          (with-temp-file output-path
+            (insert (skewed--generate-gdl-search-config config)))
+          (message "Generated: %s" output-path))))
     
     ;; Generate install script for overlays (when prefix is non-empty)
     (unless (string-empty-p skewed-gen-output-prefix)

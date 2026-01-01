@@ -244,7 +244,7 @@ USER emacs-user
 # Regenerate configs
 RUN set -euxo pipefail; \
    cd ~/skewed-emacs; \
-   emacs --batch -l generate-configs.el -f skewed-generate-all-configs
+   SKEWED_WRITE_GDL_SEARCH_CONFIG=true emacs --batch -l generate-configs.el -f skewed-generate-all-configs
 
 COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
@@ -295,7 +295,7 @@ USER emacs-user
 # Regenerate configs
 RUN set -euxo pipefail; \
    cd ~/skewed-emacs; \
-   emacs --batch -l generate-configs.el -f skewed-generate-all-configs
+   SKEWED_WRITE_GDL_SEARCH_CONFIG=true emacs --batch -l generate-configs.el -f skewed-generate-all-configs
 
 COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
