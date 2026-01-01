@@ -63,11 +63,45 @@
     (let ((msg (apply 'format format-string args)))
       (message "[EMACS-LISPLY] %s" msg))))
 
+(defun emacs-lisply--maybe-dechunk (body)
+  "Return dechunked BODY if it looks like chunked encoding."
+  (let ((pos 0)
+        (len (length body))
+        (chunks '())
+        (looks-chunked (string-match-p "\\`[0-9a-fA-F]+\\(?:\r?\n\\)" body)))
+    (if (not looks-chunked)
+        body
+      (condition-case _err
+          (progn
+            (while (< pos len)
+              (let ((line-end (string-match "\r?\n" body pos)))
+                (when (not line-end)
+                  (setq pos len))
+                (let* ((line (substring body pos line-end))
+                       (line-break (match-string 0 body))
+                       (break-len (length line-break))
+                       (size-hex (car (split-string line ";" t)))
+                       (size (string-to-number size-hex 16)))
+                  (setq pos (+ line-end break-len))
+                  (when (<= size 0)
+                    (setq pos len))
+                  (when (> size 0)
+                    (when (> (+ pos size) len)
+                      (setq pos len))
+                    (push (substring body pos (+ pos size)) chunks)
+                    (setq pos (+ pos size))
+                    (let ((trailer (string-match "\r?\n" body pos)))
+                      (when trailer
+                        (setq pos (match-end 0))))))))
+            (apply #'concat (nreverse chunks)))
+        (error body)))))
+
 (defun emacs-lisply-get-request-body ()
   "Get the body of the current HTTP request as a UTF-8 string."
   (let ((raw-body (cadr (assoc "Content" httpd-request))))
     (when raw-body
-      (decode-coding-string raw-body 'utf-8))))
+      (emacs-lisply--maybe-dechunk
+       (decode-coding-string raw-body 'utf-8)))))
 
 (defun emacs-lisply-parse-json-body ()
   "Parse the JSON body from the current HTTP request."
