@@ -54,8 +54,11 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
+    ports:
+      - "19080:9080"
     environment:
       - HTTP_PORT=9080
+      - HTTP_HOST_PORT=19080
       - START_HTTP=true
       - SWANK_PORT=4200
       - START_SWANK=true
@@ -83,8 +86,11 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
+    ports:
+      - "29080:9090"
     environment:
       - HTTP_PORT=9090
+      - HTTP_HOST_PORT=29080
       - START_HTTP=true
       - SWANK_PORT=4210
       - START_SWANK=true

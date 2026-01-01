@@ -84,7 +84,7 @@
    :type "common-lisp"
    :lisp-impl "CCL"
    :image "genworks/${GENDL_IMAGE_BASE:-gendl}:${GENDL_IMAGE_BRANCH:-devo}-ccl"
-   :ports ((:name "http" :container 9080)
+   :ports ((:name "http" :host 19080 :container 9080)
            (:name "swank" :container 4200))
    :user "root"
    :mcp t
@@ -94,7 +94,7 @@
    :type "common-lisp"
    :lisp-impl "SBCL"
    :image "genworks/${GENDL_IMAGE_BASE:-gendl}:${GENDL_IMAGE_BRANCH:-devo}-sbcl"
-   :ports ((:name "http" :container 9090)
+   :ports ((:name "http" :host 29080 :container 9090)
            (:name "swank" :container 4210))
    :user "root"
    :mcp t
