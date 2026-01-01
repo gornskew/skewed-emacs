@@ -251,7 +251,7 @@ Uses placeholder ${SKEWED_CLONE_PATH} which gets substituted at merge time."
                (http-port (skewed--get-prop
                            (cl-find-if (lambda (p) (equal (skewed--get-prop p :name) "http")) ports)
                            :container)))
-          (push (format "[%s]" name) lines)
+          (push (format "[mcp_servers.%s]" name) lines)
           (push "command = \"node\"" lines)
           (push (format "args = [\"%s\", \"--server-name\", \"%s\", \"--backend-host\", \"%s\", \"--http-port\", \"%s\"]"
                         wrapper-path name name http-port) lines)

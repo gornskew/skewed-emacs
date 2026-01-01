@@ -59,6 +59,7 @@
   (:name "skewed-emacs"
    :type "emacs-lisp"
    :lisp-impl "Emacs"
+   :mcp t
    :image "gornskew/${EMACS_IMAGE_BASE:-skewed-emacs}:${EMACS_IMAGE_BRANCH:-devo}-${EMACS_IMAGE_VARIANT:-full}"
    :ports ((:name "http" :container 7080)
            (:name "webterm" :container 6942 :host 6942 :external t))

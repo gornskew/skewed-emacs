@@ -2,6 +2,18 @@
 // For Windows: merge with base config or copy to %APPDATA%\Claude\
 {
   "mcpServers": {
+    "skewed-emacs": {
+      "command": "wsl",
+      "args": [
+        "${SKEWED_CLONE_PATH}/mcp/mcp-exec",
+        "--server-name",
+        "skewed-emacs",
+        "--backend-host",
+        "skewed-emacs",
+        "--http-port",
+        "7080"
+      ]
+    },
     "gendl-ccl": {
       "command": "wsl",
       "args": [
