@@ -57,8 +57,12 @@
 
  :gdl-search-config
  (:path "dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-config.json"
+  :index-path "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-index.json"
+  :preextract-snippets t
+  :preextract-max-lines 24
+  :preextract-max-chars 1200
   :sources ((:name "gdl-docs"
-             :entries ((:root "gendl/docs"
+             :entries ((:root "gendl/documentation"
                         :repo "gendl"
                         :repo-root "gendl")))
             (:name "gendl-src"
@@ -122,6 +126,7 @@
                          ".md" ".markdown" ".org" ".txt" ".rst"
                          ".el" ".js" ".ts" ".json" ".yml" ".yaml" ".html" ".css")
                :lisp (".lisp" ".lsp" ".cl" ".asd")
+               :gendl (".gendl")
                :gdl (".gdl" ".gendl" ".lisp" ".lsp" ".cl")
                :markdown (".md" ".markdown" ".org" ".rst")))
 

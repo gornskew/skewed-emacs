@@ -53,6 +53,7 @@ dot-files/emacs.d/org-clock-save.el
 dot-files/emacs.d/places
 dot-files/emacs.d/projectile-bookmarks.eld
 dot-files/emacs.d/recentf
+dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-index.json
 
 # ==============================================================================
 # Auth & secrets (never include in build)

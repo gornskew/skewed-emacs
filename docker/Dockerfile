@@ -224,6 +224,9 @@ ENV COLORTERM=truecolor
 ENV SKEWED_EMACS_CONTAINER=true
 ENV PATH="/home/emacs-user/.local/bin:${PATH}"
 
+RUN set -euxo pipefail; \
+   /home/emacs-user/skewed-emacs/setup
+   
 
 # ============================================================
 # Runtime Base: Common base + emacs-nox (TUI only)
@@ -245,6 +248,17 @@ USER emacs-user
 RUN set -euxo pipefail; \
    cd ~/skewed-emacs; \
    SKEWED_WRITE_GDL_SEARCH_CONFIG=true emacs --batch -l generate-configs.el -f skewed-generate-all-configs
+
+ARG SKEWED_BUILD_GDL_INDEX=false
+RUN set -euxo pipefail; \
+   if [ "${SKEWED_BUILD_GDL_INDEX}" = "true" ]; then \
+     emacs --batch \
+       --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \
+       --eval "(setq emacs-lisply-gdl-search-config-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-config.json\")" \
+       --eval "(setq emacs-lisply-gdl-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-index.json\")" \
+       -l lisply-gdl-search.el \
+       --eval "(emacs-lisply-gdl-search-build-index)"; \
+   fi
 
 COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
@@ -296,6 +310,17 @@ USER emacs-user
 RUN set -euxo pipefail; \
    cd ~/skewed-emacs; \
    SKEWED_WRITE_GDL_SEARCH_CONFIG=true emacs --batch -l generate-configs.el -f skewed-generate-all-configs
+
+ARG SKEWED_BUILD_GDL_INDEX=false
+RUN set -euxo pipefail; \
+   if [ "${SKEWED_BUILD_GDL_INDEX}" = "true" ]; then \
+     emacs --batch \
+       --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \
+       --eval "(setq emacs-lisply-gdl-search-config-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-config.json\")" \
+       --eval "(setq emacs-lisply-gdl-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-index.json\")" \
+       -l lisply-gdl-search.el \
+       --eval "(emacs-lisply-gdl-search-build-index)"; \
+   fi
 
 COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh

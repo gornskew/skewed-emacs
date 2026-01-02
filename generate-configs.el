@@ -55,6 +55,7 @@
   (when extensions
     `(("default" . ,(plist-get extensions :default))
       ("lisp" . ,(plist-get extensions :lisp))
+      ("gendl" . ,(plist-get extensions :gendl))
       ("gdl" . ,(plist-get extensions :gdl))
       ("markdown" . ,(plist-get extensions :markdown)))))
 
@@ -79,13 +80,26 @@
          (sources (skewed--get-prop gdl-config :sources))
          (ignore-dirs (skewed--get-prop gdl-config :ignore-dirs))
          (exclude-paths (skewed--get-prop gdl-config :exclude-paths))
-         (extensions (skewed--get-prop gdl-config :extensions)))
+         (extensions (skewed--get-prop gdl-config :extensions))
+         (index-path (skewed--get-prop gdl-config :index-path))
+         (preextract-snippets (skewed--get-prop gdl-config :preextract-snippets))
+         (preextract-max-lines (skewed--get-prop gdl-config :preextract-max-lines))
+         (preextract-max-chars (skewed--get-prop gdl-config :preextract-max-chars)))
     (when gdl-config
       (json-encode
-       `(("sources" . ,(skewed--gdl-search-sources-alist sources))
-         ("ignore_dirs" . ,ignore-dirs)
-         ("exclude_paths" . ,exclude-paths)
-         ("extensions" . ,(skewed--gdl-search-extensions-alist extensions)))))))
+       (let ((items `(("sources" . ,(skewed--gdl-search-sources-alist sources))
+                      ("ignore_dirs" . ,ignore-dirs)
+                      ("exclude_paths" . ,exclude-paths)
+                      ("extensions" . ,(skewed--gdl-search-extensions-alist extensions)))))
+         (when index-path
+           (push (cons "index_path" index-path) items))
+         (when preextract-snippets
+           (push (cons "preextract_snippets" preextract-snippets) items))
+         (when preextract-max-lines
+           (push (cons "preextract_max_lines" preextract-max-lines) items))
+         (when preextract-max-chars
+           (push (cons "preextract_max_chars" preextract-max-chars) items))
+         (nreverse items))))))
 
 ;;; ============================================================================
 ;;; Docker Compose Generation

@@ -190,6 +190,36 @@ else
 fi
 
 # -----------------------------
+# Optional gdl_search index bootstrap
+# -----------------------------
+bootstrap_gdl_index() {
+  echo "Building lite bootstrap image for gdl_search index..."
+  DOCKER_BUILDKIT=1 docker build \
+    --progress=plain \
+    --target "runtime-base" \
+    -t "${FINAL_IMAGE}:${branch}-lite" \
+    --build-arg GIT_BRANCH="${branch}" \
+    --build-arg SKEWED_BUILD_GDL_INDEX="false" \
+    -f "$DOCKERFILE_PATH" \
+    "$BUILD_CONTEXT"
+  local image="${FINAL_IMAGE}:${branch}-lite"
+
+  echo "Bootstrapping gdl_search index using ${image}..."
+  if ! bash "${DOCKER_DIR}/build-gdl-search-index.sh" --image "${image}"; then
+    echo "gdl_search bootstrap failed; continuing without prebuilt index."
+  fi
+}
+
+if [[ "${SKEWED_BOOTSTRAP_GDL_INDEX:-true}" == "true" ]]; then
+  bootstrap_gdl_index
+fi
+
+if [[ "${SKEWED_BOOTSTRAP_LITE_ONLY:-false}" == "true" ]]; then
+  echo "Bootstrap-only mode enabled; skipping remaining builds."
+  exit 0
+fi
+
+# -----------------------------
 # Build function
 # -----------------------------
 build_target() {
@@ -208,6 +238,7 @@ build_target() {
     -t "${IMAGE_NAME}:${tag}" \
     -t "${FINAL_IMAGE}:${tag}" \
     --build-arg GIT_BRANCH="${branch}" \
+    --build-arg SKEWED_BUILD_GDL_INDEX="${SKEWED_BUILD_GDL_INDEX:-false}" \
     -f "$DOCKERFILE_PATH" \
     "$BUILD_CONTEXT"
   
