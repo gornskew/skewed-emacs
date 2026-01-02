@@ -224,4 +224,4 @@ log "Executing MCP wrapper in service container..."
 trap cleanup_on_exit EXIT
 
 # Run MCP wrapper via docker compose exec
-compose exec -T "${SERVICE_NAME}" node /home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js "$@"
+compose exec -T "${SERVICE_NAME}" node /home/emacs-user/lisply-mcp/scripts/mcp-wrapper.js "$@"

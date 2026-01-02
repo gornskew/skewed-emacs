@@ -219,7 +219,7 @@
 (defconst emacs-lisply-gdl-search-context-lines 3)
 (defconst emacs-lisply-gdl-search-merge-gap 3)
 (defconst emacs-lisply-gdl-search-ignore-dirs
-  '(".git" "node_modules" "dist" "build" "vendor" "target" ".cache" "logs" "tmp" "docker" "docker-v2"))
+  '(".git" "node_modules" "dist" "build" "vendor" "target" ".cache" "logs" "tmp" "docker""docker-v2"))
 
 (defconst emacs-lisply-gdl-search-default-exts
   '(".lisp" ".lsp" ".cl" ".gdl" ".gendl" ".asd" ".isc"

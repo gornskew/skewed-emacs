@@ -4,7 +4,7 @@
     "skewed-emacs": {
       "command": "node",
       "args": [
-        "/home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js",
+        "/home/emacs-user/lisply-mcp/scripts/mcp-wrapper.js",
         "--server-name",
         "skewed-emacs",
         "--backend-host",
@@ -18,7 +18,7 @@
     "gendl-ccl": {
       "command": "node",
       "args": [
-        "/home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js",
+        "/home/emacs-user/lisply-mcp/scripts/mcp-wrapper.js",
         "--server-name",
         "gendl-ccl",
         "--backend-host",
@@ -32,7 +32,7 @@
     "gendl-sbcl": {
       "command": "node",
       "args": [
-        "/home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js",
+        "/home/emacs-user/lisply-mcp/scripts/mcp-wrapper.js",
         "--server-name",
         "gendl-sbcl",
         "--backend-host",

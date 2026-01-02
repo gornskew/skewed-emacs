@@ -51,7 +51,7 @@
   :timezone "${TZ:-Etc/UTC}")
 
  :mcp
- (:wrapper-path-container "/home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js"
+ (:wrapper-path-container "/home/emacs-user/lisply-mcp/scripts/mcp-wrapper.js"
   :request-timeout-ms 30000)
  ;; :exec-path-wsl removed - now derived from SKEWED_CLONE_PATH env var at merge time
 
@@ -82,7 +82,7 @@
                        (:root "gdl"
                         :repo "gdl"
                         :repo-root "gdl"))))
-  :ignore-dirs (".git" "node_modules" "dist" "build" "vendor" "target" ".cache" "logs" "tmp" "docker" "docker-v2")
+  :ignore-dirs (".git" "node_modules" "dist" "build" "vendor" "target" ".cache" "logs" "tmp" "docker""docker-v2")
   :exclude-paths ("**/training/ChatGPT-2022-12-10.txt")
   :extensions (:default (".lisp" ".lsp" ".cl" ".gdl" ".gendl" ".asd" ".isc"
                          ".md" ".markdown" ".org" ".txt" ".rst"

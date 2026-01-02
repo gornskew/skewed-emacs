@@ -127,7 +127,7 @@ USER emacs-user
 RUN set -euxo pipefail; \
    git clone --depth 1 --branch "${GIT_BRANCH}" https://github.com/gornskew/lisply-mcp.git; \
    cd lisply-mcp/scripts; npm ci --omit=dev; \
-   cd ../scripts-v2; npm ci --omit=dev; \
+   cd ../scripts; npm ci --omit=dev; \
    npm cache clean --force || true
 
 ENV PATH="/home/emacs-user/.local/bin:${PATH}"
