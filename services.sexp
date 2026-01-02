@@ -81,7 +81,41 @@
                         :repo-root "training")
                        (:root "gdl"
                         :repo "gdl"
-                        :repo-root "gdl"))))
+                        :repo-root "gdl")))
+            (:name "claude-curated"
+             :entries ((:root "xfer/gendl-claude-dot-md-data"
+                        :repo "xfer"
+                        :repo-root "xfer")))
+            (:name "infrastructure"
+             :entries ((:root "apps/cyclops"
+                        :repo "apps"
+                        :repo-root "apps")
+                       (:root "lisply-mcp"
+                        :repo "lisply-mcp"
+                        :repo-root "lisply-mcp")))
+            (:name "apps"
+             :entries ((:root "apps/tw-site-2025"
+                        :repo "apps"
+                        :repo-root "apps"))))
+            (:name "claude-curated"
+             :entries ((:root "xfer/gendl-claude-dot-md-data"
+                        :repo "xfer"
+                        :repo-root "xfer")))
+            (:name "infrastructure"
+             :entries ((:root "apps/cyclops"
+                        :repo "apps"
+                        :repo-root "apps")
+                       (:root "lisply-mcp"
+                        :repo "lisply-mcp"
+                        :repo-root "lisply-mcp")))
+            (:name "whitebox"
+             :entries ((:root "wb/whitebox"
+                        :repo "wb"
+                        :repo-root "wb")))
+            (:name "apps"
+             :entries ((:root "apps/tw-site-2025"
+                        :repo "apps"
+                        :repo-root "apps")))
   :ignore-dirs (".git" "node_modules" "dist" "build" "vendor" "target" ".cache" "logs" "tmp" "docker""docker-v2")
   :exclude-paths ("**/training/ChatGPT-2022-12-10.txt")
   :extensions (:default (".lisp" ".lsp" ".cl" ".gdl" ".gendl" ".asd" ".isc"
