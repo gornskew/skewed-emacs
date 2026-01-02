@@ -185,11 +185,11 @@
              (training-root (expand-file-name "training" root)))
         (emacs-lisply-gdl-search--warn-missing-sources
          `(("gdl-docs" . (((:root . ,(expand-file-name "docs" gendl-root))
-                          (:repo . "gendl")
-                          (:repo-root . ,gendl-root))))
-           ("gendl-src" . (((:root . ,gendl-root)
                            (:repo . "gendl")
                            (:repo-root . ,gendl-root))))
+           ("gendl-src" . (((:root . ,gendl-root)
+                            (:repo . "gendl")
+                            (:repo-root . ,gendl-root))))
            ("skewed-emacs-docs" . (((:root . ,skewed-root)
                                     (:repo . "skewed-emacs")
                                     (:repo-root . ,skewed-root))))
@@ -206,11 +206,11 @@
                            (:repo . "gdl")
                            (:repo-root . ,gdl-root))))))
         `(("gdl-docs" . (((:root . ,(expand-file-name "docs" gendl-root))
-                         (:repo . "gendl")
-                         (:repo-root . ,gendl-root))))
-          ("gendl-src" . (((:root . ,gendl-root)
                           (:repo . "gendl")
                           (:repo-root . ,gendl-root))))
+          ("gendl-src" . (((:root . ,gendl-root)
+                           (:repo . "gendl")
+                           (:repo-root . ,gendl-root))))
           ("skewed-emacs-docs" . (((:root . ,skewed-root)
                                    (:repo . "skewed-emacs")
                                    (:repo-root . ,skewed-root))))
@@ -485,9 +485,9 @@
         (when (and path
                    (or (null sources-to-search) (member source-key sources-to-search))
                    (emacs-lisply-gdl-search--allowed-file-p path allowed-exts)
-                  (not (emacs-lisply-gdl-search--excluded-path-p
-                        exclude-filters
-                        (emacs-lisply-gdl-search--normalize-path path))))
+                   (not (emacs-lisply-gdl-search--excluded-path-p
+                         exclude-filters
+                         (emacs-lisply-gdl-search--normalize-path path))))
           (let* ((source-entry (emacs-lisply-gdl-search--index-entry->source-entry entry source-map))
                  (candidates (emacs-lisply-gdl-search--path-candidates path source-entry)))
             (when (emacs-lisply-gdl-search--path-filters-match-p path-filters candidates)
@@ -528,8 +528,8 @@
                 (dolist (term terms)
                   (push candidate (gethash term snippet-map)))
                 (setq snippet-count (1+ snippet-count)))))))
-    (when (> snippet-count 0)
-      (list :snippet-map snippet-map :snippet-count snippet-count)))))
+      (when (> snippet-count 0)
+	(list :snippet-map snippet-map :snippet-count snippet-count)))))
 
 (defun emacs-lisply-gdl-search--get-index-cache (source-map)
   (let* ((index-path (emacs-lisply-gdl-search--index-path))
@@ -567,7 +567,7 @@
               (let ((paths (emacs-lisply-gdl-search--path-candidates file entry)))
                 (when (emacs-lisply-gdl-search--path-filters-match-p path-filters paths)
                   (push candidate candidates)))))))
-    (nreverse candidates))))
+      (nreverse candidates))))
 
 (defun emacs-lisply-gdl-search--scan-index-snippets (candidates terms include-metadata hits hit-index)
   (let ((local-hits hits)
