@@ -257,6 +257,14 @@
           (json-key-type 'string))
       (json-read-file emacs-lisply-gdl-search-config-path))))
 
+(defun emacs-lisply-gdl-search--read-index ()
+  (when (and emacs-lisply-gdl-search-index-path
+             (file-exists-p emacs-lisply-gdl-search-index-path))
+    (let ((json-object-type 'alist)
+          (json-array-type 'list)
+          (json-key-type 'string))
+      (json-read-file emacs-lisply-gdl-search-index-path))))
+
 (defun emacs-lisply-gdl-search--config-value (config key default)
   (let ((entry (and config (assoc key config))))
     (if entry (cdr entry) default)))
@@ -568,12 +576,81 @@
          (source-rel (when source-root (file-relative-name file source-root))))
     (delq nil (list repo-rel source-rel file))))
 
+(defun emacs-lisply-gdl-search--index-entry->source-entry (index-entry source-map)
+  (let* ((source-key (cdr (assoc "source" index-entry)))
+         (repo (cdr (assoc "repo" index-entry)))
+         (repo-root (cdr (assoc "repo_root" index-entry)))
+         (root (cdr (assoc "root" index-entry)))
+         (fallback (and source-key (cdr (assoc source-key source-map))))
+         (fallback-entry (car fallback)))
+    `((:root . ,(or root (and fallback-entry (cdr (assoc :root fallback-entry)))))
+      (:repo . ,(or repo (and fallback-entry (cdr (assoc :repo fallback-entry)))))
+      (:repo-root . ,(or repo-root (and fallback-entry (cdr (assoc :repo-root fallback-entry))))))))
+
+(defun emacs-lisply-gdl-search--index-files (index sources-to-search path-filters allowed-exts exclude-filters source-map)
+  (let ((files (cdr (assoc "files" index)))
+        (results '()))
+    (dolist (entry files (nreverse results))
+      (let* ((source-key (cdr (assoc "source" entry)))
+             (path (cdr (assoc "path" entry))))
+        (when (and path
+                   (or (null sources-to-search) (member source-key sources-to-search))
+                   (emacs-lisply-gdl-search--allowed-file-p path allowed-exts)
+                   (not (emacs-lisply-gdl-search--excluded-path-p
+                         exclude-filters
+                         (emacs-lisply-gdl-search--normalize-path path))))
+          (let* ((source-entry (emacs-lisply-gdl-search--index-entry->source-entry entry source-map))
+                 (candidates (emacs-lisply-gdl-search--path-candidates path source-entry)))
+            (when (emacs-lisply-gdl-search--path-filters-match-p path-filters candidates)
+              (push (list :file path :source source-key :entry source-entry) results))))))))
+
 (defun emacs-lisply-gdl-search--metadata (language section terms)
   (let (items)
     (when language (push (cons "language" language) items))
     (when section (push (cons "section" section) items))
     (when terms (push (cons "tags" (emacs-lisply-gdl-search--to-vector terms)) items))
     (nreverse items)))
+
+(defun emacs-lisply-gdl-search--scan-file (file source-key entry terms max-chars include-metadata hits hit-index)
+  (let ((local-hits hits)
+        (local-index hit-index))
+    (when (and file (file-exists-p file))
+      (let* ((attrs (file-attributes file))
+             (size (file-attribute-size attrs)))
+        (when (and size (< size emacs-lisply-gdl-search-max-file-bytes))
+          (with-temp-buffer
+            (insert-file-contents file)
+            (let* ((lines (split-string (buffer-string) "\n" nil))
+                   (snippets (emacs-lisply-gdl-search--build-snippets lines terms max-chars)))
+              (dolist (snippet snippets)
+                (let* ((snippet-lines (plist-get snippet :lines))
+                       (snippet-text (mapconcat #'identity snippet-lines "\n"))
+                       (preview (or (cl-find-if (lambda (line) (> (length (string-trim line)) 0))
+                                                snippet-lines)
+                                    ""))
+                       (language-guess (emacs-lisply-gdl-search--guess-language file))
+                       (section (emacs-lisply-gdl-search--section-heading
+                                 lines (plist-get snippet :start-line) file))
+                       (tags (cl-subseq terms 0 (min 8 (length terms))))
+                       (metadata (and include-metadata
+                                      (emacs-lisply-gdl-search--metadata
+                                       language-guess section tags))))
+                  (push
+                   `(("id" . ,(format "hit-%03d" local-index))
+                     ("score" . ,(emacs-lisply-gdl-search--score snippet (length terms)))
+                     ("source" . ,source-key)
+                     ("repo" . ,(cdr (assoc :repo entry)))
+                     ("path" . ,(emacs-lisply-gdl-search--normalize-path
+                                 (or (car (emacs-lisply-gdl-search--path-candidates file entry))
+                                     file)))
+                     ("start_line" . ,(1+ (plist-get snippet :start-line)))
+                     ("end_line" . ,(1+ (plist-get snippet :end-line)))
+                     ("snippet" . ,snippet-text)
+                     ("preview" . ,(string-trim preview))
+                     ("metadata" . ,metadata))
+                   local-hits)
+                  (setq local-index (1+ local-index)))))))))
+    (list local-hits local-index)))
 
 (defun emacs-lisply-gdl-search--search (params)
   (let* ((query (cdr (assoc 'query params)))
@@ -600,53 +677,46 @@
          (exclude-filters (emacs-lisply-gdl-search--config-exclude-filters config))
          (terms (emacs-lisply-gdl-search--extract-terms query))
          (max-chars (and max-tokens (* max-tokens 4)))
+         (index (or (emacs-lisply-gdl-search--read-index)
+                    (condition-case err
+                        (progn
+                          (emacs-lisply-log "gdl_search index missing; building on demand")
+                          (emacs-lisply-gdl-search-build-index)
+                          (emacs-lisply-gdl-search--read-index))
+                      (error
+                       (emacs-lisply-log "gdl_search index build failed: %s" err)
+                       nil))))
+         (indexed-files (and index
+                             (emacs-lisply-gdl-search--index-files
+                              index sources-to-search path-filters allowed-exts exclude-filters source-map)))
          (hits '())
          (hit-index 1))
-    (dolist (source-key sources-to-search)
-      (let ((entries (cdr (assoc source-key source-map))))
-        (dolist (entry entries)
-          (let ((root (cdr (assoc :root entry))))
-            (when (and root (file-exists-p root))
-              (dolist (file (emacs-lisply-gdl-search--list-files root allowed-exts ignore-dirs exclude-filters))
-                (when (and (emacs-lisply-gdl-search--allowed-file-p file allowed-exts)
-                           (emacs-lisply-gdl-search--path-filters-match-p
-                            path-filters
-                            (emacs-lisply-gdl-search--path-candidates file entry)))
-                  (let* ((attrs (file-attributes file))
-                         (size (file-attribute-size attrs)))
-                    (when (and size (< size emacs-lisply-gdl-search-max-file-bytes))
-                      (with-temp-buffer
-                        (insert-file-contents file)
-                        (let* ((lines (split-string (buffer-string) "\n" nil))
-                               (snippets (emacs-lisply-gdl-search--build-snippets lines terms max-chars)))
-                          (dolist (snippet snippets)
-                            (let* ((snippet-lines (plist-get snippet :lines))
-                                   (snippet-text (mapconcat #'identity snippet-lines "\n"))
-                                   (preview (or (cl-find-if (lambda (line) (> (length (string-trim line)) 0))
-                                                            snippet-lines)
-                                                ""))
-                                   (language-guess (emacs-lisply-gdl-search--guess-language file))
-                                   (section (emacs-lisply-gdl-search--section-heading
-                                             lines (plist-get snippet :start-line) file))
-                                   (tags (cl-subseq terms 0 (min 8 (length terms))))
-                                   (metadata (and include-metadata
-                                                  (emacs-lisply-gdl-search--metadata
-                                                   language-guess section tags))))
-                              (push
-                               `(("id" . ,(format "hit-%03d" hit-index))
-                                 ("score" . ,(emacs-lisply-gdl-search--score snippet (length terms)))
-                                 ("source" . ,source-key)
-                                 ("repo" . ,(cdr (assoc :repo entry)))
-                                 ("path" . ,(emacs-lisply-gdl-search--normalize-path
-                                             (or (car (emacs-lisply-gdl-search--path-candidates file entry))
-                                                 file)))
-                                 ("start_line" . ,(1+ (plist-get snippet :start-line)))
-                                 ("end_line" . ,(1+ (plist-get snippet :end-line)))
-                                 ("snippet" . ,snippet-text)
-                                 ("preview" . ,(string-trim preview))
-                                 ("metadata" . ,metadata))
-                               hits)
-                              (setq hit-index (1+ hit-index)))))))))))))))
+    (when indexed-files
+      (emacs-lisply-log "gdl_search using index: %s" emacs-lisply-gdl-search-index-path))
+    (if indexed-files
+        (dolist (item indexed-files)
+          (let ((result (emacs-lisply-gdl-search--scan-file
+                         (plist-get item :file)
+                         (plist-get item :source)
+                         (plist-get item :entry)
+                         terms max-chars include-metadata hits hit-index)))
+            (setq hits (car result)
+                  hit-index (cadr result))))
+      (dolist (source-key sources-to-search)
+        (let ((entries (cdr (assoc source-key source-map))))
+          (dolist (entry entries)
+            (let ((root (cdr (assoc :root entry))))
+              (when (and root (file-exists-p root))
+                (dolist (file (emacs-lisply-gdl-search--list-files root allowed-exts ignore-dirs exclude-filters))
+                  (when (and (emacs-lisply-gdl-search--allowed-file-p file allowed-exts)
+                             (emacs-lisply-gdl-search--path-filters-match-p
+                              path-filters
+                              (emacs-lisply-gdl-search--path-candidates file entry)))
+                    (let ((result (emacs-lisply-gdl-search--scan-file
+                                   file source-key entry
+                                   terms max-chars include-metadata hits hit-index)))
+                      (setq hits (car result)
+                            hit-index (cadr result)))))))))))
     (setq hits (sort hits (lambda (a b) (> (cdr (assoc "score" a)) (cdr (assoc "score" b))))))
     `(("query" . ,query)
       ("search_mode" . ,search-mode)

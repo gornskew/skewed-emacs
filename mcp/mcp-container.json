@@ -10,7 +10,9 @@
         "--backend-host",
         "skewed-emacs",
         "--http-port",
-        "7080"
+        "7080",
+        "--request-timeout-ms",
+        "30000"
       ]
     },
     "gendl-ccl": {
@@ -22,7 +24,9 @@
         "--backend-host",
         "gendl-ccl",
         "--http-port",
-        "9080"
+        "9080",
+        "--request-timeout-ms",
+        "30000"
       ]
     },
     "gendl-sbcl": {
@@ -34,7 +38,9 @@
         "--backend-host",
         "gendl-sbcl",
         "--http-port",
-        "9090"
+        "9090",
+        "--request-timeout-ms",
+        "30000"
       ]
     }
   }

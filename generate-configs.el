@@ -230,6 +230,7 @@
   "Generate MCP config for in-container usage (claude/gemini CLI)."
   (let* ((mcp-config (skewed--get-prop config :mcp))
          (wrapper-path (skewed--get-prop mcp-config :wrapper-path-container))
+         (request-timeout (skewed--get-prop mcp-config :request-timeout-ms))
          (services (skewed--get-prop config :services))
          (servers '()))
 
@@ -244,6 +245,9 @@
                            "--server-name" name
                            "--backend-host" name
                            "--http-port" (number-to-string http-port))))
+          (when request-timeout
+            (setq args (append args (list "--request-timeout-ms"
+                                          (number-to-string request-timeout)))))
           (push (cons name `((command . "node")
                              (args . ,(vconcat args))))
                 servers))))
@@ -255,6 +259,7 @@
   "Generate MCP config for Windows Claude Desktop via WSL.
 Uses placeholder ${SKEWED_CLONE_PATH} which gets substituted at merge time."
   (let* ((exec-path "${SKEWED_CLONE_PATH}/mcp/mcp-exec")
+         (request-timeout (skewed--get-prop (skewed--get-prop config :mcp) :request-timeout-ms))
          (services (skewed--get-prop config :services))
          (servers '()))
 
@@ -269,6 +274,9 @@ Uses placeholder ${SKEWED_CLONE_PATH} which gets substituted at merge time."
                            "--server-name" name
                            "--backend-host" name
                            "--http-port" (number-to-string http-port))))
+          (when request-timeout
+            (setq args (append args (list "--request-timeout-ms"
+                                          (number-to-string request-timeout)))))
           (push (cons name `((command . "wsl")
                              (args . ,(vconcat args))))
                 servers))))
@@ -281,6 +289,7 @@ Uses placeholder ${SKEWED_CLONE_PATH} which gets substituted at merge time."
   "Generate MCP config in TOML format for Codex."
   (let* ((mcp-config (skewed--get-prop config :mcp))
          (wrapper-path (skewed--get-prop mcp-config :wrapper-path-container))
+         (request-timeout (skewed--get-prop mcp-config :request-timeout-ms))
          (services (skewed--get-prop config :services))
          (lines '()))
     
@@ -293,8 +302,14 @@ Uses placeholder ${SKEWED_CLONE_PATH} which gets substituted at merge time."
                            :container)))
           (push (format "[mcp_servers.%s]" name) lines)
           (push "command = \"node\"" lines)
-          (push (format "args = [\"%s\", \"--server-name\", \"%s\", \"--backend-host\", \"%s\", \"--http-port\", \"%s\"]"
-                        wrapper-path name name http-port) lines)
+          (let ((args (list wrapper-path "--server-name" name
+                            "--backend-host" name "--http-port" (number-to-string http-port))))
+            (when request-timeout
+              (setq args (append args (list "--request-timeout-ms"
+                                            (number-to-string request-timeout)))))
+            (push (format "args = [%s]"
+                          (mapconcat (lambda (arg) (format "\"%s\"" arg)) args ", "))
+                  lines))
           (push "" lines))))
     
     (string-join (nreverse lines) "\n")))

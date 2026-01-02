@@ -51,7 +51,8 @@
   :timezone "${TZ:-Etc/UTC}")
 
  :mcp
- (:wrapper-path-container "/home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js")
+ (:wrapper-path-container "/home/emacs-user/lisply-mcp/scripts-v2/mcp-wrapper.js"
+  :request-timeout-ms 30000)
  ;; :exec-path-wsl removed - now derived from SKEWED_CLONE_PATH env var at merge time
 
  :gdl-search-config
