@@ -247,22 +247,27 @@ USER emacs-user
 # Regenerate configs
 RUN set -euxo pipefail; \
    cd ~/skewed-emacs; \
-   SKEWED_WRITE_GDL_SEARCH_CONFIG=true emacs --batch -l generate-configs.el -f skewed-generate-all-configs
+   SKEWED_WRITE_SKEWED_SEARCH_CONFIG=true emacs --batch -l generate-configs.el -f skewed-generate-all-configs
 
-ARG SKEWED_BUILD_GDL_INDEX=false
+ARG SKEWED_BUILD_SKEWED_INDEX=false
 RUN set -euxo pipefail; \
-   if [ "${SKEWED_BUILD_GDL_INDEX}" = "true" ]; then \
+   if [ "${SKEWED_BUILD_SKEWED_INDEX}" = "true" ]; then \
      emacs --batch \
        --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \
-       --eval "(setq emacs-lisply-gdl-search-config-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-config.json\")" \
-       --eval "(setq emacs-lisply-gdl-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-index.json\")" \
-       -l lisply-gdl-search.el \
-       --eval "(emacs-lisply-gdl-search-build-index)"; \
+       --eval "(setq emacs-lisply-skewed-search-config-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json\")" \
+       --eval "(setq emacs-lisply-skewed-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json\")" \
+       -l lisply-skewed-search.el \
+       --eval "(emacs-lisply-skewed-search-build-index)"; \
    fi
+
 
 COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
+
+RUN set -euxo pipefail; \
+    /home/emacs-user/skewed-emacs/setup
+
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
@@ -309,22 +314,26 @@ USER emacs-user
 # Regenerate configs
 RUN set -euxo pipefail; \
    cd ~/skewed-emacs; \
-   SKEWED_WRITE_GDL_SEARCH_CONFIG=true emacs --batch -l generate-configs.el -f skewed-generate-all-configs
+   SKEWED_WRITE_SKEWED_SEARCH_CONFIG=true emacs --batch -l generate-configs.el -f skewed-generate-all-configs
 
-ARG SKEWED_BUILD_GDL_INDEX=false
+ARG SKEWED_BUILD_SKEWED_INDEX=false
 RUN set -euxo pipefail; \
-   if [ "${SKEWED_BUILD_GDL_INDEX}" = "true" ]; then \
+   if [ "${SKEWED_BUILD_SKEWED_INDEX}" = "true" ]; then \
      emacs --batch \
        --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \
-       --eval "(setq emacs-lisply-gdl-search-config-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-config.json\")" \
-       --eval "(setq emacs-lisply-gdl-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-index.json\")" \
-       -l lisply-gdl-search.el \
-       --eval "(emacs-lisply-gdl-search-build-index)"; \
+       --eval "(setq emacs-lisply-skewed-search-config-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json\")" \
+       --eval "(setq emacs-lisply-skewed-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json\")" \
+       -l lisply-skewed-search.el \
+       --eval "(emacs-lisply-skewed-search-build-index)"; \
    fi
+
 
 COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-repl.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
+
+RUN set -euxo pipefail; \
+    /home/emacs-user/skewed-emacs/setup
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 

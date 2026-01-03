@@ -190,28 +190,35 @@ else
 fi
 
 # -----------------------------
-# Optional gdl_search index bootstrap
+# Optional search index bootstrap
 # -----------------------------
-bootstrap_gdl_index() {
-  echo "Building lite bootstrap image for gdl_search index..."
-  DOCKER_BUILDKIT=1 docker build \
-    --progress=plain \
-    --target "runtime-base" \
-    -t "${FINAL_IMAGE}:${branch}-lite" \
-    --build-arg GIT_BRANCH="${branch}" \
-    --build-arg SKEWED_BUILD_GDL_INDEX="false" \
-    -f "$DOCKERFILE_PATH" \
-    "$BUILD_CONTEXT"
+bootstrap_search_indices() {
   local image="${FINAL_IMAGE}:${branch}-lite"
 
-  echo "Bootstrapping gdl_search index using ${image}..."
-  if ! bash "${DOCKER_DIR}/build-gdl-search-index.sh" --image "${image}"; then
-    echo "gdl_search bootstrap failed; continuing without prebuilt index."
+  echo "Building lite bootstrap image for search indices..."
+  if ! docker image inspect "${image}" >/dev/null 2>&1; then
+    DOCKER_BUILDKIT=1 docker build \
+      --progress=plain \
+      --target "runtime-base" \
+      -t "${image}" \
+      --build-arg GIT_BRANCH="${branch}" \
+      --build-arg SKEWED_BUILD_SKEWED_INDEX="false" \
+      -f "$DOCKERFILE_PATH" \
+      "$BUILD_CONTEXT"
+  else
+    echo "Using existing bootstrap image ${image}"
+  fi
+
+  if [[ "${SKEWED_BOOTSTRAP_SKEWED_INDEX:-true}" == "true" ]]; then
+    echo "Bootstrapping skewed_search index using ${image}..."
+    if ! bash "${DOCKER_DIR}/build-skewed-search-index.sh" --image "${image}"; then
+      echo "skewed_search bootstrap failed; continuing without prebuilt index."
+    fi
   fi
 }
 
-if [[ "${SKEWED_BOOTSTRAP_GDL_INDEX:-true}" == "true" ]]; then
-  bootstrap_gdl_index
+if [[ "${SKEWED_BOOTSTRAP_SKEWED_INDEX:-true}" == "true" ]]; then
+  bootstrap_search_indices
 fi
 
 if [[ "${SKEWED_BOOTSTRAP_LITE_ONLY:-false}" == "true" ]]; then
@@ -238,7 +245,7 @@ build_target() {
     -t "${IMAGE_NAME}:${tag}" \
     -t "${FINAL_IMAGE}:${tag}" \
     --build-arg GIT_BRANCH="${branch}" \
-    --build-arg SKEWED_BUILD_GDL_INDEX="${SKEWED_BUILD_GDL_INDEX:-false}" \
+    --build-arg SKEWED_BUILD_SKEWED_INDEX="${SKEWED_BUILD_SKEWED_INDEX:-false}" \
     -f "$DOCKERFILE_PATH" \
     "$BUILD_CONTEXT"
   

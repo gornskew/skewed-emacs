@@ -301,7 +301,8 @@
 
 (defun emacs-lisply-skewed-search--config-exclude-filters (config)
   (let ((exclude (emacs-lisply-skewed-search--config-value config "exclude_paths" nil)))
-    (emacs-lisply-skewed-search--compile-path-filters (or exclude []))))
+    (emacs-lisply-skewed-search--compile-path-filters
+     (emacs-lisply-skewed-search--vector-to-list exclude))))
 
 (defun emacs-lisply-skewed-search--excluded-path-p (exclude-filters path)
   (and exclude-filters
