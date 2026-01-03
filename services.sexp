@@ -112,7 +112,7 @@
                        (:root "lisply-mcp"
                         :repo "lisply-mcp"
                         :repo-root "lisply-mcp")))
-            (:name "whitebox"
+            (:name 
              :entries ((:root "wb/whitebox"
                         :repo "wb"
                         :repo-root "wb")))

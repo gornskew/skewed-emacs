@@ -861,11 +861,13 @@
                          source-key entry file attrs
                          preextract-enabled preextract-max-lines preextract-max-chars)
                         items))))))))
-    (with-temp-file index-path
-      (insert (json-encode `(("generated_at" . ,(format-time-string "%Y-%m-%dT%H:%M:%SZ" (current-time) t))
-                           ("version" . ,emacs-lisply-skewed-search-index-version)
-                             ("checksum" . ,(emacs-lisply-skewed-search--compute-checksum (nreverse items)))
-                               ("files" . ,(vconcat (nreverse items)))))))))
+    (let* ((files (nreverse items))
+           (checksum (emacs-lisply-skewed-search--compute-checksum files)))
+      (with-temp-file index-path
+        (insert (json-encode `(("generated_at" . ,(format-time-string "%Y-%m-%dT%H:%M:%SZ" (current-time) t))
+                               ("version" . ,emacs-lisply-skewed-search-index-version)
+                               ("checksum" . ,checksum)
+                               ("files" . ,(vconcat files)))))))))
 
 (when (featurep 'simple-httpd)
   (defservlet* lisply/skewed-search application/json ()
