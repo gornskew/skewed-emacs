@@ -48,10 +48,10 @@
   (plist-get plist key))
 
 ;;; ============================================================================
-;;; gdl_search Config Generation
+;;; skewed_search Config Generation
 ;;; ============================================================================
 
-(defun skewed--gdl-search-extensions-alist (extensions)
+(defun skewed--skewed-search-extensions-alist (extensions)
   (when extensions
     `(("default" . ,(plist-get extensions :default))
       ("lisp" . ,(plist-get extensions :lisp))
@@ -59,7 +59,7 @@
       ("gdl" . ,(plist-get extensions :gdl))
       ("markdown" . ,(plist-get extensions :markdown)))))
 
-(defun skewed--gdl-search-sources-alist (sources)
+(defun skewed--skewed-search-sources-alist (sources)
   (when sources
     (mapcar
      (lambda (source)
@@ -74,9 +74,9 @@
                 entries))))
      sources)))
 
-(defun skewed--generate-gdl-search-config (config)
-  "Generate gdl-search-config.json content from CONFIG."
-  (let* ((gdl-config (skewed--get-prop config :gdl-search-config))
+(defun skewed--generate-skewed-search-config (config)
+  "Generate skewed-search-config.json content from CONFIG."
+  (let* ((gdl-config (skewed--get-prop config :skewed-search-config))
          (sources (skewed--get-prop gdl-config :sources))
          (ignore-dirs (skewed--get-prop gdl-config :ignore-dirs))
          (exclude-paths (skewed--get-prop gdl-config :exclude-paths))
@@ -87,10 +87,10 @@
          (preextract-max-chars (skewed--get-prop gdl-config :preextract-max-chars)))
     (when gdl-config
       (json-encode
-       (let ((items `(("sources" . ,(skewed--gdl-search-sources-alist sources))
+       (let ((items `(("sources" . ,(skewed--skewed-search-sources-alist sources))
                       ("ignore_dirs" . ,ignore-dirs)
                       ("exclude_paths" . ,exclude-paths)
-                      ("extensions" . ,(skewed--gdl-search-extensions-alist extensions)))))
+                      ("extensions" . ,(skewed--skewed-search-extensions-alist extensions)))))
          (when index-path
            (push (cons "index_path" index-path) items))
          (when preextract-snippets
@@ -526,17 +526,17 @@ Examples:
         (insert (skewed--generate-elisp config)))
       (message "Generated: %s" elisp-file))
 
-    ;; Generate gdl_search config only when explicitly enabled
-    (let* ((gdl-config (skewed--get-prop config :gdl-search-config))
+    ;; Generate skewed_search config only when explicitly enabled
+    (let* ((gdl-config (skewed--get-prop config :skewed-search-config))
            (gdl-path (and gdl-config (skewed--get-prop gdl-config :path)))
-           (write-gdl-config (and (getenv "SKEWED_WRITE_GDL_SEARCH_CONFIG")
-                                  (not (string-empty-p (getenv "SKEWED_WRITE_GDL_SEARCH_CONFIG"))))))
+           (write-gdl-config (and (getenv "SKEWED_WRITE_SKEWED_SEARCH_CONFIG")
+                                  (not (string-empty-p (getenv "SKEWED_WRITE_SKEWED_SEARCH_CONFIG"))))))
       (when (and gdl-config write-gdl-config)
         (let* ((output-path (expand-file-name gdl-path skewed-gen-output-dir))
                (output-dir (file-name-directory output-path)))
           (make-directory output-dir t)
           (with-temp-file output-path
-            (insert (skewed--generate-gdl-search-config config)))
+            (insert (skewed--generate-skewed-search-config config)))
           (message "Generated: %s" output-path))))
     
     ;; Generate install script for overlays (when prefix is non-empty)

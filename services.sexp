@@ -55,9 +55,9 @@
   :request-timeout-ms 30000)
  ;; :exec-path-wsl removed - now derived from SKEWED_CLONE_PATH env var at merge time
 
- :gdl-search-config
- (:path "dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-config.json"
-  :index-path "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/gdl-search-index.json"
+ :skewed-search-config
+ (:path "dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json"
+  :index-path "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json"
   :preextract-snippets t
   :preextract-max-lines 24
   :preextract-max-chars 1200

@@ -26,7 +26,7 @@
 (require 'subr-x)
 (require 'simple-httpd)
 (require 'lisply-http-setup)
-(require 'lisply-gdl-search)
+(require 'lisply-skewed-search)
 
 ;; Lisply Tool Definitions
 
@@ -52,9 +52,9 @@
                                                    ("description" . "Not used in Emacs Lisp but kept for protocol compatibility")))))
                        ("required" . ["code"]))))
 
-   ;; gdl_search tool
-   `(("name" . "gdl_search")
-     ("description" . "Unified search over GDL / GenDL / related docs & code")
+   ;; skewed_search tool
+   `(("name" . "skewed_search")
+     ("description" . "Unified search over GDL/Gendl/skewed-emacs / related docs & code")
      ("inputSchema" . (("type" . "object")
                        ("properties" . (("query" . (("type" . "string")
                                                    ("description" . "Natural-language or keyword query")))

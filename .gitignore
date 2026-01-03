@@ -115,4 +115,4 @@ tmp/
 .bash_history
 history.*
 .#*
-**/gdl-search-config.json
+dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json

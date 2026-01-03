@@ -1071,9 +1071,9 @@ During a Cyclops proxy development session, an LLM agent attempted to add new bi
 **Key Takeaway**: When paredit-mode blocks an operation, treat it as a signal that your mental model is wrong—not as an obstacle to work around.
 
 
-## gdl_search Tool - Pre-processing Prompts with GDL Knowledge
+## skewed_search Tool - Pre-processing Prompts with GDL Knowledge
 
-The `gdl_search` MCP tool provides lexical search over curated GDL/Gendl documentation and source code. The index is pre-built at Docker build time with snippets extracted and embedded, making it fully self-contained (no `/projects` mount needed at runtime for search).
+The `skewed_search` MCP tool provides lexical search over curated GDL/Gendl documentation and source code. The index is pre-built at Docker build time with snippets extracted and embedded, making it fully self-contained (no `/projects` mount needed at runtime for search).
 
 ### Architecture
 
@@ -1081,10 +1081,10 @@ The `gdl_search` MCP tool provides lexical search over curated GDL/Gendl documen
 ┌─────────────────────────────────────────────────────────┐
 │  Docker Build Time                                      │
 │                                                         │
-│  Source files ──► emacs-lisply-gdl-search-build-index   │
+│  Source files ──► emacs-lisply-skewed-search-build-index   │
 │       │                    │                            │
 │       ▼                    ▼                            │
-│  Pre-extract snippets → gdl-search-index.json (~16MB)   │
+│  Pre-extract snippets → skewed-search-index.json (~16MB)   │
 │  (24 lines, 1200 chars per snippet)                     │
 └─────────────────────────────────────────────────────────┘
                          │
@@ -1093,14 +1093,14 @@ The `gdl_search` MCP tool provides lexical search over curated GDL/Gendl documen
 ┌─────────────────────────────────────────────────────────┐
 │  Runtime                                                │
 │                                                         │
-│  gdl_search query → inverted term index → snippets      │
+│  skewed_search query → inverted term index → snippets      │
 │                                                         │
 │  Index cached in memory with snippet-map for fast       │
 │  term-to-candidate lookup                               │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### When to Use gdl_search
+### When to Use skewed_search
 
 **Always search before**:
 - Writing `define-object` code (search for similar patterns)
@@ -1125,39 +1125,39 @@ Common search queries for different tasks:
 
 ```
 # Section syntax for define-object
-gdl_search(query="define-object hidden-objects", sources=["examples", "gendl-src"], k=5)
+skewed_search(query="define-object hidden-objects", sources=["examples", "gendl-src"], k=5)
 
 # Web page patterns  
-gdl_search(query="base-html-page body computed-slots", sources=["examples", "claude-curated"], k=3)
+skewed_search(query="base-html-page body computed-slots", sources=["examples", "claude-curated"], k=3)
 
 # Creating new projects
-gdl_search(query="gendl-skel create project", sources=["claude-curated"], k=3)
+skewed_search(query="gendl-skel create project", sources=["claude-curated"], k=3)
 
 # URL routing for non-root paths
-gdl_search(query="fixed-url-prefix", sources=["gendl-src"], k=5)
+skewed_search(query="fixed-url-prefix", sources=["gendl-src"], k=5)
 
 # Output formats (PDF, etc.)
-gdl_search(query="with-format pdf cad-output", sources=["gdl-docs", "examples"], k=5)
+skewed_search(query="with-format pdf cad-output", sources=["gdl-docs", "examples"], k=5)
 
 # Mixin patterns
-gdl_search(query="base-html-div inner-html", sources=["examples"], k=5)
+skewed_search(query="base-html-div inner-html", sources=["examples"], k=5)
 ```
 
 ### Example Usage
 
 **Before writing GDL web code:**
 ```python
-gdl_search(query="base-html-page computed-slots body", sources=["examples", "claude-curated"], k=3)
+skewed_search(query="base-html-page computed-slots body", sources=["examples", "claude-curated"], k=3)
 ```
 
 **Before explaining define-object sections:**
 ```python
-gdl_search(query="hidden-objects pseudo-inputs", sources=["gendl-src", "gdl-docs"], k=5)
+skewed_search(query="hidden-objects pseudo-inputs", sources=["gendl-src", "gdl-docs"], k=5)
 ```
 
 **Before creating a new project:**
 ```python
-gdl_search(query="gendl-skel project structure", sources=["claude-curated"], k=3)
+skewed_search(query="gendl-skel project structure", sources=["claude-curated"], k=3)
 ```
 
 ### Tool Parameters
@@ -1211,11 +1211,11 @@ gdl_search(query="gendl-skel project structure", sources=["claude-curated"], k=3
 
 ### Configuration
 
-The search is configured via `gdl-search-config.json`:
+The search is configured via `skewed-search-config.json`:
 
 ```json
 {
-  "index_path": ".../gdl-search-index.json",
+  "index_path": ".../skewed-search-index.json",
   "preextract_snippets": true,
   "preextract_max_lines": 24,
   "preextract_max_chars": 1200,
@@ -1228,7 +1228,7 @@ The search is configured via `gdl-search-config.json`:
 The index is built during Docker build. To rebuild manually:
 
 ```elisp
-(emacs-lisply-gdl-search-build-index)
+(emacs-lisply-skewed-search-build-index)
 ```
 
 This scans all configured sources and pre-extracts snippets into the index file.
