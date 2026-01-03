@@ -1069,3 +1069,166 @@ During a Cyclops proxy development session, an LLM agent attempted to add new bi
 4. **When paredit blocked the operation**: Stopped and asked for human review instead of disabling paredit
 
 **Key Takeaway**: When paredit-mode blocks an operation, treat it as a signal that your mental model is wrong—not as an obstacle to work around.
+
+
+## gdl_search Tool - Pre-processing Prompts with GDL Knowledge
+
+The `gdl_search` MCP tool provides lexical search over curated GDL/Gendl documentation and source code. The index is pre-built at Docker build time with snippets extracted and embedded, making it fully self-contained (no `/projects` mount needed at runtime for search).
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Docker Build Time                                      │
+│                                                         │
+│  Source files ──► emacs-lisply-gdl-search-build-index   │
+│       │                    │                            │
+│       ▼                    ▼                            │
+│  Pre-extract snippets → gdl-search-index.json (~16MB)   │
+│  (24 lines, 1200 chars per snippet)                     │
+└─────────────────────────────────────────────────────────┘
+                         │
+                         │ baked into container image
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│  Runtime                                                │
+│                                                         │
+│  gdl_search query → inverted term index → snippets      │
+│                                                         │
+│  Index cached in memory with snippet-map for fast       │
+│  term-to-candidate lookup                               │
+└─────────────────────────────────────────────────────────┘
+```
+
+### When to Use gdl_search
+
+**Always search before**:
+- Writing `define-object` code (search for similar patterns)
+- Explaining GDL concepts (search for canonical documentation)
+- Debugging GDL issues (search for known patterns/solutions)
+- Creating new GDL projects (search "gendl-skel" or "project structure")
+
+### Available Sources
+
+| Source | Content | Best For |
+|--------|---------|----------|
+| `claude-curated` | Curated guides for Claude | Project structure, key points, troubleshooting |
+| `gendl-src` | Gendl source code | Implementation details, advanced patterns |
+| `gdl-docs` | Core Gendl documentation | Official documentation |
+| `examples` | Training materials, demos, tutorials | Learning patterns, working examples |
+| `infrastructure` | Cyclops proxy, lisply-mcp | Infrastructure code |
+| `apps` | tw-site-2025 | Current web project examples |
+
+### Search Patterns
+
+Common search queries for different tasks:
+
+```
+# Section syntax for define-object
+gdl_search(query="define-object hidden-objects", sources=["examples", "gendl-src"], k=5)
+
+# Web page patterns  
+gdl_search(query="base-html-page body computed-slots", sources=["examples", "claude-curated"], k=3)
+
+# Creating new projects
+gdl_search(query="gendl-skel create project", sources=["claude-curated"], k=3)
+
+# URL routing for non-root paths
+gdl_search(query="fixed-url-prefix", sources=["gendl-src"], k=5)
+
+# Output formats (PDF, etc.)
+gdl_search(query="with-format pdf cad-output", sources=["gdl-docs", "examples"], k=5)
+
+# Mixin patterns
+gdl_search(query="base-html-div inner-html", sources=["examples"], k=5)
+```
+
+### Example Usage
+
+**Before writing GDL web code:**
+```python
+gdl_search(query="base-html-page computed-slots body", sources=["examples", "claude-curated"], k=3)
+```
+
+**Before explaining define-object sections:**
+```python
+gdl_search(query="hidden-objects pseudo-inputs", sources=["gendl-src", "gdl-docs"], k=5)
+```
+
+**Before creating a new project:**
+```python
+gdl_search(query="gendl-skel project structure", sources=["claude-curated"], k=3)
+```
+
+### Tool Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `query` | string | (required) | Natural-language or keyword query |
+| `k` | integer | 8 | Max number of hits to return |
+| `sources` | array | all | Logical sources to restrict search |
+| `path_filters` | array | none | Prefix or glob-style path filters |
+| `language` | string | none | Language hint (lisp, gdl, markdown) |
+| `search_mode` | string | lexical | Currently only lexical supported |
+| `max_snippet_tokens` | integer | 512 | Soft cap for snippet length |
+| `include_metadata` | boolean | true | Include metadata in hits |
+
+### Response Format
+
+```json
+{
+  "query": "define-object computed-slots",
+  "search_mode": "lexical",
+  "sources": ["examples", "claude-curated"],
+  "hits": [
+    {
+      "id": "hit-001",
+      "score": 1.0,
+      "source": "claude-curated",
+      "repo": "xfer",
+      "path": "gendl-project-guide/gendl-key-points.lisp",
+      "start_line": 1,
+      "end_line": 24,
+      "snippet": "...(actual code/text)...",
+      "preview": "First non-empty line",
+      "metadata": {
+        "language": "lisp",
+        "section": "Optional section heading",
+        "tags": ["define", "object", "computed", "slots"]
+      }
+    }
+  ]
+}
+```
+
+### Best Practices
+
+1. **Search first, code second**: Before writing any GDL code, search for similar patterns
+2. **Use `claude-curated` for guidance**: This source contains documentation specifically written for Claude
+3. **Combine sources**: Use multiple sources for comprehensive results
+4. **Be specific**: More specific queries yield more relevant results
+5. **Check the path**: The `path` field tells you where the snippet came from for context
+
+### Configuration
+
+The search is configured via `gdl-search-config.json`:
+
+```json
+{
+  "index_path": ".../gdl-search-index.json",
+  "preextract_snippets": true,
+  "preextract_max_lines": 24,
+  "preextract_max_chars": 1200,
+  "sources": { ... }
+}
+```
+
+### Rebuilding the Index
+
+The index is built during Docker build. To rebuild manually:
+
+```elisp
+(emacs-lisply-gdl-search-build-index)
+```
+
+This scans all configured sources and pre-extracts snippets into the index file.
