@@ -115,3 +115,4 @@ tmp/
 .bash_history
 history.*
 .#*
+**/gdl-search-config.json

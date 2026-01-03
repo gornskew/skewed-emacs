@@ -120,12 +120,12 @@
              :entries ((:root "apps/tw-site-2025"
                         :repo "apps"
                         :repo-root "apps")))
-  :ignore-dirs (".git" "node_modules" "dist" "build" "vendor" "target" ".cache" "logs" "tmp" "docker""docker-v2")
-  :exclude-paths ("**/training/ChatGPT-2022-12-10.txt")
+  :ignore-dirs (".git" "node_modules" "dist" "build" "vendor" "target" ".cache" "logs" "tmp" "docker" "docker-v2")
+  :exclude-paths ("**/elpa/**" "**/training/ChatGPT-2022-12-10.txt")
   :extensions (:default (".lisp" ".lsp" ".cl" ".gdl" ".gendl" ".asd" ".isc"
                          ".md" ".markdown" ".org" ".txt" ".rst"
                          ".el" ".js" ".ts" ".json" ".yml" ".yaml" ".html" ".css")
-               :lisp (".lisp" ".lsp" ".cl" ".asd")
+               :lisp (".lisp" ".lsp" ".cl" ".asd" ".el")
                :gendl (".gendl")
                :gdl (".gdl" ".gendl" ".lisp" ".lsp" ".cl")
                :markdown (".md" ".markdown" ".org" ".rst")))

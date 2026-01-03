@@ -47,7 +47,7 @@
     ".el" ".js" ".ts" ".json" ".yml" ".yaml" ".html" ".css"))
 
 (defconst emacs-lisply-gdl-search-language-exts
-  '(("lisp" . (".lisp" ".lsp" ".cl" ".asd"))
+  '(("lisp" . (".lisp" ".lsp" ".cl" ".asd" ".el"))
     ("gendl" . (".gendl"))
     ("gdl" . (".gdl" ".gendl" ".lisp" ".lsp" ".cl"))
     ("markdown" . (".md" ".markdown" ".org" ".rst"))))
