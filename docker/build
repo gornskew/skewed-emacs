@@ -154,6 +154,19 @@ else
 fi
 branch="${branch//\//--}"  # Replace / with -- in branch names
 
+# Fetch latest commit from lisply-mcp
+echo "Fetching latest commit from lisply-mcp..."
+LISPLY_MCP_REVISION=$(curl -s https://api.github.com/repos/gornskew/lisply-mcp/git/refs/heads/${branch} | \
+  grep '"sha"' | head -1 | cut -d'"' -f4 || echo "latest")
+
+if [[ "$LISPLY_MCP_REVISION" == "" ]]; then
+  echo "Warning: Could not fetch lisply-mcp revision, falling back to 'latest'"
+  LISPLY_MCP_REVISION="latest"
+fi
+
+echo "lisply-mcp revision: ${LISPLY_MCP_REVISION}"
+
+
 # -----------------------------
 # Push configuration
 # -----------------------------
@@ -203,6 +216,7 @@ bootstrap_search_indices() {
       -t "${image}" \
       --build-arg GIT_BRANCH="${branch}" \
       --build-arg SKEWED_BUILD_SKEWED_INDEX="false" \
+      --build-arg LISPLY_MCP_REVISION="${LISPLY_MCP_REVISION}" \
       -f "$DOCKERFILE_PATH" \
       "$BUILD_CONTEXT"
   else
@@ -240,15 +254,16 @@ build_target() {
   echo "═══════════════════════════════════════════════════════════════"
   
   DOCKER_BUILDKIT=1 docker build \
-    --progress=plain \
-    --target "${stage}" \
-    -t "${IMAGE_NAME}:${tag}" \
-    -t "${FINAL_IMAGE}:${tag}" \
-    --build-arg GIT_BRANCH="${branch}" \
-    --build-arg SKEWED_BUILD_SKEWED_INDEX="${SKEWED_BUILD_SKEWED_INDEX:-false}" \
-    -f "$DOCKERFILE_PATH" \
-    "$BUILD_CONTEXT"
-  
+		    --progress=plain \
+		    --target "${stage}" \
+		    -t "${IMAGE_NAME}:${tag}" \
+		    -t "${FINAL_IMAGE}:${tag}" \
+		    --build-arg GIT_BRANCH="${branch}" \
+		    --build-arg SKEWED_BUILD_SKEWED_INDEX="${SKEWED_BUILD_SKEWED_INDEX:-false}" \
+		    --build-arg LISPLY_MCP_REVISION="${LISPLY_MCP_REVISION}" \
+		    -f "$DOCKERFILE_PATH" \
+		    "$BUILD_CONTEXT"
+
   echo "✓ Built ${IMAGE_NAME}:${tag}"
 }
 

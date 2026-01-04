@@ -12,6 +12,8 @@ FROM debian:stable-slim AS builder
 ARG DEBIAN_FRONTEND=noninteractive
 ARG NODE_MAJOR=23
 ARG GIT_BRANCH=master
+ARG LISPLY_MCP_REVISION=latest
+
 
 SHELL ["/bin/bash", "-lc"]
 
@@ -123,13 +125,16 @@ RUN set -euxo pipefail; \
 
 USER emacs-user
 
-# Install lisply-mcp (needed for all variants)
 RUN set -euxo pipefail; \
-   git clone --depth 1 --branch "${GIT_BRANCH}" https://github.com/gornskew/lisply-mcp.git; \
-   cd lisply-mcp/scripts; npm ci --omit=dev; \
-   cd ../scripts; npm ci --omit=dev; \
-   npm cache clean --force || true
-
+    if [ ! -d "lisply-mcp" ]; then \
+      git clone --depth 1 --branch "${GIT_BRANCH}" https://github.com/gornskew/lisply-mcp.git || \
+      { echo "Error: Failed to clone lisply-mcp on branch ${GIT_BRANCH}. Does the branch exist in the remote repo?"; exit 1; }; \
+    fi; \
+    cd lisply-mcp/scripts; \
+    npm ci --omit=dev; \
+    npm cache clean --force || true; \
+    echo "lisply-mcp revision: ${LISPLY_MCP_REVISION}"
+    
 ENV PATH="/home/emacs-user/.local/bin:${PATH}"
 
 # Install AI TUI CLIs (for -aituis variants)
@@ -170,7 +175,7 @@ RUN set -euxo pipefail; \
 FROM debian:stable-slim AS common-runtime-base
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG NODE_MAJOR=23
+ARG NODE_MAJOR=20
 
 SHELL ["/bin/bash", "-lc"]
 
