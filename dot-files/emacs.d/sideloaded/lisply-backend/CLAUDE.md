@@ -129,8 +129,13 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(
 ```
 
 ### 3. File Operations  
+
+**⚠️ Prefer `with-temp-buffer` for reading files non-interactively:**
+
+`find-file-noselect` can trigger minibuffer prompts (e.g., "File is read-only on disk. Make buffer read-only, too?") that block MCP evaluation. Use `with-temp-buffer` + `insert-file-contents` when you only need to read:
+
 ```python
-# Read file contents
+# Read file contents (NON-INTERACTIVE - preferred for MCP)
 mcp__skewed_emacs__skewed_emacs__lisp_eval(
     code='(with-temp-buffer (insert-file-contents "/path/to/file") (buffer-string))'
 )
@@ -145,6 +150,8 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(
     code='(directory-files "/path/to/directory")'
 )
 ```
+
+**When you need the real buffer** (for mode-specific functions like org-mode), use `find-file-noselect` but be aware it may prompt the user.
 
 ## CRITICAL: Safe Lisp Code Editing with Paredit
 
@@ -1013,6 +1020,47 @@ When working with `.org` files, be careful about using `with-temp-buffer` combin
 - For **reading** file contents only â `with-temp-buffer` + `insert-file-contents` is fine
 - For **org structural navigation** â use `find-file-noselect` and work in the real buffer
 
+### Finding Org Files: Use Emacs Variables
+
+**Don't hardcode org file paths.** Use Emacs's own variables:
+
+```elisp
+;; Find org directory and agenda files
+(list :org-directory org-directory
+      :org-agenda-files org-agenda-files)
+
+;; Read from the primary agenda file
+(with-temp-buffer 
+  (insert-file-contents (car org-agenda-files))
+  (buffer-string))
+```
+
+### Modifying Org Properties
+
+Use `org-entry-put` and `org-entry-get` for PROPERTIES drawer manipulation. These require the real org buffer:
+
+```elisp
+;; Add or update a property on a heading
+(with-current-buffer (find-file-noselect (car org-agenda-files))
+  (save-excursion
+    (goto-char (point-min))
+    (when (re-search-forward "My Task Heading" nil t)
+      (org-back-to-heading t)
+      (org-entry-put nil "HOST" "gendl-ccl")
+      (save-buffer)
+      ;; Return updated properties
+      (org-entry-properties nil 'standard))))
+
+;; Read a property
+(with-current-buffer (find-file-noselect (car org-agenda-files))
+  (save-excursion
+    (goto-char (point-min))
+    (when (re-search-forward "My Task Heading" nil t)
+      (org-entry-get nil "HOST"))))
+```
+
+**Note:** `find-file-noselect` may trigger user prompts. If modifying org files programmatically, ensure the user is aware.
+
 ## Error Recovery
 
 If you encounter unbalanced parentheses:
@@ -1039,6 +1087,34 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(
 - **File Access**: Mounted volumes provide access to host filesystem
 - **SLIME Integration**: Can connect to Gendl containers for Common Lisp development
 - **Development Mode**: Live reloading available in development environments
+
+### Dual-Path File Locations (skewed-emacs internal development only)
+
+**This only applies when hacking on skewed-emacs or lisply-mcp internals.**
+
+Normal projects (including tw-site-2025, gendl apps, etc.) live only under `/projects/` and don't have this complexity.
+
+**Two copies of skewed-emacs exist in the container:**
+
+| Path | Purpose | Persistence |
+|------|---------|-------------|
+| `/home/emacs-user/skewed-emacs/` | Container-internal copy. The running Emacs process loads from here. | Ephemeral (lost on rebuild) |
+| `/projects/skewed-emacs/` | Mounted from host. Source of truth for git. | Persistent |
+
+**For live skewed-emacs/lisply-mcp hacking, update BOTH paths:**
+
+```elisp
+;; Update both locations for immediate effect AND persistence
+(dolist (base '("/home/emacs-user/skewed-emacs/" 
+                "/projects/skewed-emacs/"))
+  (let ((filepath (concat base "path/to/file.el")))
+    (with-current-buffer (find-file-noselect filepath)
+      ;; ... make edits ...
+      (save-buffer))))
+```
+
+- **Container copy** → Changes take effect immediately (no rebuild needed)
+- **Mounted copy** → Changes persist across container rebuilds
 
 ## Lessons Learned
 
