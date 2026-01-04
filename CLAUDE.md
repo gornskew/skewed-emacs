@@ -393,3 +393,82 @@ When using MCP file editing, remember that you **share the global current buffer
 - Native Emacs tools integrate with the shared buffer state
 - Shell commands bypass Emacs's knowledge of file system state
 - Dired buffers can become stale; always `(revert-buffer)` before trusting contents
+
+
+## Critical Best Practices for Claude (Learned 2026-01-04)
+
+### File Path Confusion - Always Use MCP
+**WRONG**: Assuming files are in `/mnt/project` (Claude.ai container filesystem)
+**RIGHT**: Files in Dave's projects are at `/projects/apps/...` and accessed via skewed-emacs MCP
+
+Example:
+```elisp
+;; WRONG - trying to use local filesystem
+(with-temp-file "/mnt/project/assembly.lisp" ...)
+
+;; RIGHT - use MCP to access Dave's environment
+(with-current-buffer (find-file-noselect "/projects/apps/tw-site-2025/source/assembly.lisp")
+  ...)
+```
+
+**Rule**: If you find yourself creating files in `/home/claude/`, you're doing it wrong. Use skewed-emacs MCP.
+
+### Minibuffer Blocking Issue
+**Symptom**: All MCP calls suddenly fail with connectivity errors
+**Cause**: Emacs is waiting for minibuffer input (e.g., "File changed on disk. Discard edits? (yes or no)")
+**Solution**: Alert Dave that Emacs needs input before continuing
+
+### Incremental Editing > Wholesale Replacement
+**WRONG**: Using `with-temp-file` to rewrite entire complex files
+```elisp
+(with-temp-file "/path/to/file.lisp"
+  (insert "entire new file..."))  ;; Often creates unbalanced parens!
+```
+
+**RIGHT**: Make targeted edits with structural navigation
+```elisp
+(with-current-buffer "file.lisp"
+  (when (fboundp 'paredit-mode) (paredit-mode 1))
+  (save-excursion
+    (goto-char (point-min))
+    (search-forward "string-to-find")
+    (search-backward "opening-quote")
+    (kill-sexp)
+    (insert "replacement"))
+  (check-parens)
+  (save-buffer))
+```
+
+### When Structural Editing Fails
+If you're stuck in unbalanced buffer hell:
+1. Ask Dave to revert the file: `git checkout path/to/file`
+2. Ask Dave to create a placeholder comment where you can insert balanced content
+3. Insert the content into the placeholder position
+
+Example workflow that works:
+```elisp
+;; Dave creates placeholder in buffer:
+;;
+;; Insert balanced lhtml body here
+;;
+
+;; Claude inserts at that position:
+(goto-char (point-min))
+(search-forward ";; Insert balanced lhtml body here")
+(beginning-of-line)
+(kill-line 3)  ;; Remove comment
+(insert "balanced content...")
+```
+
+### cl-who Native Format (for GDL Web Projects)
+**OLD htmlgen compatibility format (extra parens):**
+```lisp
+((:a :href "url" :class "style") "Link Text")
+```
+
+**NEW cl-who native format (cleaner):**
+```lisp
+(:a :href "url" :class "style" "Link Text")
+```
+
+Use the native format for new code in tw-site-2025 and similar projects.
