@@ -15,6 +15,7 @@ fi
 HOST_USER_UID=$(id -u)
 DOCKER_GROUP_ID=$(getent group docker | cut -d: -f3 || echo 999)
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD || echo "master")
+PROJECTS_DIR="${PROJECTS_DIR:-$USER_HOME/projects}"
 
 # Detect host timezone (best-effort)
 HOST_TZ=$(
@@ -31,7 +32,7 @@ cat > .env << EOF
 
 # User paths
 USER_HOME=$USER_HOME
-PROJECTS_DIR=$USER_HOME/projects
+PROJECTS_DIR=$PROJECTS_DIR
 
 # User/Group IDs
 HOST_USER_UID=$HOST_USER_UID
@@ -65,4 +66,3 @@ echo "CURRENT_BRANCH: $CURRENT_BRANCH"
 echo "PROJECTS: $USER_HOME/projects"
 echo "HOST_USER_UID: $HOST_USER_UID"  # Fixed typo: HOST_USER_ID to HOST_USER_UID
 echo ""
-

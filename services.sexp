@@ -61,70 +61,30 @@
   :preextract-snippets t
   :preextract-max-lines 24
   :preextract-max-chars 1200
-  :sources ((:name "gdl-docs"
-             :entries ((:root "gendl/documentation"
-                        :repo "gendl"
-                        :repo-root "gendl")))
-            (:name "gendl-src"
+  :sources ((:name "gendl"
              :entries ((:root "gendl"
                         :repo "gendl"
+                        :repo-url "https://gitlab.common-lisp.net/gendl/gendl"
                         :repo-root "gendl")))
-            (:name "skewed-emacs-docs"
+            (:name "skewed-emacs"
              :entries ((:root "skewed-emacs"
                         :repo "skewed-emacs"
+                        :repo-url "https://github.com/gornskew/skewed-emacs"
                         :repo-root "skewed-emacs")))
-            (:name "examples"
-             :entries ((:root "gendl/demos"
-                        :repo "gendl"
-                        :repo-root "gendl")
-                       (:root "tutorials"
-                        :repo "tutorials"
-                        :repo-root "tutorials")
-                       (:root "training"
+
+	    (:name "training"
+             :entries ((:root "training"
                         :repo "training"
+                        :repo-url "https://github.com/gornskew/training"
                         :repo-root "training")
-                       (:root "gdl"
-                        :repo "gdl"
-                        :repo-root "gdl")))
-            (:name "claude-curated"
-             :entries ((:root "xfer/gendl-claude-dot-md-data"
-                        :repo "xfer"
-                        :repo-root "xfer")))
-            (:name "infrastructure"
-             :entries ((:root "apps/cyclops"
-                        :repo "apps"
-                        :repo-root "apps")
-                       (:root "lisply-mcp"
-                        :repo "lisply-mcp"
-                        :repo-root "lisply-mcp")))
-            (:name "apps"
-             :entries ((:root "apps/tw-site-2025"
-                        :repo "apps"
-                        :repo-root "apps"))))
-            (:name "claude-curated"
-             :entries ((:root "xfer/gendl-claude-dot-md-data"
-                        :repo "xfer"
-                        :repo-root "xfer")))
-            (:name "infrastructure"
-             :entries ((:root "apps/cyclops"
-                        :repo "apps"
-                        :repo-root "apps")
-                       (:root "lisply-mcp"
-                        :repo "lisply-mcp"
-                        :repo-root "lisply-mcp")))
-            (:name 
-             :entries ((:root "wb/whitebox"
-                        :repo "wb"
-                        :repo-root "wb")))
-            (:name "apps"
-             :entries ((:root "apps/tw-site-2025"
-                        :repo "apps"
-                        :repo-root "apps")))
-  :ignore-dirs (".git" "node_modules" "dist" "build" "vendor" "target" ".cache" "logs" "tmp" "docker" "docker-v2")
-  :exclude-paths ("**/elpa/**" "**/training/ChatGPT-2022-12-10.txt")
+                       )))
+
+  :ignore-dirs (".git" "node_modules" "dist" "build" "vendor" "target" ".cache" "logs" "tmp" "docker")
+	
+  :exclude-paths ("**/elpa/**" )
   :extensions (:default (".lisp" ".lsp" ".cl" ".gdl" ".gendl" ".asd" ".isc"
-                         ".md" ".markdown" ".org" ".txt" ".rst"
-                         ".el" ".js" ".ts" ".json" ".yml" ".yaml" ".html" ".css")
+				 ".md" ".markdown" ".org" ".txt" ".rst"
+				 ".el" ".js" ".ts" ".json" ".yml" ".yaml" ".html" ".css")
                :lisp (".lisp" ".lsp" ".cl" ".asd" ".el")
                :gendl (".gendl")
                :gdl (".gdl" ".gendl" ".lisp" ".lsp" ".cl")
@@ -176,5 +136,5 @@
    :user "root"
    :mcp t
    :healthcheck (:endpoint "/lisply/ping-lisp" :interval "90s"))
+  )
  )
-)

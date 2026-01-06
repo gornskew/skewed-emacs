@@ -15,6 +15,7 @@ BUILD_CONTEXT="$PROJECT_ROOT"
 # -----------------------------
 TARGETS=""  # Empty means build all targets
 CLI_SET_PUSH=""
+CLI_SET_BUILD_INDEX="true"
 
 # -----------------------------
 # Help text
@@ -31,6 +32,8 @@ Build Targets (can specify multiple):
   --aituis, --tui       Build {branch}-aituis (base + AI CLIs)
   --gui                 Build {branch}-gui (base + GUI)
   --gui-aituis, --full  Build {branch}-gui-aituis (everything)
+  --with-search-index   Attempt to build skewed_search index (default)
+  --no-search-index     Skip skewed_search index build
 
 Branch Control:
   --branch=NAME         Build for specific branch (auto-detected by default)
@@ -55,6 +58,9 @@ Examples:
   # Build everything and push
   docker/build --all --push
 
+  # Build everything without index
+  docker/build --all --no-search-index
+
 Naming Scheme:
   {branch}-lite         Base (emacs-nox, vterm, lisply-mcp, ttyd) ~800MB
   {branch}-aituis       Base + AI CLIs ~1.3GB
@@ -69,6 +75,8 @@ Aliases (auto-created):
 
 Options:
   -h, --help       Show this help message
+  --with-search-index   Build skewed_search index during Docker build
+  --no-search-index     Skip skewed_search index during Docker build
 EOF
 }
 
@@ -103,6 +111,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --branch=*)
       OVERRIDE_BRANCH="${1#*=}"
+      shift
+      ;;
+    --with-search-index)
+      CLI_SET_BUILD_INDEX="true"
+      shift
+      ;;
+    --no-search-index)
+      CLI_SET_BUILD_INDEX="false"
       shift
       ;;
     --push)
@@ -203,50 +219,13 @@ else
 fi
 
 # -----------------------------
-# Optional search index bootstrap
-# -----------------------------
-bootstrap_search_indices() {
-  local image="${FINAL_IMAGE}:${branch}-lite"
-
-  echo "Building lite bootstrap image for search indices..."
-  if ! docker image inspect "${image}" >/dev/null 2>&1; then
-    DOCKER_BUILDKIT=1 docker build \
-      --progress=plain \
-      --target "runtime-base" \
-      -t "${image}" \
-      --build-arg GIT_BRANCH="${branch}" \
-      --build-arg SKEWED_BUILD_SKEWED_INDEX="false" \
-      --build-arg LISPLY_MCP_REVISION="${LISPLY_MCP_REVISION}" \
-      -f "$DOCKERFILE_PATH" \
-      "$BUILD_CONTEXT"
-  else
-    echo "Using existing bootstrap image ${image}"
-  fi
-
-  if [[ "${SKEWED_BOOTSTRAP_SKEWED_INDEX:-true}" == "true" ]]; then
-    echo "Bootstrapping skewed_search index using ${image}..."
-    if ! bash "${DOCKER_DIR}/build-skewed-search-index.sh" --image "${image}"; then
-      echo "skewed_search bootstrap failed; continuing without prebuilt index."
-    fi
-  fi
-}
-
-if [[ "${SKEWED_BOOTSTRAP_SKEWED_INDEX:-true}" == "true" ]]; then
-  bootstrap_search_indices
-fi
-
-if [[ "${SKEWED_BOOTSTRAP_LITE_ONLY:-false}" == "true" ]]; then
-  echo "Bootstrap-only mode enabled; skipping remaining builds."
-  exit 0
-fi
-
-# -----------------------------
 # Build function
 # -----------------------------
 build_target() {
   local target="$1"
   local stage="$2"
   local tag="${branch}-${target}"
+  local build_index="${SKEWED_BUILD_SKEWED_INDEX:-${CLI_SET_BUILD_INDEX}}"
   
   echo ""
   echo "═══════════════════════════════════════════════════════════════"
@@ -259,7 +238,7 @@ build_target() {
 		    -t "${IMAGE_NAME}:${tag}" \
 		    -t "${FINAL_IMAGE}:${tag}" \
 		    --build-arg GIT_BRANCH="${branch}" \
-		    --build-arg SKEWED_BUILD_SKEWED_INDEX="${SKEWED_BUILD_SKEWED_INDEX:-false}" \
+		    --build-arg SKEWED_BUILD_SKEWED_INDEX="${build_index}" \
 		    --build-arg LISPLY_MCP_REVISION="${LISPLY_MCP_REVISION}" \
 		    -f "$DOCKERFILE_PATH" \
 		    "$BUILD_CONTEXT"
@@ -365,6 +344,7 @@ echo "Branch:           ${branch}"
 echo "Targets:          $TARGETS"
 echo "Image name:       ${IMAGE_NAME}"
 echo "Push:             ${PUSH_IMAGE}"
+echo "Search index:     ${SKEWED_BUILD_SKEWED_INDEX:-${CLI_SET_BUILD_INDEX}}"
 echo "═══════════════════════════════════════════════════════════════"
 
 if [ ! -f "$DOCKERFILE_PATH" ]; then

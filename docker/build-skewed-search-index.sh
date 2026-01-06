@@ -53,7 +53,7 @@ docker run --rm \
   -v "${PROJECT_ROOT}:${CONTAINER_ROOT}" \
   -v "${PROJECTS_DIR}:/projects" \
   "${IMAGE}" \
-  -lc "set -euo pipefail; cd ${CONTAINER_ROOT}; SKEWED_WRITE_SKEWED_SEARCH_CONFIG=true emacs --batch -l generate-configs.el -f skewed-generate-all-configs"
+  -lc "set -euo pipefail; cd ${CONTAINER_ROOT}; emacs --batch -l generate-configs.el -f skewed-generate-all-configs"
 
 echo "Building pre-extracted skewed_search index using ${IMAGE}..."
 start_ts="$(date +%s)"
@@ -63,7 +63,7 @@ docker run --rm \
   -v "${PROJECT_ROOT}:${CONTAINER_ROOT}" \
   -v "${PROJECTS_DIR}:/projects" \
   "${IMAGE}" \
-  -lc "set -euo pipefail; emacs --batch --eval \"(add-to-list 'load-path \\\"${LOAD_PATH}\\\")\" --eval \"(setq emacs-lisply-skewed-search-config-path \\\"${CONTAINER_CONFIG_PATH}\\\")\" --eval \"(setq emacs-lisply-skewed-search-index-path \\\"${CONTAINER_INDEX_PATH}\\\")\" -l lisply-skewed-search.el --eval \"(emacs-lisply-skewed-search-build-index)\""
+  -lc "set -euo pipefail; emacs --batch --eval \"(add-to-list 'load-path \\\"${LOAD_PATH}\\\")\" --eval \"(setq emacs-lisply-skewed-search-config-path \\\"${CONTAINER_CONFIG_PATH}\\\")\" --eval \"(setq emacs-lisply-skewed-search-index-path \\\"${CONTAINER_INDEX_PATH}\\\")\" -l lisply-skewed-search-build.el --eval \"(emacs-lisply-skewed-search-build-index)\""
 
 end_ts="$(date +%s)"
 elapsed="$((end_ts - start_ts))"

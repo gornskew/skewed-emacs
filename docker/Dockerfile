@@ -13,6 +13,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG NODE_MAJOR=23
 ARG GIT_BRANCH=master
 ARG LISPLY_MCP_REVISION=latest
+ARG SKEWED_BUILD_SKEWED_INDEX=false
 
 
 SHELL ["/bin/bash", "-lc"]
@@ -162,6 +163,21 @@ RUN set -euxo pipefail; \
    sleep 8; \
    emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")"
 
+# Build skewed_search index inside the image (no host mounts).
+RUN set -euxo pipefail; \
+   if [ "${SKEWED_BUILD_SKEWED_INDEX}" = "true" ]; then \
+     mkdir -p /projects; \
+     ln -sfn /home/emacs-user/skewed-emacs /projects/skewed-emacs; \
+     cd /home/emacs-user/skewed-emacs; \
+     emacs --batch -l generate-configs.el -f skewed-generate-all-configs; \
+     emacs --batch \
+       --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \
+       --eval "(setq emacs-lisply-skewed-search-config-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json\")" \
+       --eval "(setq emacs-lisply-skewed-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json\")" \
+       -l lisply-skewed-search-build.el \
+       --eval "(emacs-lisply-skewed-search-build-index-with-clone \"${GIT_BRANCH}\")"; \
+   fi
+
 # Cleanup builder caches
 RUN set -euxo pipefail; \
    rm -rf ~/.cache /tmp/*; \
@@ -218,7 +234,6 @@ RUN set -euxo pipefail; \
 # Copy common artifacts from builder (Emacs config, lisply-mcp, vterm)
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/skewed-emacs /home/emacs-user/skewed-emacs
 COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/lisply-mcp /home/emacs-user/lisply-mcp
-COPY --from=builder --chown=emacs-user:emacs-user /home/emacs-user/.emacs.d /home/emacs-user/.emacs.d
 COPY --from=builder /usr/local/bin/copilot-language-server /usr/local/bin/copilot-language-server
 
 USER emacs-user
@@ -252,18 +267,7 @@ USER emacs-user
 # Regenerate configs
 RUN set -euxo pipefail; \
    cd ~/skewed-emacs; \
-   SKEWED_WRITE_SKEWED_SEARCH_CONFIG=true emacs --batch -l generate-configs.el -f skewed-generate-all-configs
-
-ARG SKEWED_BUILD_SKEWED_INDEX=false
-RUN set -euxo pipefail; \
-   if [ "${SKEWED_BUILD_SKEWED_INDEX}" = "true" ]; then \
-     emacs --batch \
-       --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \
-       --eval "(setq emacs-lisply-skewed-search-config-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json\")" \
-       --eval "(setq emacs-lisply-skewed-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json\")" \
-       -l lisply-skewed-search.el \
-       --eval "(emacs-lisply-skewed-search-build-index)"; \
-   fi
+   emacs --batch -l generate-configs.el -f skewed-generate-all-configs
 
 
 COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh
@@ -319,18 +323,7 @@ USER emacs-user
 # Regenerate configs
 RUN set -euxo pipefail; \
    cd ~/skewed-emacs; \
-   SKEWED_WRITE_SKEWED_SEARCH_CONFIG=true emacs --batch -l generate-configs.el -f skewed-generate-all-configs
-
-ARG SKEWED_BUILD_SKEWED_INDEX=false
-RUN set -euxo pipefail; \
-   if [ "${SKEWED_BUILD_SKEWED_INDEX}" = "true" ]; then \
-     emacs --batch \
-       --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \
-       --eval "(setq emacs-lisply-skewed-search-config-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json\")" \
-       --eval "(setq emacs-lisply-skewed-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json\")" \
-       -l lisply-skewed-search.el \
-       --eval "(emacs-lisply-skewed-search-build-index)"; \
-   fi
+   emacs --batch -l generate-configs.el -f skewed-generate-all-configs
 
 
 COPY --chown=emacs-user:emacs-user mcp/entrypoint.sh /usr/local/bin/entrypoint.sh

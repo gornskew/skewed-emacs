@@ -97,11 +97,15 @@ The steps below assume that you have access to a system with a
    
 ```
 
-This will pull and starts four containers:
-- **skewed-emacs**: Emacs with Benefits 
-- **gendl-ccl**: Gendl system on Clozure CL
-- **gendl-sbcl**: Gendl system on Steel Bank CL
-- **lisply-mcp**: Node.js environment MCP & Claude
+By default this pulls missing images only (no overwrites of local builds).
+To force pulling the latest images, use:
+
+```
+   ./compose-dev up --pull
+```
+
+Services are defined in `docker-compose.yml` and any other `.yml` files
+in this directory (generated from `services.sexp`).
 
 
 Now you can use the `eskew` or `egskew` aliases to launch a terminal-
@@ -130,20 +134,31 @@ when you run `./compose-dev up`.
 
 ### Pulling Updates
 
-While the `./compose-dev up` will pull fresh container images, it will
-not automatically pull git updates to your local cloned skewed-emacs
-repository. To do that:
+`./compose-dev up` pulls missing images only by default. If you want
+fresh images, use `./compose-dev up --pull` (or set `PULL_ALWAYS=1`).
+It will not automatically pull git updates to your local cloned
+skewed-emacs repository. To do that:
 
 ```
 cd ~/projects/skewed-emacs
 ./compose-dev down
 git pull
-./compose-dev up
+./compose-dev up --pull
 ```
 
 As you can see, we bring down the docker composition before doing the
 git pull, just in case there is a change in docker compose
 configuration that might affect a shutdown.
+
+### Custom Projects Directory
+
+`./compose-dev` generates `.env` via `./generate-env.sh`. Do not edit
+`.env` directly. To use a non-default projects directory, set
+`PROJECTS_DIR` before running:
+
+```
+PROJECTS_DIR=/path/to/projects ./compose-dev up
+```
 
 ## Terminal Icons Setup 
 

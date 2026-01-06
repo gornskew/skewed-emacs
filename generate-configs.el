@@ -70,6 +70,7 @@
                 (lambda (entry)
                   `(("root" . ,(plist-get entry :root))
                     ("repo" . ,(plist-get entry :repo))
+                    ("repo_url" . ,(plist-get entry :repo-url))
                     ("repo_root" . ,(plist-get entry :repo-root))))
                 entries))))
      sources)))
@@ -526,7 +527,7 @@ Examples:
         (insert (skewed--generate-elisp config)))
       (message "Generated: %s" elisp-file))
 
-    ;; Generate skewed_search config only when explicitly enabled
+    ;; Generate skewed_search config alongside other generated files.
     (let* ((gdl-config (skewed--get-prop config :skewed-search-config))
            (gdl-path (and gdl-config (skewed--get-prop gdl-config :path)))
            (write-gdl-config (and (getenv "SKEWED_WRITE_SKEWED_SEARCH_CONFIG")
