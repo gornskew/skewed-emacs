@@ -13,7 +13,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 ARG NODE_MAJOR=23
 ARG GIT_BRANCH=master
 ARG LISPLY_MCP_REVISION=latest
-ARG SKEWED_BUILD_SKEWED_INDEX=false
+ARG SKEWED_BUILD_SKEWED_INDEX=true
 
 
 SHELL ["/bin/bash", "-lc"]
@@ -169,6 +169,7 @@ RUN set -euxo pipefail; \
      mkdir -p /projects; \
      ln -sfn /home/emacs-user/skewed-emacs /projects/skewed-emacs; \
      cd /home/emacs-user/skewed-emacs; \
+     export SKEWED_WRITE_SKEWED_SEARCH_CONFIG=true; \
      emacs --batch -l generate-configs.el -f skewed-generate-all-configs; \
      emacs --batch \
        --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \

@@ -192,6 +192,13 @@
      :commands (org-mode org-agenda)
      )
 
+    (org-contrib
+     :defer (not skewed-emacs-docker-build?)
+     :after org
+     :config
+     (require 'org-depend)
+     )
+
 
     (htmlize
      :defer (not skewed-emacs-docker-build?)
@@ -206,7 +213,7 @@
     
 
 
-    )))
+   )))
 
 (setq
  second-party-packages

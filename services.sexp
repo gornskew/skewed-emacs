@@ -57,7 +57,7 @@
 
  :skewed-search-config
  (:path "dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json"
-  :index-path "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json"
+  :index-path "dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json"
   :preextract-snippets t
   :preextract-max-lines 24
   :preextract-max-chars 1200

@@ -17,6 +17,10 @@
 (set-face-attribute 'org-habit-alert-face nil :background "#2d6a6a")
 (add-to-list 'org-modules 'org-habit)
 
+;; Enable org-depend for task dependencies
+(require 'org-depend)
+(add-to-list 'org-modules 'org-depend)
+
 ;; ============================================================================
 ;; Key bindings
 ;; ============================================================================
