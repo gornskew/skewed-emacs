@@ -53,7 +53,7 @@ dot-files/emacs.d/org-clock-save.el
 dot-files/emacs.d/places
 dot-files/emacs.d/projectile-bookmarks.eld
 dot-files/emacs.d/recentf
-dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json
+dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp
 
 # ==============================================================================
 # Auth & secrets (never include in build)
@@ -115,4 +115,3 @@ tmp/
 .bash_history
 history.*
 .#*
-dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json

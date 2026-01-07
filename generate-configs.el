@@ -51,56 +51,6 @@
 ;;; skewed_search Config Generation
 ;;; ============================================================================
 
-(defun skewed--skewed-search-extensions-alist (extensions)
-  (when extensions
-    `(("default" . ,(plist-get extensions :default))
-      ("lisp" . ,(plist-get extensions :lisp))
-      ("gendl" . ,(plist-get extensions :gendl))
-      ("gdl" . ,(plist-get extensions :gdl))
-      ("markdown" . ,(plist-get extensions :markdown)))))
-
-(defun skewed--skewed-search-sources-alist (sources)
-  (when sources
-    (mapcar
-     (lambda (source)
-       (let ((name (plist-get source :name))
-             (entries (plist-get source :entries)))
-         (cons name
-               (mapcar
-                (lambda (entry)
-                  `(("root" . ,(plist-get entry :root))
-                    ("repo" . ,(plist-get entry :repo))
-                    ("repo_url" . ,(plist-get entry :repo-url))
-                    ("repo_root" . ,(plist-get entry :repo-root))))
-                entries))))
-     sources)))
-
-(defun skewed--generate-skewed-search-config (config)
-  "Generate skewed-search-config.json content from CONFIG."
-  (let* ((gdl-config (skewed--get-prop config :skewed-search-config))
-         (sources (skewed--get-prop gdl-config :sources))
-         (ignore-dirs (skewed--get-prop gdl-config :ignore-dirs))
-         (exclude-paths (skewed--get-prop gdl-config :exclude-paths))
-         (extensions (skewed--get-prop gdl-config :extensions))
-         (index-path (skewed--get-prop gdl-config :index-path))
-         (preextract-snippets (skewed--get-prop gdl-config :preextract-snippets))
-         (preextract-max-lines (skewed--get-prop gdl-config :preextract-max-lines))
-         (preextract-max-chars (skewed--get-prop gdl-config :preextract-max-chars)))
-    (when gdl-config
-      (json-encode
-       (let ((items `(("sources" . ,(skewed--skewed-search-sources-alist sources))
-                      ("ignore_dirs" . ,ignore-dirs)
-                      ("exclude_paths" . ,exclude-paths)
-                      ("extensions" . ,(skewed--skewed-search-extensions-alist extensions)))))
-         (when index-path
-           (push (cons "index_path" index-path) items))
-         (when preextract-snippets
-           (push (cons "preextract_snippets" preextract-snippets) items))
-         (when preextract-max-lines
-           (push (cons "preextract_max_lines" preextract-max-lines) items))
-         (when preextract-max-chars
-           (push (cons "preextract_max_chars" preextract-max-chars) items))
-         (nreverse items))))))
 
 ;;; ============================================================================
 ;;; Docker Compose Generation
@@ -527,19 +477,6 @@ Examples:
         (insert (skewed--generate-elisp config)))
       (message "Generated: %s" elisp-file))
 
-    ;; Generate skewed_search config alongside other generated files.
-    (let* ((gdl-config (skewed--get-prop config :skewed-search-config))
-           (gdl-path (and gdl-config (skewed--get-prop gdl-config :path)))
-           (write-gdl-config (and (getenv "SKEWED_WRITE_SKEWED_SEARCH_CONFIG")
-                                  (not (string-empty-p (getenv "SKEWED_WRITE_SKEWED_SEARCH_CONFIG"))))))
-      (when (and gdl-config write-gdl-config)
-        (let* ((output-path (expand-file-name gdl-path skewed-gen-output-dir))
-               (output-dir (file-name-directory output-path)))
-          (make-directory output-dir t)
-          (with-temp-file output-path
-            (insert (skewed--generate-skewed-search-config config)))
-          (message "Generated: %s" output-path))))
-    
     ;; Generate install script for overlays (when prefix is non-empty)
     (unless (string-empty-p skewed-gen-output-prefix)
       (let ((install-file (expand-file-name "install" skewed-gen-output-dir)))

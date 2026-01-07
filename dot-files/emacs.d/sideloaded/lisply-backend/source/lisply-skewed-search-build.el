@@ -21,12 +21,17 @@
 ;;; Code:
 
 (require 'cl-lib)
-(require 'json)
 (require 'subr-x)
 
-(defcustom emacs-lisply-skewed-search-config-path
-  "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json"
-  "Path to skewed_search config JSON file."
+(defcustom emacs-lisply-skewed-search-services-path
+  "/home/emacs-user/skewed-emacs/services.sexp"
+  "Path to services.sexp for skewed_search config."
+  :type 'string
+  :group 'emacs-lisply)
+
+(defcustom emacs-lisply-skewed-search-index-path
+  "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp"
+  "Path to skewed_search index s-expression file."
   :type 'string
   :group 'emacs-lisply)
 
@@ -54,13 +59,65 @@
                             candidates)))
     (or found "/projects")))
 
-(defun emacs-lisply-skewed-search--read-config ()
-  (when (and emacs-lisply-skewed-search-config-path
-             (file-exists-p emacs-lisply-skewed-search-config-path))
-    (let ((json-object-type 'alist)
-          (json-array-type 'list)
-          (json-key-type 'string))
-      (json-read-file emacs-lisply-skewed-search-config-path))))
+(defun emacs-lisply-skewed-search--read-services ()
+  (when (and emacs-lisply-skewed-search-services-path
+             (file-exists-p emacs-lisply-skewed-search-services-path))
+    (with-temp-buffer
+      (insert-file-contents emacs-lisply-skewed-search-services-path)
+      (goto-char (point-min))
+      (read (current-buffer)))))
+
+(defun emacs-lisply-skewed-search--skewed-search-config (services)
+  (plist-get services :skewed-search-config))
+
+(defun emacs-lisply-skewed-search--services-extensions-alist (extensions)
+  (when extensions
+    `(("default" . ,(plist-get extensions :default))
+      ("lisp" . ,(plist-get extensions :lisp))
+      ("gendl" . ,(plist-get extensions :gendl))
+      ("gdl" . ,(plist-get extensions :gdl))
+      ("markdown" . ,(plist-get extensions :markdown)))))
+
+(defun emacs-lisply-skewed-search--services-sources-alist (sources)
+  (when sources
+    (mapcar
+     (lambda (source)
+       (let ((name (plist-get source :name))
+             (entries (plist-get source :entries)))
+         (cons name
+               (mapcar
+                (lambda (entry)
+                  `(("root" . ,(plist-get entry :root))
+                    ("repo" . ,(plist-get entry :repo))
+                    ("repo_url" . ,(plist-get entry :repo-url))
+                    ("repo_root" . ,(plist-get entry :repo-root))))
+                entries))))
+     sources)))
+
+(defun emacs-lisply-skewed-search--config-from-services (services)
+  (let* ((gdl-config (emacs-lisply-skewed-search--skewed-search-config services))
+         (sources (plist-get gdl-config :sources))
+         (ignore-dirs (plist-get gdl-config :ignore-dirs))
+         (exclude-paths (plist-get gdl-config :exclude-paths))
+         (extensions (plist-get gdl-config :extensions))
+         (index-path (plist-get gdl-config :index-path))
+         (preextract-snippets (plist-get gdl-config :preextract-snippets))
+         (preextract-max-lines (plist-get gdl-config :preextract-max-lines))
+         (preextract-max-chars (plist-get gdl-config :preextract-max-chars)))
+    (when gdl-config
+      (let ((items `(("sources" . ,(emacs-lisply-skewed-search--services-sources-alist sources))
+                     ("ignore_dirs" . ,ignore-dirs)
+                     ("exclude_paths" . ,exclude-paths)
+                     ("extensions" . ,(emacs-lisply-skewed-search--services-extensions-alist extensions)))))
+        (when index-path
+          (push (cons "index_path" index-path) items))
+        (when preextract-snippets
+          (push (cons "preextract_snippets" preextract-snippets) items))
+        (when preextract-max-lines
+          (push (cons "preextract_max_lines" preextract-max-lines) items))
+        (when preextract-max-chars
+          (push (cons "preextract_max_chars" preextract-max-chars) items))
+        (nreverse items)))))
 
 (defun emacs-lisply-skewed-search--config-value (config key default)
   (let ((entry (and config (assoc key config))))
@@ -133,8 +190,8 @@
                  (cdr (assoc :repo-url entry)))))
     (not failed)))
 
-(defun emacs-lisply-skewed-search--index-path (config)
-  (emacs-lisply-skewed-search--config-value config "index_path" nil))
+(defun emacs-lisply-skewed-search--index-path (&optional _config)
+  emacs-lisply-skewed-search-index-path)
 
 (defun emacs-lisply-skewed-search--config-ignore-dirs (config)
   (emacs-lisply-skewed-search--config-value config "ignore_dirs" nil))
@@ -302,7 +359,7 @@
 
 (defun emacs-lisply-skewed-search--preextract-enabled (config)
   (let ((value (emacs-lisply-skewed-search--config-value config "preextract_snippets" nil)))
-    (and value (not (eq value :json-false)))))
+    (and value (not (eq value nil)))))
 
 (defun emacs-lisply-skewed-search--preextract-max-lines (config)
   (or (emacs-lisply-skewed-search--config-value config "preextract_max_lines" nil)
@@ -351,14 +408,15 @@
 (defun emacs-lisply-skewed-search-build-index ()
   "Write a lightweight index snapshot to the configured index_path."
   (interactive)
-  (let* ((config (emacs-lisply-skewed-search--read-config))
+  (let* ((services (emacs-lisply-skewed-search--read-services))
+         (config (and services (emacs-lisply-skewed-search--config-from-services services)))
          (source-map (and config (emacs-lisply-skewed-search--source-map config))))
     (unless source-map
-      (error "Missing skewed_search config sources"))
+      (error "Missing skewed_search config sources in services.sexp"))
     (let ((missing (emacs-lisply-skewed-search--validate-sources source-map)))
       (when missing
         (message "WARNING: Missing sources: %S" missing)))
-    (let* ((index-path (emacs-lisply-skewed-search--index-path config))
+    (let* ((index-path (emacs-lisply-skewed-search--index-path))
            (allowed-exts (emacs-lisply-skewed-search--allowed-exts config nil))
            (ignore-dirs (emacs-lisply-skewed-search--config-ignore-dirs config))
            (exclude-filters (emacs-lisply-skewed-search--config-exclude-filters config))
@@ -380,19 +438,24 @@
       (let* ((files (nreverse items))
              (checksum (emacs-lisply-skewed-search--compute-checksum files)))
         (with-temp-file index-path
-          (insert (json-encode
-                   (list (cons "generated_at" (format-time-string "%Y-%m-%dT%H:%M:%SZ" (current-time) t))
-                         (cons "version" emacs-lisply-skewed-search-index-version)
-                         (cons "checksum" checksum)
-                         (cons "files" (vconcat files))))))))))
+          (let ((print-length nil)
+                (print-level nil))
+            (prin1
+             (list (cons "generated_at" (format-time-string "%Y-%m-%dT%H:%M:%SZ" (current-time) t))
+                   (cons "version" emacs-lisply-skewed-search-index-version)
+                   (cons "checksum" checksum)
+                   (cons "config" config)
+                   (cons "files" (vconcat files)))
+             (current-buffer))))))))
 
 (defun emacs-lisply-skewed-search-build-index-with-clone (&optional branch)
   "Clone corpora from config repo_url entries, then build the index.
 If any clone fails, log a warning and skip index generation."
-  (let* ((config (emacs-lisply-skewed-search--read-config))
+  (let* ((services (emacs-lisply-skewed-search--read-services))
+         (config (and services (emacs-lisply-skewed-search--config-from-services services)))
          (source-map (and config (emacs-lisply-skewed-search--source-map config))))
     (if (not source-map)
-        (message "skewed_search index skipped: missing config sources.")
+        (message "skewed_search index skipped: missing config sources in services.sexp.")
       (if (emacs-lisply-skewed-search--clone-corpora source-map branch)
           (emacs-lisply-skewed-search-build-index)
         (message "skewed_search index skipped: clone failed. Set SKEWED_BUILD_SKEWED_INDEX=false or use docker/build-skewed-search-index.sh.")))))

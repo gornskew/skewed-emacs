@@ -1160,7 +1160,7 @@ The `skewed_search` MCP tool provides lexical search over curated GDL/Gendl docu
 │  Source files ──► emacs-lisply-skewed-search-build-index   │
 │       │                    │                            │
 │       ▼                    ▼                            │
-│  Pre-extract snippets → skewed-search-index.json (~16MB)   │
+│  Pre-extract snippets → skewed-search-index.sexp (~16MB)   │
 │  (24 lines, 1200 chars per snippet)                     │
 └─────────────────────────────────────────────────────────┘
                          │
@@ -1287,17 +1287,8 @@ skewed_search(query="gendl-skel project structure", sources=["claude-curated"], 
 
 ### Configuration
 
-The search is configured via `skewed-search-config.json`:
-
-```json
-{
-  "index_path": ".../skewed-search-index.json",
-  "preextract_snippets": true,
-  "preextract_max_lines": 24,
-  "preextract_max_chars": 1200,
-  "sources": { ... }
-}
-```
+The search configuration is embedded inside `skewed-search-index.sexp` (generated from `services.sexp` at build time).
+There is no separate config file at runtime.
 
 ### Rebuilding the Index
 

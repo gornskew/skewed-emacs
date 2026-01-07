@@ -169,12 +169,11 @@ RUN set -euxo pipefail; \
      mkdir -p /projects; \
      ln -sfn /home/emacs-user/skewed-emacs /projects/skewed-emacs; \
      cd /home/emacs-user/skewed-emacs; \
-     export SKEWED_WRITE_SKEWED_SEARCH_CONFIG=true; \
      emacs --batch -l generate-configs.el -f skewed-generate-all-configs; \
      emacs --batch \
        --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \
-       --eval "(setq emacs-lisply-skewed-search-config-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json\")" \
-       --eval "(setq emacs-lisply-skewed-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json\")" \
+       --eval "(setq emacs-lisply-skewed-search-services-path \"/home/emacs-user/skewed-emacs/services.sexp\")" \
+       --eval "(setq emacs-lisply-skewed-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp\")" \
        -l lisply-skewed-search-build.el \
        --eval "(emacs-lisply-skewed-search-build-index-with-clone \"${GIT_BRANCH}\")"; \
    fi

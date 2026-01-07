@@ -56,8 +56,7 @@
  ;; :exec-path-wsl removed - now derived from SKEWED_CLONE_PATH env var at merge time
 
  :skewed-search-config
- (:path "dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json"
-  :index-path "dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json"
+ (:index-path "dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp"
   :preextract-snippets t
   :preextract-max-lines 24
   :preextract-max-chars 1200

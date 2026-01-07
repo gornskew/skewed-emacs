@@ -5,11 +5,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
-HOST_CONFIG_PATH="${SKEWED_SEARCH_CONFIG_PATH:-${PROJECT_ROOT}/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json}"
-HOST_INDEX_PATH="${SKEWED_SEARCH_INDEX_PATH:-${PROJECT_ROOT}/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json}"
+HOST_INDEX_PATH="${SKEWED_SEARCH_INDEX_PATH:-${PROJECT_ROOT}/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp}"
 CONTAINER_ROOT="/home/emacs-user/skewed-emacs"
-CONTAINER_CONFIG_PATH="${CONTAINER_ROOT}/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json"
-CONTAINER_INDEX_PATH="${CONTAINER_ROOT}/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.json"
+CONTAINER_INDEX_PATH="${CONTAINER_ROOT}/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp"
 LOAD_PATH="${CONTAINER_ROOT}/dot-files/emacs.d/sideloaded/lisply-backend/source"
 PROJECTS_DIR="${PROJECTS_DIR:-/projects}"
 
@@ -47,14 +45,6 @@ if ! docker image inspect "${IMAGE}" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Regenerating skewed-search-config.json using ${IMAGE}..."
-docker run --rm \
-  --entrypoint bash \
-  -v "${PROJECT_ROOT}:${CONTAINER_ROOT}" \
-  -v "${PROJECTS_DIR}:/projects" \
-  "${IMAGE}" \
-  -lc "set -euo pipefail; cd ${CONTAINER_ROOT}; emacs --batch -l generate-configs.el -f skewed-generate-all-configs"
-
 echo "Building pre-extracted skewed_search index using ${IMAGE}..."
 start_ts="$(date +%s)"
 
@@ -63,7 +53,7 @@ docker run --rm \
   -v "${PROJECT_ROOT}:${CONTAINER_ROOT}" \
   -v "${PROJECTS_DIR}:/projects" \
   "${IMAGE}" \
-  -lc "set -euo pipefail; emacs --batch --eval \"(add-to-list 'load-path \\\"${LOAD_PATH}\\\")\" --eval \"(setq emacs-lisply-skewed-search-config-path \\\"${CONTAINER_CONFIG_PATH}\\\")\" --eval \"(setq emacs-lisply-skewed-search-index-path \\\"${CONTAINER_INDEX_PATH}\\\")\" -l lisply-skewed-search-build.el --eval \"(emacs-lisply-skewed-search-build-index)\""
+  -lc "set -euo pipefail; emacs --batch --eval \"(add-to-list 'load-path \\\"${LOAD_PATH}\\\")\" --eval \"(setq emacs-lisply-skewed-search-services-path \\\"${CONTAINER_ROOT}/services.sexp\\\")\" --eval \"(setq emacs-lisply-skewed-search-index-path \\\"${CONTAINER_INDEX_PATH}\\\")\" -l lisply-skewed-search-build.el --eval \"(emacs-lisply-skewed-search-build-index)\""
 
 end_ts="$(date +%s)"
 elapsed="$((end_ts - start_ts))"
