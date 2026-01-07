@@ -26,7 +26,7 @@
 (require 'subr-x)
 (require 'simple-httpd)
 (require 'lisply-http-setup)
-(require 'lisply-skewed-search)
+(require 'lisply-search)
 
 ;; Resolve skewed-emacs root from the real path of ~/.emacs.d.
 (defun emacs-lisply--skewed-root ()
