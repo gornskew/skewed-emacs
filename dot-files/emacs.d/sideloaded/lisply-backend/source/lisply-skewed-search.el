@@ -37,11 +37,13 @@
 (defconst emacs-lisply-skewed-search-context-lines 3)
 
 (defcustom emacs-lisply-skewed-search-config-path
-  "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.json"
+  (expand-file-name "~/.emacs.d/sideloaded/lisply-backend/skewed-search-config.json")
   "Path to skewed_search config JSON file."
   :type 'string
   :group 'emacs-lisply)
 
+(setq emacs-lisply-skewed-search-config-path
+      (expand-file-name "~/.emacs.d/sideloaded/lisply-backend/skewed-search-config.json"))
 (defconst emacs-lisply-skewed-search-index-version 1
   "Index format version. Increment when format changes.")
 
@@ -65,6 +67,8 @@
                             candidates)))
     (or found "/projects")))
 
+
+
 (defun emacs-lisply-skewed-search--read-config ()
   (when (and emacs-lisply-skewed-search-config-path
              (file-exists-p emacs-lisply-skewed-search-config-path))
@@ -72,6 +76,8 @@
           (json-array-type 'list)
           (json-key-type 'string))
       (json-read-file emacs-lisply-skewed-search-config-path))))
+
+
 
 (defun emacs-lisply-skewed-search--config-value (config key default)
   (let ((entry (and config (assoc key config))))
@@ -112,9 +118,15 @@
 
 
 (defun emacs-lisply-skewed-search--index-path (&optional config)
-  (let
-      ((config (or config (emacs-lisply-skewed-search--read-config))))
-    (emacs-lisply-skewed-search--config-value config "index_path" nil)))
+  (let* ((config (or config (emacs-lisply-skewed-search--read-config)))
+         (configured (emacs-lisply-skewed-search--config-value config "index_path" nil)))
+    (when configured
+      (if (file-name-absolute-p configured)
+          configured
+        (expand-file-name configured
+                          (file-name-directory emacs-lisply-skewed-search-config-path))))))
+
+
 
 
 (defun emacs-lisply-skewed-search--read-index-raw (index-path)
@@ -348,26 +360,40 @@
 	emacs-lisply-skewed-search--index-cache))))
 
 
-(defun emacs-lisply-skewed-search--snippet-map-candidates (snippet-map terms sources-to-search path-filters allowed-exts exclude-filters)
-  (let ((seen (make-hash-table :test 'eq))
-        (candidates '()))
+(defun emacs-lisply-skewed-search--snippet-map-candidates
+    (snippet-map terms sources-to-search path-filters allowed-exts
+		 exclude-filters)
+  (let ((seen (make-hash-table :test 'eq)) (candidates 'nil))
     (dolist (term terms)
       (dolist (candidate (gethash term snippet-map))
-        (unless (gethash candidate seen)
-          (puthash candidate t seen)
-          (let* ((file (plist-get candidate :file))
-                 (source-key (plist-get candidate :source))
-                 (entry (plist-get candidate :entry)))
-            (when (and file
-                       (or (null sources-to-search) (member source-key sources-to-search))
-                       (emacs-lisply-skewed-search--allowed-file-p file allowed-exts)
-                       (not (emacs-lisply-skewed-search--excluded-path-p exclude-filters file)))
-              (let ((paths (emacs-lisply-skewed-search--path-candidates file entry)))
-                (when (emacs-lisply-skewed-search--path-filters-match-p path-filters paths)
-                  (push candidate candidates)))))))
+	(unless (gethash candidate seen)
+	  (puthash candidate t seen)
+	  (let*
+	      ((file (plist-get candidate :file))
+	       (source-key (plist-get candidate :source))
+	       (entry (plist-get candidate :entry)))
+	    (when
+		(and file
+		     (or (null sources-to-search)
+			 (member source-key sources-to-search))
+		     (emacs-lisply-skewed-search--allowed-file-p file
+								 allowed-exts)
+		     (not
+		      (emacs-lisply-skewed-search--excluded-path-p
+		       exclude-filters file)))
+	      (let
+		  ((paths
+		    (emacs-lisply-skewed-search--path-candidates file
+								 entry)))
+		(when
+		    (emacs-lisply-skewed-search--path-filters-match-p
+		     path-filters paths)
+		  (push candidate candidates))))))))
     (nreverse candidates)))
 
-(defun emacs-lisply-skewed-search--scan-index-snippets (candidates terms include-metadata hits hit-index &optional max-chars)
+
+(defun emacs-lisply-skewed-search--scan-index-snippets
+    (candidates terms include-metadata hits hit-index &optional max-chars)
   (let ((local-hits hits)
         (local-index hit-index))
     (dolist (candidate candidates)
@@ -446,22 +472,33 @@
          (snippet-map (and snippet-cache (plist-get snippet-cache :snippet-map)))
          (hits '())
          (hit-index 1))
-    (cond
-     ((or (null config) (null source-map) (null index) (null snippet-map))
-      (list (cons "error" "missing index")))
-     (t
-      (emacs-lisply-log "skewed_search using index: %s" (emacs-lisply-skewed-search--index-path config))
-      (let* ((candidates (emacs-lisply-skewed-search--snippet-map-candidates
-                          snippet-map terms sources-to-search path-filters allowed-exts exclude-filters))
-             (result (emacs-lisply-skewed-search--scan-index-snippets
-                      candidates terms include-metadata hits hit-index max-chars)))
-        (setq hits (car result)
-              hit-index (cadr result)))
-      (setq hits (sort hits (lambda (a b) (> (cdr (assoc "score" a)) (cdr (assoc "score" b))))))
-      (list (cons "query" query)
-            (cons "search_mode" search-mode)
-            (cons "sources" (emacs-lisply-skewed-search--to-vector sources-to-search))
-            (cons "hits" (emacs-lisply-skewed-search--to-vector (cl-subseq hits 0 (min k (length hits)))))))))))
+    (let ((missing (delq nil (list (and (null config) "config")
+                                   (and (null source-map) "source-map")
+                                   (and (null index) "index")
+                                   (and (null snippet-map) "snippet-map")))))
+      (cond
+       (missing
+        (list
+         (cons "error"
+               (format "missing index (%s) (expected: %s via config %s)"
+                       (string-join missing ", ")
+                       "/home/emacs-user/.emacs.d/sideloaded/lisply-backend/skewed-search-index.json"
+                       emacs-lisply-skewed-search-config-path))))
+       (t
+        (emacs-lisply-log "skewed_search using index: %s" (emacs-lisply-skewed-search--index-path config))
+        (let* ((candidates (emacs-lisply-skewed-search--snippet-map-candidates
+                            snippet-map terms sources-to-search path-filters allowed-exts exclude-filters))
+               (result (emacs-lisply-skewed-search--scan-index-snippets
+                        candidates terms include-metadata hits hit-index max-chars)))
+          (setq hits (car result)
+                hit-index (cadr result)))
+        (setq hits (sort hits (lambda (a b) (> (cdr (assoc "score" a)) (cdr (assoc "score" b))))))
+        (list (cons "query" query)
+              (cons "search_mode" search-mode)
+              (cons "sources" (emacs-lisply-skewed-search--to-vector sources-to-search))
+              (cons "hits" (emacs-lisply-skewed-search--to-vector (cl-subseq hits 0 (min k (length hits)))))))))))
+
+
 
 (when (featurep 'simple-httpd)
   (defservlet* lisply/skewed-search application/json ()
