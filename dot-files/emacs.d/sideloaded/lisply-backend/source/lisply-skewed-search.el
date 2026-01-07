@@ -231,6 +231,10 @@
    ((listp value) value)
    (t nil)))
 
+(defun emacs-lisply-skewed-search--to-vector (items)
+  "Convert ITEMS list to vector, or return empty vector if nil."
+  (if items (vconcat items) []))
+
 (defun emacs-lisply-skewed-search--compile-path-filters (filters)
   (let (compiled)
     (dolist (filter filters (nreverse compiled))
@@ -515,42 +519,6 @@ If any clone fails, log a warning and skip index generation."
 (defun emacs-lisply-skewed-search--index-config (index)
   (cdr (assoc "config" index)))
 
-;;
-;; FLAG the following two are defined differently from above! Review!
-;;      above are supposed to be the only ones now. 
-;;
-;;
-;;
-;; (defun emacs-lisply-skewed-search--config-value (config key default)
-;;   (let ((value (and config (emacs-lisply-skewed-search--alist-get key config))))
-;;     (if (null value) default value)))
-
-;; (defun emacs-lisply-skewed-search--config-sources (config root)
-;;   (let ((sources (emacs-lisply-skewed-search--config-value config "sources" nil)))
-;;     (when sources
-;;       (mapcar
-;;        (lambda (pair)
-;;          (let ((source-key (car pair))
-;;                (entries (cdr pair)))
-;;            (cons source-key
-;;                  (mapcar
-;;                   (lambda (entry)
-;;                     (let* ((path (emacs-lisply-skewed-search--alist-get "root" entry))
-;;                            (repo (emacs-lisply-skewed-search--alist-get "repo" entry))
-;;                            (repo-root (emacs-lisply-skewed-search--alist-get "repo_root" entry))
-;;                            (root-path (if (and path (file-name-absolute-p path))
-;;                                           path
-;;                                         (expand-file-name (or path "") root)))
-;;                            (repo-root-path (if (and repo-root (file-name-absolute-p repo-root))
-;;                                                repo-root
-;;                                              (expand-file-name (or repo-root (or path "")) root))))
-;;                       (list
-;;                        (cons :root root-path)
-;;                        (cons :repo repo)
-;;                        (cons :repo-root repo-root-path))))
-;;                   entries))))
-;;        sources))))
-
 
 
 (defun emacs-lisply-skewed-search--read-index-raw (index-path)
@@ -624,33 +592,6 @@ If any clone fails, log a warning and skip index generation."
   index)
 
 
-;;
-;; FLAG the following two are defined differently from above - Review!
-;;
-(defun emacs-lisply-skewed-search--config-exts (config)
-  (let* ((exts (emacs-lisply-skewed-search--config-value config "extensions" nil))
-         (default (and exts (emacs-lisply-skewed-search--alist-get "default" exts)))
-         (lisp (and exts (emacs-lisply-skewed-search--alist-get "lisp" exts)))
-         (gendl (and exts (emacs-lisply-skewed-search--alist-get "gendl" exts)))
-         (gdl (and exts (emacs-lisply-skewed-search--alist-get "gdl" exts)))
-         (markdown (and exts (emacs-lisply-skewed-search--alist-get "markdown" exts))))
-    (list
-     (cons "default" (or default emacs-lisply-skewed-search-default-exts))
-     (cons "lisp" (or lisp emacs-lisply-skewed-search-default-exts))
-     (cons "gendl" (or gendl emacs-lisply-skewed-search-default-exts))
-     (cons "gdl" (or gdl emacs-lisply-skewed-search-default-exts))
-     (cons "markdown" (or markdown emacs-lisply-skewed-search-default-exts)))))
-
-
-(defun emacs-lisply-skewed-search--allowed-exts
-    (&optional config language)
-  (let* ((exts (emacs-lisply-skewed-search--config-exts config))
-         (key (and language (downcase (format "%s" language))))
-         (entry (and key (emacs-lisply-skewed-search--assoc-any key exts))))
-    (or (and entry (cdr entry))
-        (emacs-lisply-skewed-search--alist-get "default" exts))))
-;;
-;; end FLAG 
 ;;
 
 
