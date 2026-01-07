@@ -116,6 +116,26 @@
 
 
 
+(defun emacs-lisply-skewed-search--read-index-raw (index-path)
+  (when (and index-path (file-exists-p index-path))
+    (with-temp-buffer
+      (insert-file-contents index-path)
+      (goto-char (point-min))
+      (read (current-buffer)))))
+
+(defun emacs-lisply-skewed-search--validate-index (index)
+  (cond
+   ((null index) "Index is nil")
+   ((not (assoc "version" index)) "Index missing version")
+   ((not (= (cdr (assoc "version" index)) emacs-lisply-skewed-search-index-version))
+    (format "Index version mismatch: expected %d, got %s"
+            emacs-lisply-skewed-search-index-version
+            (cdr (assoc "version" index))))
+   ((not (assoc "files" index)) "Index missing files array")
+   (t nil)))
+
+
+
 (defun emacs-lisply-skewed-search--read-index (index-path)
   (let ((index (emacs-lisply-skewed-search--read-index-raw index-path)))
     (when index
