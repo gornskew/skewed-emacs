@@ -24,13 +24,13 @@
 (require 'subr-x)
 
 (defcustom emacs-lisply-skewed-search-services-path
-  "/home/emacs-user/skewed-emacs/services.sexp"
+  (expand-file-name "../../services.sexp" (file-truename user-emacs-directory))
   "Path to services.sexp for skewed_search config."
   :type 'string
   :group 'emacs-lisply)
 
 (defcustom emacs-lisply-skewed-search-index-path
-  "/home/emacs-user/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp"
+  "~/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp"
   "Path to skewed_search index s-expression file."
   :type 'string
   :group 'emacs-lisply)
@@ -54,7 +54,7 @@
     ("markdown" . (".md" ".markdown" ".org" ".rst"))))
 
 (defun emacs-lisply-skewed-search--projects-root ()
-  (let* ((candidates (list "/projects" "/home/emacs-user/projects" (expand-file-name "~/projects")))
+  (let* ((candidates (list "/projects" (expand-file-name "~/projects")))
          (found (cl-find-if (lambda (root) (file-exists-p (expand-file-name "gendl" root)))
                             candidates)))
     (or found "/projects")))

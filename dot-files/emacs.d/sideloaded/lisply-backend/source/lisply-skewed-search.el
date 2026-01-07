@@ -59,7 +59,7 @@
     ("markdown" . (".md" ".markdown" ".org" ".rst"))))
 
 (defun emacs-lisply-skewed-search--projects-root ()
-  (let* ((candidates (list "/projects" "/home/emacs-user/projects" (expand-file-name "~/projects")))
+  (let* ((candidates (list "/projects" (expand-file-name "~/projects")))
          (found (cl-find-if (lambda (root) (file-exists-p (expand-file-name "gendl" root)))
                             candidates)))
     (or found "/projects")))

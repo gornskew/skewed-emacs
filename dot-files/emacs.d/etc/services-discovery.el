@@ -19,12 +19,13 @@
 (defvar skewed-services-base-dir nil
   "Base directory for skewed-emacs - computed at load time.")
 
-(setq skewed-services-base-dir
-      (seq-find #'file-directory-p
-                '("/projects/skewed-emacs/"
-                  "~/skewed-emacs/"
-                  "~/projects/skewed-emacs/"
-                  "/home/emacs-user/skewed-emacs/")))
+(let* ((emacs-root (expand-file-name "../.." (file-truename user-emacs-directory)))
+       (candidates (list emacs-root
+                         "/projects/skewed-emacs/"
+                         (expand-file-name "~/skewed-emacs/")
+                         (expand-file-name "~/projects/skewed-emacs/"))))
+  (setq skewed-services-base-dir
+        (seq-find #'file-directory-p candidates)))
 
 (defvar skewed-services-config nil
   "Cached services configuration.")

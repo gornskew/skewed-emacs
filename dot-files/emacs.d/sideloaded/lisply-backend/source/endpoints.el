@@ -28,6 +28,11 @@
 (require 'lisply-http-setup)
 (require 'lisply-skewed-search)
 
+;; Resolve skewed-emacs root from the real path of ~/.emacs.d.
+(defun emacs-lisply--skewed-root ()
+  (file-name-as-directory
+   (expand-file-name "../.." (file-truename user-emacs-directory))))
+
 ;; Lisply Tool Definitions
 
 (defvar emacs-lisply-tools nil
@@ -186,20 +191,24 @@
 (defservlet* lisply/docs/list application/json ()
   "Handle docs/list endpoint for Lisply."
   (emacs-lisply-log "Handling docs/list request")
-  (let ((docs-list 
-         `(("docs" . [
-            (("id" . "claude-md")
-             ("description" . "Skewed Emacs backend API and HTTP service documentation")
-             ("path" . "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/CLAUDE.md"))
-            (("id" . "main-claude-md")
-             ("description" . "Main Skewed Emacs development environment guide")
-             ("path" . "/home/emacs-user/skewed-emacs/CLAUDE.md"))]))))
+  (let* ((root (emacs-lisply--skewed-root))
+         (claude-path (expand-file-name "dot-files/emacs.d/sideloaded/lisply-backend/CLAUDE.md" root))
+         (main-path (expand-file-name "CLAUDE.md" root))
+         (docs-list
+          `(("docs" . [
+             (("id" . "claude-md")
+              ("description" . "Skewed Emacs backend API and HTTP service documentation")
+              ("path" . ,claude-path))
+             (("id" . "main-claude-md")
+              ("description" . "Main Skewed Emacs development environment guide")
+              ("path" . ,main-path))]))))
     (emacs-lisply-send-response docs-list)))
 
 (defservlet* lisply/docs/claude-md text/markdown ()
   "Handle claude-md documentation endpoint."
   (emacs-lisply-log "Handling claude-md docs request")
-  (let ((doc-path "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/CLAUDE.md"))
+  (let ((doc-path (expand-file-name "dot-files/emacs.d/sideloaded/lisply-backend/CLAUDE.md"
+                                    (emacs-lisply--skewed-root))))
     (if (file-exists-p doc-path)
         (insert-file-contents doc-path)
       (insert "Documentation file not found: " doc-path))))
@@ -207,7 +216,7 @@
 (defservlet* lisply/docs/main-claude-md text/markdown ()
   "Handle main-claude-md documentation endpoint."
   (emacs-lisply-log "Handling main-claude-md docs request")
-  (let ((doc-path "/home/emacs-user/skewed-emacs/CLAUDE.md"))
+  (let ((doc-path (expand-file-name "CLAUDE.md" (emacs-lisply--skewed-root))))
     (if (file-exists-p doc-path)
         (insert-file-contents doc-path)
       (insert "Documentation file not found: " doc-path))))

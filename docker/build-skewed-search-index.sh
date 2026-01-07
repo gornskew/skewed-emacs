@@ -4,11 +4,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-HOST_EMACS_DIR="${HOST_EMACS_DIR:-${HOME}/.emacs.d}"
-
-HOST_INDEX_PATH="${SKEWED_SEARCH_INDEX_PATH:-${HOST_EMACS_DIR}/sideloaded/lisply-backend/skewed-search-index.sexp}"
 CONTAINER_ROOT="/home/emacs-user/skewed-emacs"
-CONTAINER_INDEX_PATH="/home/emacs-user/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp"
+CONTAINER_INDEX_PATH="~/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp"
 LOAD_PATH="${CONTAINER_ROOT}/dot-files/emacs.d/sideloaded/lisply-backend/source"
 PROJECTS_DIR="${PROJECTS_DIR:-/projects}"
 
@@ -49,26 +46,16 @@ fi
 echo "Building pre-extracted skewed_search index using ${IMAGE}..."
 start_ts="$(date +%s)"
 
-mkdir -p "$(dirname "${HOST_INDEX_PATH}")"
-
 docker run --rm \
   --entrypoint bash \
   -v "${PROJECT_ROOT}:${CONTAINER_ROOT}" \
-  -v "${HOST_EMACS_DIR}:/home/emacs-user/.emacs.d" \
   -v "${PROJECTS_DIR}:/projects" \
   "${IMAGE}" \
-  -lc "set -euo pipefail; emacs --batch --eval \"(add-to-list 'load-path \\\"${LOAD_PATH}\\\")\" --eval \"(setq emacs-lisply-skewed-search-services-path \\\"${CONTAINER_ROOT}/services.sexp\\\")\" --eval \"(setq emacs-lisply-skewed-search-index-path \\\"${CONTAINER_INDEX_PATH}\\\")\" -l lisply-skewed-search-build.el --eval \"(emacs-lisply-skewed-search-build-index)\""
+  -lc "set -euo pipefail; emacs --batch --eval \"(add-to-list 'load-path \\\"${LOAD_PATH}\\\")\" --eval \"(setq emacs-lisply-skewed-search-services-path \\\"${CONTAINER_ROOT}/services.sexp\\\")\" --eval \"(setq emacs-lisply-skewed-search-index-path \\\"${CONTAINER_INDEX_PATH}\\\")\" -l lisply-skewed-search-build.el --eval \"(emacs-lisply-skewed-search-build-index)\"; if [ -f \"${HOME}/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp\" ]; then ls -lh \"${HOME}/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp\"; else echo \"Index not found at ${HOME}/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp\" >&2; exit 1; fi"
 
 end_ts="$(date +%s)"
 elapsed="$((end_ts - start_ts))"
 
-if [ -f "${HOST_INDEX_PATH}" ]; then
-  echo "Index built at: ${HOST_INDEX_PATH}"
-  echo "Index size:"
-  ls -lh "${HOST_INDEX_PATH}"
-else
-  echo "Index not found at ${HOST_INDEX_PATH}" >&2
-  exit 1
-fi
+echo "Index built inside container at: ${CONTAINER_INDEX_PATH}"
 
 echo "Elapsed seconds: ${elapsed}"
