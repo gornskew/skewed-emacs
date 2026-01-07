@@ -30,7 +30,7 @@
   :group 'emacs-lisply)
 
 (defcustom emacs-lisply-skewed-search-index-path
-  "/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp"
+  "/home/emacs-user/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp"
   "Path to skewed_search index s-expression file."
   :type 'string
   :group 'emacs-lisply)

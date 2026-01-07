@@ -173,7 +173,7 @@ RUN set -euxo pipefail; \
      emacs --batch \
        --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \
        --eval "(setq emacs-lisply-skewed-search-services-path \"/home/emacs-user/skewed-emacs/services.sexp\")" \
-       --eval "(setq emacs-lisply-skewed-search-index-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp\")" \
+       --eval "(setq emacs-lisply-skewed-search-index-path \"/home/emacs-user/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp\")" \
        -l lisply-skewed-search-build.el \
        --eval "(emacs-lisply-skewed-search-build-index-with-clone \"${GIT_BRANCH}\")"; \
    fi
