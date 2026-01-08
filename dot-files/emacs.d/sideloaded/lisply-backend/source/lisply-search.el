@@ -45,7 +45,7 @@
 ;;;; Constants
 ;;;; ============================================================
 
-(defconst lisply-search--index-version 2
+(defconst lisply-search--index-version 3
   "Index format version. Increment when format changes.")
 
 (defconst lisply-search--max-file-bytes (* 1024 1024)
@@ -55,6 +55,8 @@
 (defconst lisply-search--default-snippet-chars 1200)
 (defconst lisply-search--default-k 8)
 (defconst lisply-search--default-max-tokens 512)
+(defconst lisply-search--default-match-mode :all)
+(defconst lisply-search--default-any-max-candidates nil)
 
 (defconst lisply-search--default-extensions
   '(".lisp" ".lsp" ".cl" ".gdl" ".gendl" ".asd" ".isc"
@@ -246,7 +248,7 @@ Skip IGNORE-DIRS and paths matching EXCLUDES patterns."
                       :end (+ start (1- (length trimmed)))
                       :lines trimmed)
                 snippets))
-        (setq start (1+ end))))  ;; <- FIX: Now inside let*
+        (setq start (1+ end))))
     (nreverse snippets)))
 
 (defun lisply-search--find-section-heading (lines start-line path)
@@ -281,7 +283,9 @@ Skip IGNORE-DIRS and paths matching EXCLUDES patterns."
                  :preview (string-trim preview)
                  :section (lisply-search--find-section-heading
                            all-lines (plist-get snip :start) path)
-                 :language language)))
+                 :language language
+                 :terms (lisply-search--to-vector
+                         (delete-dups (lisply-search--extract-terms text))))))
        raw-snippets))))
 
 
@@ -428,77 +432,12 @@ In dev, existing repos are used as-is."
 ;;;; Runtime: Index Loading & Caching
 ;;;; ============================================================
 
-(defun lisply-search--convert-old-index (old-index)
-  "Convert old alist-format index (v1, string keys) to new plist format."
-  (when old-index
-    (let* ((version (cdr (assoc "version" old-index)))
-           (config-alist (cdr (assoc "config" old-index)))
-           (files-vec (cdr (assoc "files" old-index))))
-      ;; Only convert if it's the old format
-      (when (and (= version 1) (not (plist-get old-index :version)))
-        (list
-         :version 1  ;; Keep version 1 to indicate converted
-         :generated-at (cdr (assoc "generated_at" old-index))
-         :checksum (cdr (assoc "checksum" old-index))
-         :config (lisply-search--convert-old-config config-alist)
-         :files (vconcat
-                 (mapcar #'lisply-search--convert-old-file-entry
-                         (append files-vec nil))))))))
-
-(defun lisply-search--convert-old-config (cfg)
-  "Convert old config alist to plist."
-  (when cfg
-    (list :sources (mapcar
-                    (lambda (src-pair)
-                      (list :name (car src-pair)
-                            :entries (mapcar
-                                      (lambda (e)
-                                        (list :root (cdr (assoc "root" e))
-                                              :repo (cdr (assoc "repo" e))
-                                              :repo-root (cdr (assoc "repo_root" e))))
-                                      (cdr src-pair))))
-                    (cdr (assoc "sources" cfg)))
-          :extensions (let ((exts (cdr (assoc "extensions" cfg))))
-                        (list :default (cdr (assoc "default" exts))
-                              :lisp (cdr (assoc "lisp" exts))
-                              :gendl (cdr (assoc "gendl" exts))
-                              :gdl (cdr (assoc "gdl" exts))
-                              :markdown (cdr (assoc "markdown" exts))))
-          :ignore-dirs (cdr (assoc "ignore_dirs" cfg))
-          :exclude-paths (cdr (assoc "exclude_paths" cfg))
-          :preextract-snippets (cdr (assoc "preextract_snippets" cfg))
-          :preextract-max-lines (cdr (assoc "preextract_max_lines" cfg))
-          :preextract-max-chars (cdr (assoc "preextract_max_chars" cfg)))))
-
-(defun lisply-search--convert-old-file-entry (entry)
-  "Convert old file entry alist to plist."
-  (list :source (intern (concat ":" (cdr (assoc "source" entry))))
-        :path (cdr (assoc "path" entry))
-        :repo (cdr (assoc "repo" entry))
-        :repo-root (cdr (assoc "repo_root" entry))
-        :language (let ((lang (cdr (assoc "language" entry))))
-                    (and lang (intern (concat ":" lang))))
-        :mtime (cdr (assoc "mtime" entry))
-        :snippets (let ((snips (cdr (assoc "snippets" entry))))
-                    (when snips
-                      (vconcat
-                       (mapcar (lambda (s)
-                                 (list :start-line (cdr (assoc "start_line" s))
-                                       :end-line (cdr (assoc "end_line" s))
-                                       :snippet (cdr (assoc "snippet" s))
-                                       :preview (cdr (assoc "preview" s))
-                                       :section (cdr (assoc "section" s))
-                                       :language (let ((l (cdr (assoc "language" s))))
-                                                   (and l (intern (concat ":" l))))))
-                               (append snips nil)))))))
-
-
 (defun lisply-search--validate-index (index)
   "Validate INDEX format. Return error string or nil if valid."
   (cond
    ((null index) "Index is nil")
    ((not (plist-get index :version)) "Index missing :version")
-   ((not (memq (plist-get index :version) '(1 2)))
+   ((not (memq (plist-get index :version) '(1 2 3)))
     (format "Index version unsupported: %s (expected 1 or 2)"
             (plist-get index :version)))
    ((not (plist-get index :files)) "Index missing :files")
@@ -515,12 +454,14 @@ Returns hash-table: term -> list of (:snippet S :file F :source SRC :entry E)."
              (snippets (lisply-search--to-list (plist-get file-entry :snippets))))
         (dolist (snippet snippets)
           (let* ((text (or (plist-get snippet :snippet) ""))
-                 (terms (lisply-search--extract-terms text))
+                 ;; Use pre-computed terms (v3+) or fall back to extraction (v2)
+                 (terms (or (lisply-search--to-list (plist-get snippet :terms))
+                            (lisply-search--extract-terms text)))
                  (candidate (list :snippet snippet
                                   :file path
                                   :source source
                                   :entry file-entry)))
-            (dolist (term (delete-dups terms))
+            (dolist (term terms)
               (push candidate (gethash term snippet-map)))))))
     snippet-map))
 
@@ -536,10 +477,7 @@ Returns hash-table: term -> list of (:snippet S :file F :source SRC :entry E)."
         lisply-search--cache
       ;; Reload
       (let* ((raw (lisply-search--read-sexp-file path))
-             ;; Try converting if old format (alist with string keys)
-             (index (if (and raw (not (plist-get raw :version)))
-                        (lisply-search--convert-old-index raw)
-                      raw)))
+             (index raw))
         (when index
           (let ((err (lisply-search--validate-index index)))
             (when err
@@ -563,7 +501,7 @@ Returns hash-table: term -> list of (:snippet S :file F :source SRC :entry E)."
   "Extract search terms from TEXT. Returns list of lowercase terms."
   (let* ((lower (downcase (format "%s" text)))
          (parts (split-string lower "[^a-z0-9_]+" t)))
-    (cl-remove-if (lambda (t) (< (length t) 2)) parts)))
+    (cl-remove-if (lambda (term) (< (length term) 2)) parts)))
 
 (defun lisply-search--count-term-occurrences (text term)
   "Count occurrences of TERM in TEXT."
@@ -591,25 +529,73 @@ Returns hash-table: term -> list of (:snippet S :file F :source SRC :entry E)."
             (density (min 1.0 (/ (float total-matches) 8.0))))
         (min 1.0 (+ (* 0.7 coverage) (* 0.3 density)))))))
 
-(defun lisply-search--filter-candidates (snippet-map terms sources extensions excludes)
+(defun lisply-search--candidate-matches-p (candidate sources extensions excludes)
+  "Return non-nil if CANDIDATE matches SOURCES, EXTENSIONS, and EXCLUDES."
+  (let* ((path (plist-get candidate :file))
+         (source (plist-get candidate :source)))
+    (and path
+         (or (null sources) (memq source sources))
+         (member (lisply-search--file-ext path) extensions)
+         (not (lisply-search--path-excluded-p path excludes)))))
+
+(defun lisply-search--filter-candidates (snippet-map terms sources extensions excludes match-mode any-max-candidates)
   "Get matching candidates from SNIPPET-MAP for TERMS.
-Filter by SOURCES, EXTENSIONS, and EXCLUDES."
-  ;; FLAG:PERF - Union of all term hits (~700ms for common terms).
-  ;; Optimize: (1) intersect terms for AND, (2) start with rarest term, (3) early exit.
-  (let ((seen (make-hash-table :test 'eq))
-        candidates)
-    (dolist (term terms)
-      (dolist (candidate (gethash term snippet-map))
-        (unless (gethash candidate seen)
-          (puthash candidate t seen)
-          (let* ((path (plist-get candidate :file))
-                 (source (plist-get candidate :source)))
-            (when (and path
-                       (or (null sources) (memq source sources))
-                       (member (lisply-search--file-ext path) extensions)
-                       (not (lisply-search--path-excluded-p path excludes)))
-              (push candidate candidates))))))
-    (nreverse candidates)))
+Filter by SOURCES, EXTENSIONS, and EXCLUDES. MATCH-MODE is :all or :any."
+  (let* ((terms (delete-dups terms)))
+    (cond
+     ((or (null terms) (null snippet-map)) nil)
+     ((eq match-mode :any)
+      ;; OR semantics: union of term hits, optionally capped.
+      (let* ((seen (make-hash-table :test 'eq))
+             (count 0)
+             (term-lists
+              (delq nil
+                    (mapcar (lambda (term)
+                              (let ((lst (gethash term snippet-map)))
+                                (when lst
+                                  (list term lst (length lst)))))
+                            terms)))
+             (sorted (sort term-lists (lambda (a b) (< (nth 2 a) (nth 2 b)))))
+             candidates)
+        (catch 'done
+          (dolist (pair sorted)
+            (dolist (candidate (nth 1 pair))
+              (unless (gethash candidate seen)
+                (when (lisply-search--candidate-matches-p candidate sources extensions excludes)
+                  (puthash candidate t seen)
+                  (push candidate candidates)
+                  (when any-max-candidates
+                    (setq count (1+ count))
+                    (when (>= count any-max-candidates)
+                      (throw 'done nil))))))))
+        (nreverse candidates)))
+     (t
+      ;; AND semantics: intersect rarest term postings first.
+      (let* ((term-lists
+              (delq nil
+                    (mapcar (lambda (term)
+                              (let ((lst (gethash term snippet-map)))
+                                (when lst
+                                  (list term lst (length lst)))))
+                            terms))))
+        (when term-lists
+          (let* ((sorted (sort term-lists (lambda (a b) (< (nth 2 a) (nth 2 b)))))
+                 (seed (nth 1 (car sorted)))
+                 (candidate-set (make-hash-table :test 'eq))
+                 results)
+            (dolist (candidate seed)
+              (when (lisply-search--candidate-matches-p candidate sources extensions excludes)
+                (puthash candidate t candidate-set)))
+            (dolist (pair (cdr sorted))
+              (let ((present (make-hash-table :test 'eq)))
+                (dolist (candidate (nth 1 pair))
+                  (when (gethash candidate candidate-set)
+                    (puthash candidate t present)))
+                (setq candidate-set present)))
+            (maphash (lambda (candidate _)
+                       (push candidate results))
+                     candidate-set)
+            (nreverse results))))))))
 
 (defun lisply-search--format-hit (candidate terms index include-metadata)
   "Format CANDIDATE as search hit."
@@ -652,6 +638,10 @@ Returns plist: (:query Q :search-mode M :sources [S...] :hits [H...])."
          (k (or (plist-get params :k) lisply-search--default-k))
          (max-tokens (or (plist-get params :max-snippet-tokens)
                          lisply-search--default-max-tokens))
+         (match-mode (or (plist-get params :match-mode)
+                         lisply-search--default-match-mode))
+         (any-max-candidates (or (plist-get params :any-max-candidates)
+                                 lisply-search--default-any-max-candidates))
          (include-metadata (if (plist-member params :include-metadata)
                                (plist-get params :include-metadata)
                              t))
@@ -670,22 +660,25 @@ Returns plist: (:query Q :search-mode M :sources [S...] :hits [H...])."
       ;; Determine which sources to search
       (let* ((all-sources (mapcar (lambda (s) (plist-get s :name))
                                   (lisply-search--config-sources config)))
-             (sources (if requested-sources
-                          ;; Convert string sources to keywords
-                          (cl-remove-if-not
-                           (lambda (s) (memq s all-sources))
-                           (mapcar (lambda (s)
-                                     (if (keywordp s) s
-                                       (intern (concat ":" s))))
-                                   requested-sources))
-                        all-sources))
+             (requested (when requested-sources
+                          (mapcar (lambda (s)
+                                    (if (keywordp s) s
+                                      (intern (concat ":" s))))
+                                  requested-sources)))
+             (matched (when requested
+                        (cl-remove-if-not (lambda (s) (memq s all-sources))
+                                          requested)))
+             (unknown (when requested
+                        (cl-remove-if (lambda (s) (memq s all-sources))
+                                      requested)))
+             (sources (if matched matched all-sources))
              (extensions (lisply-search--config-extensions config language))
              (excludes (lisply-search--config-exclude-paths config))
              (terms (lisply-search--extract-terms query))
              (max-chars (* max-tokens 4)))
         ;; Filter and score candidates
         (let* ((candidates (lisply-search--filter-candidates
-                            snippet-map terms sources extensions excludes))
+                            snippet-map terms sources extensions excludes match-mode any-max-candidates))
                (hits (cl-loop for c in candidates
                               for i from 1
                               collect (lisply-search--format-hit c terms i include-metadata)))
@@ -704,8 +697,15 @@ Returns plist: (:query Q :search-mode M :sources [S...] :hits [H...])."
                        top-k)))
           (list :query query
                 :search-mode :lexical
+                :match-mode match-mode
                 :sources (lisply-search--to-vector sources)
-                :hits (lisply-search--to-vector final))))))))
+                :hits (lisply-search--to-vector final)
+                :warning (when unknown
+                           (format "Unknown sources ignored: %s"
+                                   (mapconcat (lambda (s) (substring (symbol-name s) 1))
+                                              unknown ", ")))
+                :known-sources (when unknown
+                                 (lisply-search--to-vector all-sources)))))))))
 
 ;;;; ============================================================
 ;;;; HTTP Endpoint (when simple-httpd loaded)
@@ -748,10 +748,26 @@ Returns plist: (:query Q :search-mode M :sources [S...] :hits [H...])."
       (if (not (and query (stringp query) (not (string-empty-p query))))
           (emacs-lisply-send-response '(("error" . "Missing required parameter: query")))
         (condition-case err
-            (let* ((params (list :query query
+            (let* ((raw-match (or (cdr (assoc 'match_mode json-input))
+                                  (cdr (assoc 'match-mode json-input))))
+                   (raw-any-max (or (cdr (assoc 'any_max_candidates json-input))
+                                    (cdr (assoc 'any-max-candidates json-input))))
+                   (match-mode (cond
+                                ((or (eq raw-match :all) (equal raw-match "all")) :all)
+                                ((or (eq raw-match :any) (equal raw-match "any")) :any)
+                                (t nil)))
+                   (any-max-candidates (cond
+                                        ((numberp raw-any-max) raw-any-max)
+                                        ((and (stringp raw-any-max)
+                                              (string-match-p "\\`[0-9]+\\'" raw-any-max))
+                                         (string-to-number raw-any-max))
+                                        (t nil)))
+                   (params (list :query query
                                  :k (cdr (assoc 'k json-input))
                                  :sources (cdr (assoc 'sources json-input))
                                  :language (cdr (assoc 'language json-input))
+                                 :match-mode match-mode
+                                 :any-max-candidates any-max-candidates
                                  :max-snippet-tokens (cdr (assoc 'max_snippet_tokens json-input))
                                  :include-metadata (not (eq (cdr (assoc 'include_metadata json-input))
                                                             :json-false))))

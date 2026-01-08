@@ -1186,14 +1186,9 @@ The `skewed_search` MCP tool provides lexical search over curated GDL/Gendl docu
 
 ### Available Sources
 
-| Source | Content | Best For |
-|--------|---------|----------|
-| `claude-curated` | Curated guides for Claude | Project structure, key points, troubleshooting |
-| `gendl-src` | Gendl source code | Implementation details, advanced patterns |
-| `gdl-docs` | Core Gendl documentation | Official documentation |
-| `examples` | Training materials, demos, tutorials | Learning patterns, working examples |
-| `infrastructure` | Cyclops proxy, lisply-mcp | Infrastructure code |
-| `apps` | tw-site-2025 | Current web project examples |
+Sources are defined in the Single Source of Truth: `services.sexp` under
+`:skewed-search-config` → `:sources`. Do not hardcode source names in docs;
+consult `services.sexp` for the current list.
 
 ### Search Patterns
 
@@ -1201,29 +1196,39 @@ Common search queries for different tasks:
 
 ```
 # Section syntax for define-object
-skewed_search(query="define-object hidden-objects", sources=["examples", "gendl-src"], k=5)
+skewed_search(query="define-object hidden-objects", k=5)
 
 # Web page patterns  
-skewed_search(query="base-html-page body computed-slots", sources=["examples", "claude-curated"], k=3)
+skewed_search(query="base-html-page body computed-slots", k=3)
 
 # Creating new projects
-skewed_search(query="gendl-skel create project", sources=["claude-curated"], k=3)
+skewed_search(query="gendl-skel create project", k=3)
 
 # URL routing for non-root paths
-skewed_search(query="fixed-url-prefix", sources=["gendl-src"], k=5)
+skewed_search(query="fixed-url-prefix", k=5)
 
 # Output formats (PDF, etc.)
-skewed_search(query="with-format pdf cad-output", sources=["gdl-docs", "examples"], k=5)
+skewed_search(query="with-format pdf cad-output", k=5)
 
 # Mixin patterns
-skewed_search(query="base-html-div inner-html", sources=["examples"], k=5)
+skewed_search(query="base-html-div inner-html", k=5)
 ```
 
 ### Example Usage
 
 **Before writing GDL web code:**
 ```python
-skewed_search(query="base-html-page computed-slots body", sources=["examples", "claude-curated"], k=3)
+skewed_search(query="base-html-page computed-slots body", k=3)
+```
+
+**Broader matching (OR semantics):**
+```python
+skewed_search(query="base-html-page computed-slots body", k=3, match_mode="any")
+```
+
+**Broader matching with cap (OR semantics):**
+```python
+skewed_search(query="base-html-page computed-slots body", k=3, match_mode="any", any_max_candidates=800)
 ```
 
 **Before explaining define-object sections:**
@@ -1245,6 +1250,8 @@ skewed_search(query="gendl-skel project structure", sources=["claude-curated"], 
 | `sources` | array | all | Logical sources to restrict search |
 | `path_filters` | array | none | Prefix or glob-style path filters |
 | `language` | string | none | Language hint (lisp, gdl, markdown) |
+| `match_mode` | string | `all` | `all` (AND) or `any` (OR) term matching |
+| `any_max_candidates` | integer | none | Max candidates when `match_mode="any"` |
 | `search_mode` | string | lexical | Currently only lexical supported |
 | `max_snippet_tokens` | integer | 512 | Soft cap for snippet length |
 | `include_metadata` | boolean | true | Include metadata in hits |
