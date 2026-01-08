@@ -356,6 +356,75 @@ Skip IGNORE-DIRS and paths matching EXCLUDES patterns."
 
 
 ;;;; ============================================================
+;;;; ============================================================
+;;;; Clone Support (for Docker builds with empty /projects/)
+;;;; ============================================================
+
+(defun lisply-search--clone-entry (source-info branch)
+  "Clone repo for SOURCE-INFO if it doesn't exist.
+BRANCH defaults to master. Returns t on success or if already exists."
+  (let* ((root (plist-get source-info :root))
+         (repo-url (plist-get source-info :repo-url))
+         (branch (or branch "master")))
+    (cond
+     ((or (null root) (string-empty-p root))
+      (lisply-search--log "Skip clone: no root path")
+      nil)
+     ((or (null repo-url) (string-empty-p repo-url))
+      ;; No repo-url means local-only source, that's OK
+      t)
+     ((file-exists-p root)
+      (lisply-search--log "Exists, skip clone: %s" root)
+      t)
+     (t
+      (lisply-search--log "Cloning %s -> %s (branch: %s)" repo-url root branch)
+      (make-directory (file-name-directory root) t)
+      (let ((exit (process-file
+                   "git" nil "*lisply-search-clone*" t
+                   "clone" "--depth" "1" "--branch" branch repo-url root)))
+        (if (and (integerp exit) (zerop exit))
+            (progn
+              (lisply-search--log "Clone succeeded: %s" root)
+              t)
+          (lisply-search--log "Clone FAILED: %s (exit %s)" root exit)
+          nil))))))
+
+(defun lisply-search--clone-all-sources (config branch)
+  "Clone all sources from CONFIG that have :repo-url.
+Returns t if all succeed, nil if any fail."
+  (let* ((sources (lisply-search--config-sources config))
+         (failed nil)
+         (cloned 0)
+         (skipped 0))
+    (if (null sources)
+        (progn
+          (lisply-search--log "No sources configured, nothing to clone")
+          nil)
+      (dolist (source sources)
+        (let ((repo-url (plist-get source :repo-url)))
+          (if (or (null repo-url) (string-empty-p repo-url))
+              (cl-incf skipped)
+            (unless (lisply-search--clone-entry source branch)
+              (setq failed t))
+            (cl-incf cloned))))
+      (lisply-search--log "Clone summary: %d attempted, %d skipped, %s"
+                          cloned skipped (if failed "SOME FAILED" "all OK"))
+      (not failed))))
+
+(defun lisply-search-build-index-with-clone (&optional branch)
+  "Clone corpora if needed, then build the index.
+BRANCH specifies git branch (default: master).
+In Docker builds, /projects/ is empty so repos get cloned fresh.
+In dev, existing repos are used as-is."
+  (interactive)
+  (let ((config (lisply-search--read-config)))
+    (if (not config)
+        (lisply-search--log "ERROR: No config found in services.sexp")
+      (if (lisply-search--clone-all-sources config branch)
+          (lisply-search-build-index)
+        (lisply-search--log "Index build skipped due to clone failures")))))
+
+
 ;;;; Runtime: Index Loading & Caching
 ;;;; ============================================================
 
@@ -651,9 +720,11 @@ Returns plist: (:query Q :search-mode M :sources [S...] :hits [H...])."
     (while plist
       (let* ((key (pop plist))
              (val (pop plist))
-             (str-key (if (keywordp key)
-                          (substring (symbol-name key) 1)
-                        (format "%s" key))))
+             ;; Convert :keyword-name to "keyword_name" for JSON compatibility
+             (str-key (let ((raw (if (keywordp key)
+                                     (substring (symbol-name key) 1)
+                                   (format "%s" key))))
+                        (replace-regexp-in-string "-" "_" raw))))
         (push (cons str-key
                     (cond
                      ((and (listp val) (keywordp (car val)))

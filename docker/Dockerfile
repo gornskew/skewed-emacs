@@ -164,6 +164,7 @@ RUN set -euxo pipefail; \
    emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")"
 
 # Build skewed_search index inside the image (no host mounts).
+# Uses lisply-search.el which handles cloning repos if /projects/ is empty.
 RUN set -euxo pipefail; \
    if [ "${SKEWED_BUILD_SKEWED_INDEX}" = "true" ]; then \
      mkdir -p /projects; \
@@ -172,10 +173,10 @@ RUN set -euxo pipefail; \
      emacs --batch -l generate-configs.el -f skewed-generate-all-configs; \
      emacs --batch \
        --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \
-       --eval "(setq emacs-lisply-skewed-search-services-path \"/home/emacs-user/skewed-emacs/services.sexp\")" \
-       --eval "(setq emacs-lisply-skewed-search-index-path \"~/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp\")" \
-       -l lisply-skewed-search-build.el \
-       --eval "(emacs-lisply-skewed-search-build-index-with-clone \"${GIT_BRANCH}\")"; \
+       --eval "(setq lisply-search-services-path \"/home/emacs-user/skewed-emacs/services.sexp\")" \
+       --eval "(setq lisply-search-index-path \"~/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp\")" \
+       -l lisply-search.el \
+       --eval "(lisply-search-build-index-with-clone \"${GIT_BRANCH}\")"; \
    fi
 
 # Cleanup builder caches
