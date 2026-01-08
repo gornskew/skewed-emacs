@@ -138,26 +138,23 @@ Returns plist: (:sources ... :extensions ... :ignore-dirs ...)."
   (let ((sources (lisply-search--pget config :sources)))
     (mapcan
      (lambda (source)
-       (let ((name (plist-get source :name)))
+       (cl-destructuring-bind (&key name entries) source
          (mapcar
           (lambda (entry)
-            (let* ((root (plist-get entry :root))
-                   (repo (plist-get entry :repo))
-                   (repo-root (plist-get entry :repo-root))
-                   (repo-url (plist-get entry :repo-url))
-                   ;; Expand relative paths from /projects
-                   (abs-root (if (and root (not (file-name-absolute-p root)))
-                                 (expand-file-name root "/projects")
-                               root))
-                   (abs-repo-root (if (and repo-root (not (file-name-absolute-p repo-root)))
-                                      (expand-file-name repo-root "/projects")
-                                    (or repo-root abs-root))))
-              (list :name (intern (concat ":" name))  ; keyword-ify
-                    :root abs-root
-                    :repo repo
-                    :repo-root abs-repo-root
-                    :repo-url repo-url)))
-          (plist-get source :entries))))
+            (cl-destructuring-bind (&key root repo repo-root repo-url) entry
+              (let* (;; Expand relative paths from /projects
+                     (abs-root (if (and root (not (file-name-absolute-p root)))
+                                   (expand-file-name root "/projects")
+                                 root))
+                     (abs-repo-root (if (and repo-root (not (file-name-absolute-p repo-root)))
+                                        (expand-file-name repo-root "/projects")
+                                      (or repo-root abs-root))))
+                (list :name (intern (concat ":" name))  ; keyword-ify
+                      :root abs-root
+                      :repo repo
+                      :repo-root abs-repo-root
+                      :repo-url repo-url))))
+          entries)))
      sources)))
 
 (defun lisply-search--config-extensions (config &optional language)
@@ -274,18 +271,17 @@ Skip IGNORE-DIRS and paths matching EXCLUDES patterns."
            (language (lisply-search--guess-language path)))
       (mapcar
        (lambda (snip)
-         (let* ((lines (plist-get snip :lines))
-                (text (string-join lines "\n"))
-                (preview (or (cl-find-if (lambda (l) (> (length (string-trim l)) 0)) lines) "")))
-           (list :start-line (plist-get snip :start)
-                 :end-line (plist-get snip :end)
-                 :snippet text
-                 :preview (string-trim preview)
-                 :section (lisply-search--find-section-heading
-                           all-lines (plist-get snip :start) path)
-                 :language language
-                 :terms (lisply-search--to-vector
-                         (delete-dups (lisply-search--extract-terms text))))))
+         (cl-destructuring-bind (&key lines start end) snip
+           (let* ((text (string-join lines "\n"))
+                  (preview (or (cl-find-if (lambda (l) (> (length (string-trim l)) 0)) lines) "")))
+             (list :start-line start
+                   :end-line end
+                   :snippet text
+                   :preview (string-trim preview)
+                   :section (lisply-search--find-section-heading all-lines start path)
+                   :language language
+                   :terms (lisply-search--to-vector
+                           (delete-dups (lisply-search--extract-terms text)))))))
        raw-snippets))))
 
 
@@ -295,24 +291,25 @@ Skip IGNORE-DIRS and paths matching EXCLUDES patterns."
 
 (defun lisply-search--build-file-entry (source-info path config)
   "Build index entry for PATH from SOURCE-INFO using CONFIG."
-  (let* ((attrs (file-attributes path))
-         (size (file-attribute-size attrs))
-         (language (lisply-search--guess-language path))
-         (preextract (lisply-search--pget config :preextract-snippets))
-         (max-lines (or (lisply-search--pget config :preextract-max-lines)
-                        lisply-search--default-snippet-lines))
-         (max-chars (or (lisply-search--pget config :preextract-max-chars)
-                        lisply-search--default-snippet-chars))
-         (snippets (when (and preextract size (< size lisply-search--max-file-bytes))
-                     (lisply-search--extract-file-snippets path max-lines max-chars))))
-    (list :source (plist-get source-info :name)
-          :path (lisply-search--normalize-path path)
-          :repo (plist-get source-info :repo)
-          :repo-root (plist-get source-info :repo-root)
-          :language language
-          :mtime (format-time-string "%Y-%m-%dT%H:%M:%SZ"
-                                     (file-attribute-modification-time attrs) t)
-          :snippets (when snippets (lisply-search--to-vector snippets)))))
+  (cl-destructuring-bind (&key name repo repo-root &allow-other-keys) source-info
+    (let* ((attrs (file-attributes path))
+           (size (file-attribute-size attrs))
+           (language (lisply-search--guess-language path))
+           (preextract (lisply-search--pget config :preextract-snippets))
+           (max-lines (or (lisply-search--pget config :preextract-max-lines)
+                          lisply-search--default-snippet-lines))
+           (max-chars (or (lisply-search--pget config :preextract-max-chars)
+                          lisply-search--default-snippet-chars))
+           (snippets (when (and preextract size (< size lisply-search--max-file-bytes))
+                       (lisply-search--extract-file-snippets path max-lines max-chars))))
+      (list :source name
+            :path (lisply-search--normalize-path path)
+            :repo repo
+            :repo-root repo-root
+            :language language
+            :mtime (format-time-string "%Y-%m-%dT%H:%M:%SZ"
+                                       (file-attribute-modification-time attrs) t)
+            :snippets (when snippets (lisply-search--to-vector snippets))))))
 
 (defun lisply-search--compute-checksum (file-entries)
   "Compute simple checksum from FILE-ENTRIES."
@@ -449,20 +446,20 @@ Returns hash-table: term -> list of (:snippet S :file F :source SRC :entry E)."
   (let ((snippet-map (make-hash-table :test 'equal))
         (files (lisply-search--to-list (plist-get index :files))))
     (dolist (file-entry files)
-      (let* ((path (plist-get file-entry :path))
-             (source (plist-get file-entry :source))
-             (snippets (lisply-search--to-list (plist-get file-entry :snippets))))
-        (dolist (snippet snippets)
-          (let* ((text (or (plist-get snippet :snippet) ""))
-                 ;; Use pre-computed terms (v3+) or fall back to extraction (v2)
-                 (terms (or (lisply-search--to-list (plist-get snippet :terms))
-                            (lisply-search--extract-terms text)))
-                 (candidate (list :snippet snippet
-                                  :file path
-                                  :source source
-                                  :entry file-entry)))
-            (dolist (term terms)
-              (push candidate (gethash term snippet-map)))))))
+      (cl-destructuring-bind (&key path source snippets &allow-other-keys) file-entry
+        (dolist (snippet (lisply-search--to-list snippets))
+          (let ((snippet-plist snippet))
+            (cl-destructuring-bind (&key ((:snippet snippet-text)) terms &allow-other-keys) snippet-plist
+              (let* ((text (or snippet-text ""))
+                     ;; Use pre-computed terms (v3+) or fall back to extraction (v2)
+                     (term-list (or (lisply-search--to-list terms)
+                                    (lisply-search--extract-terms text)))
+                     (candidate (list :snippet snippet-plist
+                                      :file path
+                                      :source source
+                                      :entry file-entry)))
+                (dolist (term term-list)
+                  (push candidate (gethash term snippet-map)))))))))
     snippet-map))
 
 (defun lisply-search--load-index ()
@@ -513,30 +510,30 @@ Returns hash-table: term -> list of (:snippet S :file F :source SRC :entry E)."
 
 (defun lisply-search--score-candidate (candidate terms)
   "Score CANDIDATE based on matching TERMS. Returns 0.0-1.0."
-  (let* ((snippet-plist (plist-get candidate :snippet))
-         (text (downcase (or (plist-get snippet-plist :snippet) "")))
-         (term-count (length terms))
-         (matched-terms 0)
-         (total-matches 0))
-    (dolist (term terms)
-      (let ((occ (lisply-search--count-term-occurrences text term)))
-        (when (> occ 0)
-          (cl-incf matched-terms)
-          (cl-incf total-matches occ))))
-    (if (zerop term-count)
-        0.0
-      (let ((coverage (/ (float matched-terms) term-count))
-            (density (min 1.0 (/ (float total-matches) 8.0))))
-        (min 1.0 (+ (* 0.7 coverage) (* 0.3 density)))))))
+  (cl-destructuring-bind (&key snippet &allow-other-keys) candidate
+    (cl-destructuring-bind (&key ((:snippet snippet-text)) &allow-other-keys) snippet
+      (let* ((text (downcase (or snippet-text "")))
+             (term-count (length terms))
+             (matched-terms 0)
+             (total-matches 0))
+        (dolist (term terms)
+          (let ((occ (lisply-search--count-term-occurrences text term)))
+            (when (> occ 0)
+              (cl-incf matched-terms)
+              (cl-incf total-matches occ))))
+        (if (zerop term-count)
+            0.0
+          (let ((coverage (/ (float matched-terms) term-count))
+                (density (min 1.0 (/ (float total-matches) 8.0))))
+            (min 1.0 (+ (* 0.7 coverage) (* 0.3 density)))))))))
 
 (defun lisply-search--candidate-matches-p (candidate sources extensions excludes)
   "Return non-nil if CANDIDATE matches SOURCES, EXTENSIONS, and EXCLUDES."
-  (let* ((path (plist-get candidate :file))
-         (source (plist-get candidate :source)))
-    (and path
+  (cl-destructuring-bind (&key file source &allow-other-keys) candidate
+    (and file
          (or (null sources) (memq source sources))
-         (member (lisply-search--file-ext path) extensions)
-         (not (lisply-search--path-excluded-p path excludes)))))
+         (member (lisply-search--file-ext file) extensions)
+         (not (lisply-search--path-excluded-p file excludes)))))
 
 (defun lisply-search--filter-candidates (snippet-map terms sources extensions excludes match-mode any-max-candidates)
   "Get matching candidates from SNIPPET-MAP for TERMS.
@@ -601,29 +598,28 @@ Filter by SOURCES, EXTENSIONS, and EXCLUDES. MATCH-MODE is :all or :any."
   "Format CANDIDATE as search hit."
   ;; FLAG:PERF - Called for ALL candidates (~625ms for 3750 hits).
   ;; Optimize: (1) score-only pass first, format only top-k, (2) cache downcase at build.
-  (let* ((snippet-plist (plist-get candidate :snippet))
-         (file-entry (plist-get candidate :entry))
-         (path (plist-get candidate :file))
-         (source (plist-get candidate :source))
-         ;; Prefer relative path from repo-root
-         (repo-root (plist-get file-entry :repo-root))
-         (display-path (if repo-root
-                           (file-relative-name path repo-root)
-                         path)))
-    (list :id (format "hit-%03d" index)
-          :score (lisply-search--score-candidate candidate terms)
-          :source source
-          :repo (plist-get file-entry :repo)
-          :path (lisply-search--normalize-path display-path)
-          :start-line (1+ (or (plist-get snippet-plist :start-line) 0))
-          :end-line (1+ (or (plist-get snippet-plist :end-line) 0))
-          :snippet (plist-get snippet-plist :snippet)
-          :preview (or (plist-get snippet-plist :preview) "")
-          :metadata (when include-metadata
-                      (list :language (plist-get snippet-plist :language)
-                            :section (plist-get snippet-plist :section)
-                            :tags (lisply-search--to-vector
-                                   (cl-subseq terms 0 (min 8 (length terms)))))))))
+  (cl-destructuring-bind (&key snippet file source entry &allow-other-keys) candidate
+    (cl-destructuring-bind (&key repo repo-root &allow-other-keys) entry
+      (cl-destructuring-bind (&key start-line end-line preview language section &allow-other-keys) snippet
+        (let* ((snippet-text (plist-get snippet :snippet))
+               ;; Prefer relative path from repo-root
+               (display-path (if repo-root
+                                 (file-relative-name file repo-root)
+                               file)))
+          (list :id (format "hit-%03d" index)
+                :score (lisply-search--score-candidate candidate terms)
+                :source source
+                :repo repo
+                :path (lisply-search--normalize-path display-path)
+                :start-line (1+ (or start-line 0))
+                :end-line (1+ (or end-line 0))
+                :snippet snippet-text
+                :preview (or preview "")
+                :metadata (when include-metadata
+                            (list :language language
+                                  :section section
+                                  :tags (lisply-search--to-vector
+                                         (cl-subseq terms 0 (min 8 (length terms))))))))))))
 
 
 ;;;; ============================================================
@@ -634,23 +630,22 @@ Filter by SOURCES, EXTENSIONS, and EXCLUDES. MATCH-MODE is :all or :any."
   "Execute search with PARAMS plist.
 PARAMS: (:query Q :k K :sources [S...] :language L :include-metadata BOOL).
 Returns plist: (:query Q :search-mode M :sources [S...] :hits [H...])."
-  (let* ((query (plist-get params :query))
-         (k (or (plist-get params :k) lisply-search--default-k))
-         (max-tokens (or (plist-get params :max-snippet-tokens)
-                         lisply-search--default-max-tokens))
-         (match-mode (or (plist-get params :match-mode)
-                         lisply-search--default-match-mode))
-         (any-max-candidates (or (plist-get params :any-max-candidates)
-                                 lisply-search--default-any-max-candidates))
-         (include-metadata (if (plist-member params :include-metadata)
-                               (plist-get params :include-metadata)
-                             t))
-         (language (plist-get params :language))
-         (requested-sources (lisply-search--to-list (plist-get params :sources)))
-         ;; Load index
-         (cache (lisply-search--load-index))
-         (config (and cache (plist-get cache :config)))
-         (snippet-map (and cache (plist-get cache :snippet-map))))
+  (cl-destructuring-bind (&key query k max-snippet-tokens match-mode
+                               any-max-candidates language sources
+                               include-metadata &allow-other-keys)
+      params
+    (let* ((k (or k lisply-search--default-k))
+           (max-tokens (or max-snippet-tokens lisply-search--default-max-tokens))
+           (match-mode (or match-mode lisply-search--default-match-mode))
+           (any-max-candidates (or any-max-candidates lisply-search--default-any-max-candidates))
+           (include-metadata (if (plist-member params :include-metadata)
+                                 include-metadata
+                               t))
+           (requested-sources (lisply-search--to-list sources))
+           ;; Load index
+           (cache (lisply-search--load-index))
+           (config (and cache (plist-get cache :config)))
+           (snippet-map (and cache (plist-get cache :snippet-map))))
     (cond
      ((not cache)
       (list :error (format "Index not found: %s" lisply-search-index-path)))
@@ -658,24 +653,24 @@ Returns plist: (:query Q :search-mode M :sources [S...] :hits [H...])."
       (list :error "Index has no snippet map"))
      (t
       ;; Determine which sources to search
-      (let* ((all-sources (mapcar (lambda (s) (plist-get s :name))
-                                  (lisply-search--config-sources config)))
-             (requested (when requested-sources
-                          (mapcar (lambda (s)
-                                    (if (keywordp s) s
-                                      (intern (concat ":" s))))
-                                  requested-sources)))
-             (matched (when requested
-                        (cl-remove-if-not (lambda (s) (memq s all-sources))
-                                          requested)))
-             (unknown (when requested
-                        (cl-remove-if (lambda (s) (memq s all-sources))
-                                      requested)))
-             (sources (if matched matched all-sources))
-             (extensions (lisply-search--config-extensions config language))
-             (excludes (lisply-search--config-exclude-paths config))
-             (terms (lisply-search--extract-terms query))
-             (max-chars (* max-tokens 4)))
+        (let* ((all-sources (mapcar (lambda (s) (plist-get s :name))
+                                    (lisply-search--config-sources config)))
+               (requested (when requested-sources
+                            (mapcar (lambda (s)
+                                      (if (keywordp s) s
+                                        (intern (concat ":" s))))
+                                    requested-sources)))
+               (matched (when requested
+                          (cl-remove-if-not (lambda (s) (memq s all-sources))
+                                            requested)))
+               (unknown (when requested
+                          (cl-remove-if (lambda (s) (memq s all-sources))
+                                        requested)))
+               (sources (if matched matched all-sources))
+               (extensions (lisply-search--config-extensions config language))
+               (excludes (lisply-search--config-exclude-paths config))
+               (terms (lisply-search--extract-terms query))
+               (max-chars (* max-tokens 4)))
         ;; Filter and score candidates
         (let* ((candidates (lisply-search--filter-candidates
                             snippet-map terms sources extensions excludes match-mode any-max-candidates))
@@ -705,7 +700,7 @@ Returns plist: (:query Q :search-mode M :sources [S...] :hits [H...])."
                                    (mapconcat (lambda (s) (substring (symbol-name s) 1))
                                               unknown ", ")))
                 :known-sources (when unknown
-                                 (lisply-search--to-vector all-sources)))))))))
+                                 (lisply-search--to-vector all-sources))))))))))
 
 ;;;; ============================================================
 ;;;; HTTP Endpoint (when simple-httpd loaded)
