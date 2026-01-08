@@ -1157,7 +1157,7 @@ The `skewed_search` MCP tool provides lexical search over curated GDL/Gendl docu
 ┌─────────────────────────────────────────────────────────┐
 │  Docker Build Time                                      │
 │                                                         │
-│  Source files ──► emacs-lisply-skewed-search-build-index   │
+│  Source files ──► lisply-search-build-index   │
 │       │                    │                            │
 │       ▼                    ▼                            │
 │  Pre-extract snippets → skewed-search-index.sexp (~16MB)   │
@@ -1302,7 +1302,7 @@ There is no separate config file at runtime.
 The index is built during Docker build. To rebuild manually:
 
 ```elisp
-(emacs-lisply-skewed-search-build-index)
+(lisply-search-build-index)
 ```
 
 This scans all configured sources and pre-extracts snippets into the index file.
