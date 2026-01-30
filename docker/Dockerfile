@@ -10,7 +10,6 @@
 FROM debian:stable-slim AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG NODE_MAJOR=23
 ARG GIT_BRANCH=master
 ARG LISPLY_MCP_REVISION=latest
 ARG SKEWED_BUILD_SKEWED_INDEX=true
@@ -110,15 +109,11 @@ RUN set -euxo pipefail; \
 
 USER root
 
-# Install Node.js (needed for all variants - lisply-mcp)
+# Install Node.js and npm (needed for all variants - lisply-mcp)
+# Using Debian's nodejs and npm packages (stable and ARM64-compatible)
 RUN set -euxo pipefail; \
-   mkdir -p /etc/apt/keyrings; \
-   curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-     | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg; \
-   echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
-     > /etc/apt/sources.list.d/nodesource.list; \
    apt-get update; \
-   apt-get install -y --no-install-recommends nodejs; \
+   apt-get install -y --no-install-recommends nodejs npm; \
    rm -rf /var/lib/apt/lists/*
 
 RUN set -euxo pipefail; \
@@ -192,7 +187,6 @@ RUN set -euxo pipefail; \
 FROM debian:stable-slim AS common-runtime-base
 
 ARG DEBIAN_FRONTEND=noninteractive
-ARG NODE_MAJOR=20
 
 SHELL ["/bin/bash", "-lc"]
 
@@ -207,22 +201,24 @@ RUN set -euxo pipefail; \
    ; \
    rm -rf /var/lib/apt/lists/*
 
-# Install Node.js (needed for lisply-mcp in all variants)
+# Install Node.js and npm (needed for lisply-mcp in all variants)
+# Using Debian's nodejs and npm packages (stable and ARM64-compatible)
 RUN set -euxo pipefail; \
-   mkdir -p /etc/apt/keyrings; \
-   curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
-     | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg; \
-   echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" \
-     > /etc/apt/sources.list.d/nodesource.list; \
    apt-get update; \
-   apt-get install -y --no-install-recommends nodejs; \
+   apt-get install -y --no-install-recommends nodejs npm; \
    rm -rf /var/lib/apt/lists/*
 
 # Install ttyd (web terminal - needed for all variants)
+ARG TARGETARCH=amd64  # default fallback
 RUN set -euxo pipefail; \
-   wget -O /usr/local/bin/ttyd https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64; \
-   chmod +x /usr/local/bin/ttyd; \
-   ln -sf /usr/local/bin/ttyd /usr/local/bin/webterm
+    case "${TARGETARCH}" in \
+      amd64)   TTYD_ARCH="x86_64" ;; \
+      arm64)   TTYD_ARCH="aarch64" ;; \
+      *)       echo "Unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
+    esac; \
+    wget -O /usr/local/bin/ttyd "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.${TTYD_ARCH}"; \
+    chmod +x /usr/local/bin/ttyd; \
+    ln -sf /usr/local/bin/ttyd /usr/local/bin/webterm
 
 # Create user
 RUN set -euxo pipefail; \

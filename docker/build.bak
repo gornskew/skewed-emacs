@@ -168,7 +168,7 @@ elif git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; the
 else
   branch="devo"
 fi
-branch="$(echo "$branch" | tr '/' '-')"  # Replace / with - (bash 3.2 compatible)
+branch="${branch//\//--}"  # Replace / with -- in branch names
 
 # Fetch latest commit from lisply-mcp
 echo "Fetching latest commit from lisply-mcp..."
@@ -232,11 +232,7 @@ build_target() {
   echo "Building ${IMAGE_NAME}:${tag} (stage: ${stage})"
   echo "═══════════════════════════════════════════════════════════════"
   
-  # Detect native platform for multi-arch support
-  NATIVE_PLATFORM="$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}' 2>/dev/null || echo 'linux/amd64')"
-  
   DOCKER_BUILDKIT=1 docker build \
-		    --platform "${NATIVE_PLATFORM}" \
 		    --progress=plain \
 		    --target "${stage}" \
 		    -t "${IMAGE_NAME}:${tag}" \
@@ -356,20 +352,17 @@ if [ ! -f "$DOCKERFILE_PATH" ]; then
   exit 1
 fi
 
-# Map targets to Docker stages (bash 3.2 compatible)
-get_stage_for_target() {
-  case "$1" in
-    lite)        echo "runtime-base" ;;
-    aituis)      echo "runtime-aituis" ;;
-    gui)         echo "runtime-gui" ;;
-    gui-aituis)  echo "runtime-gui-aituis" ;;
-    *)           echo "" ;;
-  esac
-}
+# Map targets to Docker stages
+declare -A STAGE_MAP=(
+  ["lite"]="runtime-base"
+  ["aituis"]="runtime-aituis"
+  ["gui"]="runtime-gui"
+  ["gui-aituis"]="runtime-gui-aituis"
+)
 
 # Build each target
 for target in $TARGETS; do
-  stage="$(get_stage_for_target "$target")"
+  stage="${STAGE_MAP[$target]}"
   if [ -z "$stage" ]; then
     echo "Error: Unknown target '$target'" >&2
     exit 1
