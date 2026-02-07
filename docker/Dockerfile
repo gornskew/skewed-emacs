@@ -7,6 +7,31 @@
 #       └── runtime-gui                   → Tag: -gui
 #           └── runtime-gui-aituis        → Tags: -gui-aituis, full, latest
 
+FROM debian:stable-slim AS node
+ARG DEBIAN_FRONTENT=noninteractive
+
+ARG NODE_VERSION=24.13.0
+
+SHELL ["/bin/bash","-lc"]
+
+RUN set -euxo pipefail; \
+  apt-get update; \
+  apt-get install -y --no-install-recommends ca-certificates curl xz-utils; \
+  rm -rf /var/lib/apt/lists/*; \
+  arch="$(dpkg --print-architecture)"; \
+  case "$arch" in \
+    amd64) node_arch="x64" ;; \
+    arm64) node_arch="arm64" ;; \
+    *) echo "Unsupported arch: $arch" >&2; exit 1 ;; \
+  esac; \
+  cd /tmp; \
+  curl -fsSLO "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${node_arch}.tar.xz"; \
+  curl -fsSLO "https://nodejs.org/dist/v${NODE_VERSION}/SHASUMS256.txt"; \
+  grep "node-v${NODE_VERSION}-linux-${node_arch}.tar.xz" SHASUMS256.txt | sha256sum -c -; \
+  tar -C /usr/local --strip-components=1 -xJf "node-v${NODE_VERSION}-linux-${node_arch}.tar.xz"; \
+  rm -rf /tmp/*
+
+
 FROM debian:stable-slim AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -109,12 +134,8 @@ RUN set -euxo pipefail; \
 
 USER root
 
-# Install Node.js and npm (needed for all variants - lisply-mcp)
-# Using Debian's nodejs and npm packages (stable and ARM64-compatible)
-RUN set -euxo pipefail; \
-   apt-get update; \
-   apt-get install -y --no-install-recommends nodejs npm; \
-   rm -rf /var/lib/apt/lists/*
+# copy in node.js in /usr/local/
+COPY --from=node /usr/local/ /usr/local/
 
 RUN set -euxo pipefail; \
    ln -sf /home/emacs-user/skewed-emacs/docker/copilot-language-server /usr/local/bin/copilot-language-server
@@ -201,12 +222,10 @@ RUN set -euxo pipefail; \
    ; \
    rm -rf /var/lib/apt/lists/*
 
-# Install Node.js and npm (needed for lisply-mcp in all variants)
-# Using Debian's nodejs and npm packages (stable and ARM64-compatible)
-RUN set -euxo pipefail; \
-   apt-get update; \
-   apt-get install -y --no-install-recommends nodejs npm; \
-   rm -rf /var/lib/apt/lists/*
+
+# copy in node.js in /usr/local/
+COPY --from=node /usr/local/ /usr/local/
+
 
 # Install ttyd (web terminal - needed for all variants)
 ARG TARGETARCH=amd64  # default fallback

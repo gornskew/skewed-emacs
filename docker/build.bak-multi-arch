@@ -14,8 +14,6 @@ BUILD_CONTEXT="$PROJECT_ROOT"
 # Default values
 # -----------------------------
 TARGETS=""  # Empty means build all targets
-PLATFORMS=""  # Empty means native only, or specify: linux/amd64,linux/arm64
-USE_BUILDX="auto"  # auto, true, false
 CLI_SET_PUSH=""
 CLI_SET_BUILD_INDEX="true"
 
@@ -44,13 +42,6 @@ Push Control:
   --push                Enable pushing to Docker Hub
   --no-push             Skip pushing (build only, default for public repos)
 
-Multi-Architecture:
-  --platforms=PLATFORMS Build for specific platforms (e.g., linux/amd64,linux/arm64)
-                        Empty (default) builds for native platform only
-  --multi-arch          Shortcut for --platforms=linux/amd64,linux/arm64
-  --use-buildx          Force use of docker buildx (auto-detected by default)
-  --no-buildx           Force use of regular docker build
-
 Legacy Options (deprecated, use targets instead):
   --variant=full|lite   Legacy variant selection (use --gui-aituis or --lite)
 
@@ -66,12 +57,6 @@ Examples:
 
   # Build everything and push
   docker/build --all --push
-  # Build multi-arch (AMD64 + ARM64) and push
-  docker/build --multi-arch --push
-
-  # Build specific platforms without pushing
-  docker/build --platforms=linux/amd64,linux/arm64
-
 
   # Build everything without index
   docker/build --all --no-search-index
@@ -144,22 +129,6 @@ while [[ $# -gt 0 ]]; do
       CLI_SET_PUSH="false"
       shift
       ;;
-    --platforms=*)
-      PLATFORMS="${1#*=}"
-      shift
-      ;;
-    --multi-arch)
-      PLATFORMS="linux/amd64,linux/arm64"
-      shift
-      ;;
-    --use-buildx)
-      USE_BUILDX="true"
-      shift
-      ;;
-    --no-buildx)
-      USE_BUILDX="false"
-      shift
-      ;;
     # Legacy options (deprecated)
     --variant=*)
       LEGACY_VARIANT="${1#*=}"
@@ -215,63 +184,9 @@ echo "lisply-mcp revision: ${LISPLY_MCP_REVISION}"
 
 
 # -----------------------------
-# Buildx configuration
-# -----------------------------
-# Platform detection
-# -----------------------------
-NATIVE_PLATFORM="$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}' 2>/dev/null || echo 'linux/amd64')"
-
-# -----------------------------
-
-# Determine if we should use buildx
-if [ -n "${PLATFORMS}" ]; then
-  # Multi-platform builds require buildx
-  if [[ "$USE_BUILDX" == "false" ]]; then
-    echo "Error: Multi-platform builds require buildx (remove --no-buildx)" >&2
-    exit 1
-  fi
-  USE_BUILDX="true"
-elif [[ "$USE_BUILDX" == "auto" ]]; then
-  # Auto-detect: use buildx if available
-  if docker buildx version >/dev/null 2>&1; then
-    USE_BUILDX="true"
-  else
-    USE_BUILDX="false"
-  fi
-fi
-
-# Setup buildx (use Docker Desktop's built-in support)
-if [[ "$USE_BUILDX" == "true" ]]; then
-  echo "Using docker buildx..."
-  
-  # Just ensure buildx is available - Docker Desktop provides it
-  if ! docker buildx version >/dev/null 2>&1; then
-    echo "Error: docker buildx not available" >&2
-    exit 1
-  fi
-  
-  # Bootstrap QEMU for multi-platform builds if needed
-  if [ -n "${PLATFORMS}" ]; then
-    echo "Bootstrapping QEMU for multi-platform builds..."
-    # Docker Desktop for Mac has built-in QEMU, skip manual setup
-    if [[ "$(uname -s)" == "Darwin" ]]; then
-      echo "→ Docker Desktop detected, using built-in emulation"
-    else
-      # Linux: Install QEMU manually
-      docker run --rm --privileged --platform ${NATIVE_PLATFORM} tonistiigi/binfmt --install all
-    fi
-  fi
-  
-  echo "✓ Buildx ready"
-fi
-
-# -----------------------------
-
-# -----------------------------
 # Push configuration
 # -----------------------------
-#PUSH_DOCKER_CONFIG="${PUSH_DOCKER_CONFIG:-$HOME/.docker-dockerhub-gornskew}"
-PUSH_DOCKER_CONFIG="${PUSH_DOCKER_CONFIG:-$HOME/.docker}"
+PUSH_DOCKER_CONFIG="${PUSH_DOCKER_CONFIG:-$HOME/.docker-dockerhub-gornskew}"
 cfg="$PUSH_DOCKER_CONFIG/config.json"
 
 # Determine PUSH_IMAGE
@@ -320,38 +235,8 @@ build_target() {
   # Detect native platform for multi-arch support
   NATIVE_PLATFORM="$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}' 2>/dev/null || echo 'linux/amd64')"
   
-  # Determine build command and flags
-  local BUILD_CMD="docker build"
-  local PLATFORM_FLAG=""
-  local OUTPUT_FLAG=""
-  
-  if [[ "$USE_BUILDX" == "true" ]]; then
-    BUILD_CMD="docker buildx build"
-    
-    # Add platform flag if specified
-    if [ -n "${PLATFORMS}" ]; then
-      PLATFORM_FLAG="--platform ${PLATFORMS}"
-      # Multi-platform builds must push (cannot load to local)
-      if [[ "$PUSH_IMAGE" == "true" ]]; then
-        OUTPUT_FLAG="--push"
-      else
-        echo "Warning: Multi-platform builds require --push to be useful"
-        echo "Building without loading to local Docker..."
-        OUTPUT_FLAG="--output type=image"
-      fi
-    else
-      # Single platform with buildx: can load to local
-      OUTPUT_FLAG="--load"
-      PLATFORM_FLAG="--platform ${NATIVE_PLATFORM}"
-    fi
-  else
-    # Regular docker build
-    PLATFORM_FLAG="--platform ${NATIVE_PLATFORM}"
-  fi
-  
-  DOCKER_BUILDKIT=1 ${BUILD_CMD} \
-		    ${PLATFORM_FLAG} \
-		    ${OUTPUT_FLAG} \
+  DOCKER_BUILDKIT=1 docker build \
+		    --platform "${NATIVE_PLATFORM}" \
 		    --progress=plain \
 		    --target "${stage}" \
 		    -t "${IMAGE_NAME}:${tag}" \
@@ -460,8 +345,6 @@ echo "════════════════════════�
 echo "Project root:     $PROJECT_ROOT"
 echo "Dockerfile:       $DOCKERFILE_PATH"
 echo "Branch:           ${branch}"
-echo "Platforms:        ${PLATFORMS:-${NATIVE_PLATFORM} (native only)}"
-echo "Use buildx:       ${USE_BUILDX}"
 echo "Targets:          $TARGETS"
 echo "Image name:       ${IMAGE_NAME}"
 echo "Push:             ${PUSH_IMAGE}"
