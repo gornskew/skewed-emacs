@@ -102,6 +102,8 @@
                  ("WEBTERM_PORT" . "6942")
                  ("TERM" . "xterm-256color")
                  ("COLORTERM" . "truecolor"))
+             (:source "${USER_HOME}/.claude/.credentials.json"
+              :target "/home/emacs-user/.claude/.credentials.json")
    :volumes ((:source "${USER_HOME}/.gemini/google_accounts.json"
               :target "/home/emacs-user/.gemini/google_accounts.json")
              (:source "${USER_HOME}/.gemini/oauth_creds.json"

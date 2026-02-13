@@ -92,7 +92,7 @@ WORKDIR /home/emacs-user
 # Setup skewed-emacs config
 RUN set -euxo pipefail; \
    cd skewed-emacs; \
-   SKEWED_EMACS_DOCKER_BUILD=true ./setup
+   SKEWED_EMACS_DOCKER_BUILD=true ./setup --force
 
 # Initial package load
 RUN set -euxo pipefail; \
@@ -261,7 +261,7 @@ ENV SKEWED_EMACS_CONTAINER=true
 ENV PATH="/home/emacs-user/.local/bin:${PATH}"
 
 RUN set -euxo pipefail; \
-   /home/emacs-user/skewed-emacs/setup
+   /home/emacs-user/skewed-emacs/setup --force
    
 
 # ============================================================
@@ -291,7 +291,7 @@ COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-r
 RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
 
 RUN set -euxo pipefail; \
-    /home/emacs-user/skewed-emacs/setup
+    /home/emacs-user/skewed-emacs/setup --force
 
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
@@ -347,7 +347,7 @@ COPY --chown=emacs-user:emacs-user docker/emacs-repl.sh /home/emacs-user/emacs-r
 RUN chmod +x /usr/local/bin/entrypoint.sh /home/emacs-user/emacs-repl.sh
 
 RUN set -euxo pipefail; \
-    /home/emacs-user/skewed-emacs/setup
+    /home/emacs-user/skewed-emacs/setup --force
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 
