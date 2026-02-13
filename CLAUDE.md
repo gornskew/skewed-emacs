@@ -21,14 +21,19 @@ The containers are now wrapped as MCP (Model Context Protocol) services, providi
 - **Purpose**: Evaluate Emacs Lisp code remotely
 - **Usage**: `mcp__skewed-emacs__skewed-emacs__lisp_eval(code="(+ 1 2 3)")`
 
-**Gendl/GDL Lisp Evaluation Services (multiple backends):**
-- `mcp__gendl_ccl__gendl_ccl__lisp_eval` — Free Gendl on Clozure CL (port 9080)
-- `mcp__gendl_sbcl__gendl_sbcl__lisp_eval` — Free Gendl on SBCL (port 9090)
-- `mcp__genworks_gdl_smp__genworks_gdl_smp__lisp_eval` — Commercial GDL with NURBS (port 9098)
+**Gendl Common Lisp Services (included with skewed-emacs):**
+- `mcp__gendl_ccl__gendl_ccl__lisp_eval` — Gendl on Clozure CL (port 9080)
+- `mcp__gendl_sbcl__gendl_sbcl__lisp_eval` — Gendl on SBCL (port 9090)
+
+**Commercial Genworks GDL Services (via supplemental overlay repos):**
+- `mcp__genworks_gdl_smp__genworks_gdl_smp__lisp_eval` — GDL with NURBS (port 9098)
 - `mcp__genworks_gdl_enterprise_smp__genworks_gdl_enterprise_smp__lisp_eval` — Enterprise variant
+- These are not included in skewed-emacs. Licensed users receive a supplemental
+  repo to clone as a sibling directory, then run its `./install` script to
+  add Docker Compose and MCP config overlays into skewed-emacs.
 
 **Ping Services:**
-- `mcp__skewed_emacs__skewed_emacs__ping_lisp` - Check Emacs service availability
+- `mcp__skewed_emacs__skewed_emacs__ping_lisp` - Check Emacs availability
 - `mcp__gendl_ccl__gendl_ccl__ping_lisp` - Check Gendl CCL availability
 - `mcp__gendl_sbcl__gendl_sbcl__ping_lisp` - Check Gendl SBCL availability
 
@@ -97,18 +102,27 @@ docker exec -it skewed-emacs emacsclient -t
 - **MCP Service**: Available via `mcp__skewed-emacs__*` functions
 - **Mount**: `~/projects` → `/projects`
 
-### Gendl/GDL Containers (multiple backends)
+### Gendl/GDL Containers
 
-The stack includes multiple Lisp backends, each as a separate container:
+**Included with skewed-emacs** (free, open-source Gendl kernel):
 
-| Container | Image | HTTP Port | Swank Port | Notes |
-|-----------|-------|-----------|------------|-------|
-| `gendl-ccl` | `genworks/gendl:devo-ccl` | 9080 (host: 19080) | 4200 | Free Gendl on Clozure CL |
-| `gendl-sbcl` | `genworks/gendl:devo-sbcl` | 9090 (host: 29080) | 4210 | Free Gendl on SBCL |
-| `genworks-gdl-smp` | Commercial | 9098 | 4218 | Commercial GDL with NURBS |
-| `genworks-gdl-enterprise-smp` | Commercial | 9098 | 4218 | Enterprise variant |
+| Container | Image | HTTP Port | Swank Port |
+|-----------|-------|-----------|------------|
+| `gendl-ccl` | `genworks/gendl:devo-ccl` | 9080 (host: 19080) | 4200 |
+| `gendl-sbcl` | `genworks/gendl:devo-sbcl` | 9090 (host: 29080) | 4210 |
 
-All containers mount `~/projects` → `/projects` and join the `skewed-network`.
+**Available via supplemental overlay repos** (licensed, commercial GDL with NURBS):
+
+| Container | HTTP Port | Swank Port |
+|-----------|-----------|------------|
+| `genworks-gdl-smp` | 9098 | 4218 |
+| `genworks-gdl-non-smp` | 9089 | 4209 |
+| `genworks-gdl-enterprise-smp` | 9098 | 4218 |
+
+Licensed users clone their supplemental repo as a sibling to `skewed-emacs/`,
+run `./install`, then `./compose-dev up` picks up the overlay automatically.
+
+All containers mount `~/projects` → `/projects` and join `skewed-network`.
 Check the Dashboard (`*dashboard*` buffer) for current service health.
 
 ### Docker Network
@@ -198,17 +212,17 @@ That documentation includes:
 ```
 Host Machine
 ├── MCP Services (via lisply-mcp wrapper)
-│   ├── mcp__skewed-emacs__* → skewed-emacs:7080
-│   ├── mcp__gendl-ccl__* → gendl-ccl:9080
-│   ├── mcp__gendl-sbcl__* → gendl-sbcl:9090
-│   └── mcp__genworks-gdl-*__* → genworks-gdl-*:9098
+│   ├── mcp__skewed-emacs__*    → skewed-emacs:7080
+│   ├── mcp__gendl-ccl__*       → gendl-ccl:9080      (included)
+│   ├── mcp__gendl-sbcl__*      → gendl-sbcl:9090     (included)
+│   └── mcp__genworks-gdl-*__*  → genworks-gdl-*:9098  (overlay)
 └── Host Ports: 6942 (ttyd), 19080 (gendl-ccl), 29080 (gendl-sbcl)
 
 Docker Network: skewed-network
-├── skewed-emacs container (Emacs + MCP + ttyd)
-├── gendl-ccl container (CCL + Swank 4200)
-├── gendl-sbcl container (SBCL + Swank 4210)
-└── genworks-gdl-* containers (Allegro CL + Swank 4218)
+├── skewed-emacs   (Emacs + MCP + ttyd)           ── always present
+├── gendl-ccl      (CCL + Swank 4200)             ── always present
+├── gendl-sbcl     (SBCL + Swank 4210)            ── always present
+└── genworks-gdl-* (Allegro CL + Swank 4218/4209) ── overlay repos
 ```
 
 ## Commands Reference

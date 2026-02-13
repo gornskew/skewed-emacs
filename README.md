@@ -19,9 +19,9 @@ This Skewed Emacs repository houses essentially three things:
    
 2.  a containerized emacs server with pre-configured skewed emacs user 
 
-3.  a container orchestration to bring in supplemental compatible
-    backend container services for e.g. Model Context Protocol and
-    Knowledge Based Engineering.
+3.  a container orchestration that includes free Gendl Common Lisp
+    backends (on Clozure CL and SBCL) for Knowledge Based Engineering,
+    with optional overlays for commercial Genworks GDL services.
 
 
 ## Features
@@ -193,6 +193,32 @@ If you use `EMACS_IMAGE_VARIANT=lite`, these agents are not installed.
 You can still use Claude via Claude Desktop with MCP integration
 instead (see above).
 
+
+### Supplemental Service Overlays (Commercial GDL)
+
+The base skewed-emacs stack includes three Lisp environments:
+
+- **skewed-emacs** — Emacs Lisp (via MCP)
+- **gendl-ccl** — Free Gendl kernel on Clozure CL
+- **gendl-sbcl** — Free Gendl kernel on SBCL
+
+For commercial Genworks GDL (with NURBS modeling primitives and
+Allegro CL), licensed users receive a supplemental overlay repository.
+To install an overlay:
+
+```bash
+cd ~/projects/
+git clone <overlay-repo-url>    # e.g. genworks-gdl-betatest
+cd <overlay-repo>/
+./install                       # copies configs into ../skewed-emacs/
+cd ../skewed-emacs/
+./compose-dev up                # picks up overlay automatically
+```
+
+The `./install` script copies Docker Compose overlays (`.yml` files)
+and MCP config overlays into skewed-emacs. Docker Compose
+automatically merges all `.yml` files in the directory, and
+`compose-dev up` merges MCP configs for all services.
 
 ### Custom Projects Directory
 
