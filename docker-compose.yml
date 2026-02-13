@@ -31,6 +31,7 @@ services:
         target: /projects
         bind:
           create_host_path: true
+      - ${USER_HOME}/.claude/.credentials.json:/home/emacs-user/.claude/.credentials.json
       - ${USER_HOME}/.gemini/google_accounts.json:/home/emacs-user/.gemini/google_accounts.json
       - ${USER_HOME}/.gemini/oauth_creds.json:/home/emacs-user/.gemini/oauth_creds.json
       - ${USER_HOME}/.codex/auth.json:/home/emacs-user/.codex/auth.json

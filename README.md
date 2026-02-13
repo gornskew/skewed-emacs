@@ -150,6 +150,50 @@ As you can see, we bring down the docker composition before doing the
 git pull, just in case there is a change in docker compose
 configuration that might affect a shutdown.
 
+### AI Terminal Agents (Claude Code, Gemini CLI, Codex)
+
+The `full` image variant includes three AI terminal agents, accessible
+from any shell inside the container (via `M-x eat` or `M-x vterm`):
+
+| Agent | Launch Command | Auth Method |
+|-------|---------------|-------------|
+| Claude Code | `claudly` | Interactive OAuth (opens URL to paste in browser) |
+| Gemini CLI | `geminly` | Interactive OAuth (opens URL to paste in browser) |
+| OpenAI Codex | `codexly` | Interactive login or `OPENAI_API_KEY` env var |
+
+**First-time authentication:**
+
+Each agent requires a one-time login. Launch the agent from a
+terminal inside the container and follow the prompts — typically
+you'll be given a URL to open in your browser.
+
+```bash
+# In an eat or vterm shell inside skewed-emacs:
+claudly    # Follow the OAuth URL prompt
+geminly    # Follow the Google OAuth prompt
+codexly    # Follow the login prompt, or set OPENAI_API_KEY
+```
+
+**Credential persistence:**
+
+Your credentials are stored in dotfiles that are volume-mounted from
+your host, so they survive container restarts:
+
+- Claude Code: `~/.claude/.credentials.json`
+- Gemini CLI: `~/.gemini/oauth_creds.json`, `~/.gemini/google_accounts.json`
+- Codex: `~/.codex/auth.json`
+
+The `compose-dev` script automatically creates these as empty
+placeholder files on your host if they don't exist yet (preventing
+Docker from creating directories in their place).
+
+**Using the `lite` image:**
+
+If you use `EMACS_IMAGE_VARIANT=lite`, these agents are not installed.
+You can still use Claude via Claude Desktop with MCP integration
+instead (see above).
+
+
 ### Custom Projects Directory
 
 `./compose-dev` generates `.env` via `./generate-env.sh`. Do not edit
