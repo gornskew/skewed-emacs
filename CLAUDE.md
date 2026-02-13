@@ -21,21 +21,23 @@ The containers are now wrapped as MCP (Model Context Protocol) services, providi
 - **Purpose**: Evaluate Emacs Lisp code remotely
 - **Usage**: `mcp__skewed-emacs__skewed-emacs__lisp_eval(code="(+ 1 2 3)")`
 
-**Gendl Lisp Evaluation Service:**
-- **Service Name**: `mcp__gendl__gendl__lisp_eval`  
-- **Purpose**: Evaluate Common Lisp code in Gendl environment
-- **Usage**: `mcp__gendl__gendl__lisp_eval(code="(+ 1 2 3)")`
+**Gendl/GDL Lisp Evaluation Services (multiple backends):**
+- `mcp__gendl_ccl__gendl_ccl__lisp_eval` — Free Gendl on Clozure CL (port 9080)
+- `mcp__gendl_sbcl__gendl_sbcl__lisp_eval` — Free Gendl on SBCL (port 9090)
+- `mcp__genworks_gdl_smp__genworks_gdl_smp__lisp_eval` — Commercial GDL with NURBS (port 9098)
+- `mcp__genworks_gdl_enterprise_smp__genworks_gdl_enterprise_smp__lisp_eval` — Enterprise variant
 
 **Ping Services:**
-- `mcp__skewed-emacs__skewed-emacs__ping_lisp` - Check Emacs service availability
-- `mcp__gendl__gendl__ping_lisp` - Check Gendl service availability
+- `mcp__skewed_emacs__skewed_emacs__ping_lisp` - Check Emacs service availability
+- `mcp__gendl_ccl__gendl_ccl__ping_lisp` - Check Gendl CCL availability
+- `mcp__gendl_sbcl__gendl_sbcl__ping_lisp` - Check Gendl SBCL availability
 
 ### MCP vs Raw HTTP
 
 **Previous Approach (Deprecated):**
 ```bash
 # Raw HTTP calls (no longer recommended)
-curl -X POST http://localhost:7081/lisply/lisp-eval -d '{"code": "(+ 1 2 3)"}'
+curl -X POST http://localhost:7080/lisply/lisp-eval -d '{"code": "(+ 1 2 3)"}'  # only from inside container
 ```
 
 **Current Approach (Recommended):**
@@ -67,18 +69,12 @@ mcp__skewed_emacs__skewed_emacs__lisp_eval(code='(shell-command-to-string "which
 # Navigate to skewed-emacs directory
 cd ~/projects/skewed-emacs
 
-# Create shared Docker network (one-time setup)
-docker network create emacs-gendl-network
+# Start the full container stack
+./compose-dev up
 
-# Start Gendl container
-cd dot-files/emacs.d/etc/gendl/docker && ./run --network
-
-# Start Skewed Emacs container  
-cd ~/projects/skewed-emacs/docker && ./run --network
-
-# Verify both services are running via MCP
-mcp__skewed_emacs__skewed_emacs__ping_lisp()  # Should return "pong"
-mcp__gendl__gendl__ping_lisp()                # Should return "pong"
+# Verify services are running via MCP
+mcp__skewed_emacs__skewed_emacs__ping_lisp()      # Should return "pong"
+mcp__gendl_ccl__gendl_ccl__ping_lisp()            # Should return "pong"
 ```
 
 ### 2. Connect to Development Environment
@@ -97,21 +93,26 @@ docker exec -it skewed-emacs emacsclient -t
 - **Base**: Custom Emacs configuration
 - **Network Name**: `skewed-emacs` (accessible as `skewed-emacs:7080` from other containers)
 - **Host Ports**: 
-  - `7081` → `7080` (HTTP API - deprecated in favor of MCP)
+- `6942` → `6942` (ttyd web terminal)
 - **MCP Service**: Available via `mcp__skewed-emacs__*` functions
 - **Mount**: `~/projects` → `/projects`
 
-### Gendl Container (`gendl-ccl`)  
-- **Base**: `genworks/gendl:devo-ccl`
-- **Network Name**: `gendl-ccl` (accessible as `gendl-ccl:4200` and `gendl-ccl:9080` from other containers)
-- **Host Ports**:
-  - `4201` → `4200` (Swank/SLIME)
-  - `9081` → `9080` (HTTP API - deprecated in favor of MCP)
-- **MCP Service**: Available via `mcp__gendl__*` functions
-- **Mount**: `~/projects` → `/home/gendl-user/projects`
+### Gendl/GDL Containers (multiple backends)
+
+The stack includes multiple Lisp backends, each as a separate container:
+
+| Container | Image | HTTP Port | Swank Port | Notes |
+|-----------|-------|-----------|------------|-------|
+| `gendl-ccl` | `genworks/gendl:devo-ccl` | 9080 (host: 19080) | 4200 | Free Gendl on Clozure CL |
+| `gendl-sbcl` | `genworks/gendl:devo-sbcl` | 9090 (host: 29080) | 4210 | Free Gendl on SBCL |
+| `genworks-gdl-smp` | Commercial | 9098 | 4218 | Commercial GDL with NURBS |
+| `genworks-gdl-enterprise-smp` | Commercial | 9098 | 4218 | Enterprise variant |
+
+All containers mount `~/projects` → `/projects` and join the `skewed-network`.
+Check the Dashboard (`*dashboard*` buffer) for current service health.
 
 ### Docker Network
-- **Network Name**: `emacs-gendl-network`
+- **Network Name**: `skewed-network`
 - **Purpose**: Enables container-to-container communication
 - **Key Benefit**: Allows SLIME connection from Skewed Emacs to Gendl Swank server
 
@@ -137,13 +138,13 @@ docker exec -it skewed-emacs emacsclient -t
 ### 2. MCP API Development  
 ```python
 # Test Gendl MCP service
-result = mcp__gendl__gendl__lisp_eval(code="(+ 1 2 3)")
+result = mcp__gendl_ccl__gendl_ccl__lisp_eval(code="(+ 1 2 3)")
 
 # Test Emacs MCP service
 result = mcp__skewed_emacs__skewed_emacs__lisp_eval(code="(+ 1 2 3)")
 
 # Test connectivity
-gendl_status = mcp__gendl__gendl__ping_lisp()
+gendl_status = mcp__gendl_ccl__gendl_ccl__ping_lisp()
 emacs_status = mcp__skewed_emacs__skewed_emacs__ping_lisp()
 ```
 
@@ -198,19 +199,16 @@ That documentation includes:
 Host Machine
 ├── MCP Services (via lisply-mcp wrapper)
 │   ├── mcp__skewed-emacs__* → skewed-emacs:7080
-│   └── mcp__gendl__* → gendl-ccl:9080
-├── Port 4201 → gendl-ccl:4200 (Gendl Swank)
-└── [Legacy HTTP ports available but deprecated]
+│   ├── mcp__gendl-ccl__* → gendl-ccl:9080
+│   ├── mcp__gendl-sbcl__* → gendl-sbcl:9090
+│   └── mcp__genworks-gdl-*__* → genworks-gdl-*:9098
+└── Host Ports: 6942 (ttyd), 19080 (gendl-ccl), 29080 (gendl-sbcl)
 
-Docker Network: emacs-gendl-network
-├── skewed-emacs container
-│   ├── Can reach gendl-ccl:4200 (Swank)
-│   ├── Can reach gendl-ccl:9080 (HTTP API)
-│   └── Exposes 7080 (HTTP API)
-└── gendl-ccl container
-    ├── Exposes 4200 (Swank)
-    ├── Exposes 9080 (HTTP API)
-    └── Can reach skewed-emacs:7080 (if needed)
+Docker Network: skewed-network
+├── skewed-emacs container (Emacs + MCP + ttyd)
+├── gendl-ccl container (CCL + Swank 4200)
+├── gendl-sbcl container (SBCL + Swank 4210)
+└── genworks-gdl-* containers (Allegro CL + Swank 4218)
 ```
 
 ## Commands Reference
@@ -218,7 +216,7 @@ Docker Network: emacs-gendl-network
 ### Container Management
 ```bash
 # Create network (one-time)
-docker network create emacs-gendl-network
+docker network create skewed-network
 
 # List running containers
 docker ps
@@ -230,7 +228,7 @@ docker stop skewed-emacs gendl-ccl
 docker rm skewed-emacs gendl-ccl
 
 # Remove network
-docker network rm emacs-gendl-network
+docker network rm skewed-network
 ```
 
 ### Development Commands
@@ -250,11 +248,11 @@ docker logs gendl-ccl
 ```python
 # Test MCP services
 emacs_status = mcp__skewed_emacs__skewed_emacs__ping_lisp()
-gendl_status = mcp__gendl__gendl__ping_lisp()
+gendl_status = mcp__gendl_ccl__gendl_ccl__ping_lisp()
 
 # Test basic operations
 emacs_result = mcp__skewed_emacs__skewed_emacs__lisp_eval(code="(+ 1 2 3)")
-gendl_result = mcp__gendl__gendl__lisp_eval(code="(+ 1 2 3)")
+gendl_result = mcp__gendl_ccl__gendl_ccl__lisp_eval(code="(+ 1 2 3)")
 ```
 
 ## Troubleshooting
@@ -281,13 +279,11 @@ gendl_result = mcp__gendl__gendl__lisp_eval(code="(+ 1 2 3)")
 ### Reset Environment
 ```bash
 # Stop and remove everything
-docker stop skewed-emacs gendl-ccl 2>/dev/null || true
-docker rm skewed-emacs gendl-ccl 2>/dev/null || true
-docker network rm emacs-gendl-network 2>/dev/null || true
+cd ~/projects/skewed-emacs
+./compose-dev down
 
 # Recreate from scratch
-docker network create emacs-gendl-network
-# Then restart containers with --network flag
+./compose-dev up
 ```
 
 ## Integration with Claude Code
@@ -302,7 +298,7 @@ This environment is designed to work seamlessly with Claude Code:
 ### Example Claude Code Workflow
 ```python
 # Claude makes changes via MCP services
-result = mcp__gendl__gendl__lisp_eval(code='(ql:quickload :my-project)')
+result = mcp__gendl_ccl__gendl_ccl__lisp_eval(code='(ql:quickload :my-project)')
 
 # You can see the results in your SLIME session
 # And use Update! links in Gendl web interface for live reloading
@@ -326,7 +322,7 @@ result = mcp__gendl__gendl__lisp_eval(code='(ql:quickload :my-project)')
 
 ## Related Documentation
 
-- **Gendl Development Guide**: `dot-files/emacs.d/etc/gendl/CLAUDE.md`
+- **Gendl MCP Docs**: Use `gendl-ccl:get_docs(id="claude-md")` or equivalent for each backend
 - **Main Gendl Guide**: `/projects/CLAUDE.md` (top-level project documentation)
 
 ## Version History
@@ -460,13 +456,16 @@ Example workflow that works:
 (insert "balanced content...")
 ```
 
-### cl-who Native Format (for GDL Web Projects)
+### LHTML Format (for GDL Web Projects)
+
+GDL uses `with-lhtml-string` for HTML generation. Two syntaxes exist:
+
 **OLD htmlgen compatibility format (extra parens):**
 ```lisp
 ((:a :href "url" :class "style") "Link Text")
 ```
 
-**NEW cl-who native format (cleaner):**
+**NEW lhtml native format (cleaner, preferred for new code):**
 ```lisp
 (:a :href "url" :class "style" "Link Text")
 ```
