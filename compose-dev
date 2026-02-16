@@ -149,11 +149,13 @@ start_services() {
 
     # Ensure AI TUI auth placeholder files exist on host
     # (Docker mounts create directories if files don't exist, which breaks the TUIs)
+
+    
     for auth_file in \
-        "${USER_HOME}/.claude/.credentials.json" \
-        "${USER_HOME}/.gemini/google_accounts.json" \
-        "${USER_HOME}/.gemini/oauth_creds.json" \
-        "${USER_HOME}/.codex/auth.json"; do
+        "${HOME}/.claude/.credentials.json" \
+        "${HOME}/.gemini/google_accounts.json" \
+        "${HOME}/.gemini/oauth_creds.json" \
+        "${HOME}/.codex/auth.json"; do
         auth_file=$(eval echo "$auth_file")
         if [ ! -f "$auth_file" ]; then
             mkdir -p "$(dirname "$auth_file")"
