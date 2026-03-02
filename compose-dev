@@ -1,21 +1,26 @@
-#!/bin/bash
-# Docker Compose Management Script for Skewed Emacs + Gendl Development Environment
-# Dr. Frankenstein'd together from existing run scripts with enhanced compose orchestration
+#!/bin/bash -e
 
-set -e
-
-cd "$(dirname "$0")"
+cd "${0%/*}"
 
 export DOCKER_CONFIG=~/.docker
 
 SCRIPT_DIR="$(pwd)"
 COMPOSE_FILE="${SCRIPT_DIR}/docker-compose.yml"
 
-# Find all .yml files in the current directory, excluding docker-compose.yml
-COMPOSE_FILES=("$COMPOSE_FILE")
-while IFS= read -r file; do
-        COMPOSE_FILES+=("$file")
-done < <(find "$SCRIPT_DIR" ! -name "${SCRIPT_DIR}/docker-compose.yml" -maxdepth 1 -type f -name "*.yml")
+
+base=./docker-compose.yml; [[ -f $base ]] && c=("$base")
+
+shopt -s nullglob
+for f in ./*.yml; do
+  n=${f##*/}; [[ $n = docker-compose.yml ]] && continue
+  [[ $n = *"-dev-"* ]] && d+=("$f") || o+=("$f")
+done
+
+[[ ${#o[@]} -gt 0 ]] && c+=($(printf '%s\n' "${o[@]}"|sort))
+[[ ${#d[@]} -gt 0 ]] && c+=($(printf '%s\n' "${d[@]}"|sort))
+
+COMPOSE_FILES=("${c[@]}")
+
 
 # Build the Docker Compose command with all .yml files
 COMPOSE_FILES_ARGS=()
@@ -29,6 +34,10 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+# New / adjusted for distinction
+CYAN='\033[0;36m'       # for base file (clear & distinct from info blue)
+MAGENTA='\033[0;35m'    # for dev overlays (stands out as "custom/modifying")
+
 
 # Helper functions
 log_info() { printf "%b\n" "${BLUE}[INFO]${NC} $1"; }
@@ -52,8 +61,31 @@ check_docker_compose() {
         exit 1
     fi
 
+    # Get basenames, sort them alphabetically
+    mapfile -t sorted_basenames < <(printf '%s\n' "${COMPOSE_FILES[@]##*/}" | sort)
+
+
     log_info "Using: $COMPOSE_CMD"
-    log_info "Compose files: ${COMPOSE_FILES[*]}"
+    log_info "Compose files (application order - later files override earlier):"
+
+    for full_path in "${COMPOSE_FILES[@]}"; do
+        filename="${full_path##*/}"
+
+        if [[ "$filename" == "docker-compose.yml" ]]; then
+            # Base file - cyan or bold blue
+            log_info "  - ${CYAN}${filename}${NC}  ${BLUE}(base)${NC}"
+
+        elif [[ "$filename" == *"-dev-"* ]]; then
+            # Dev overlays - magenta/yellow
+            log_info "  - ${MAGENTA}${filename}${NC}  ${YELLOW}(dev overlay)${NC}"
+
+        else
+            # Regular service overlays - green
+            log_info "  - ${GREEN}${filename}${NC}  ${GREEN}(added services)${NC}"
+        fi
+    done
+
+    
 }
 
 # Initialize environment
