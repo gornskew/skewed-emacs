@@ -205,12 +205,13 @@ function geminly
 function codexly
 {
     # Update Codex CLI to latest version
-    echo "Checking for OpenAI Codex updates..."
-    (cd ~/.codex/local && npm update @openai/codex) >/dev/null 2>&1
+    # FLAG -- commented out, as this will not work in container currently due to permissions footguns.
+    # echo "Checking for OpenAI Codex updates..."
+    # (cd ~/.codex/local && npm update @openai/codex) >/dev/null 2>&1
 
-    # Use pre-merged MCP TOML config (prepared at container startup)
+    # Use pre-merged, pre-positioned MCP TOML config (prepared at container startup)
     echo "Starting OpenAI Codex CLI with MCP integration..."
-    cd /projects && ~/.local/bin/codex --mcp-config /tmp/merged-mcp.toml
+    cd /projects && ~/.local/bin/codex 
 }
 
 
