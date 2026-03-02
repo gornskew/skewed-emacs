@@ -8,15 +8,15 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-User=dcooper8
+User=%%USER%%
 Group=docker
-WorkingDirectory=/home/dcooper8/projects/skewed-emacs
-Environment=HOME=/home/dcooper8
+WorkingDirectory=/home/%%USER%%/projects/skewed-emacs
+Environment=HOME=/home/%%USER%%
 
-ExecStartPre=/home/dcooper8/projects/skewed-emacs/compose-dev init
-ExecStart=/home/dcooper8/projects/skewed-emacs/compose-dev up
-ExecStop=/home/dcooper8/projects/skewed-emacs/compose-dev down
-ExecReload=/home/dcooper8/projects/skewed-emacs/compose-dev restart
+ExecStartPre=/home/%%USER%%/projects/skewed-emacs/compose-dev init
+ExecStart=/home/%%USER%%/projects/skewed-emacs/compose-dev up
+ExecStop=/home/%%USER%%/projects/skewed-emacs/compose-dev down
+ExecReload=/home/%%USER%%/projects/skewed-emacs/compose-dev restart
 TimeoutStartSec=300
 TimeoutStopSec=60
 StandardOutput=journal+console
