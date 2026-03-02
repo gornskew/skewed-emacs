@@ -29,7 +29,7 @@ Normal dev (single-arch, non-clobbering):
   docker/build --all --push
     - builds your native arch only
     - pushes arch-suffixed tags (e.g. devo-lite-amd64)
-    - updates multi-arch manifests for canonical tags (devo-lite, devo-full, devo, latest)
+    - updates multi-arch manifests for canonical tags (devo-lite, devo-full, devo, latest, etc.)
 
 Multi-arch on one machine:
   docker/build --all --multi-arch --push
@@ -143,7 +143,7 @@ get_stage_for_target() {
 }
 
 # -----------------------------
-# Build one target
+# Build one target (single-arch)
 # -----------------------------
 build_target_single_arch() {
   local target="$1" stage="$2"
@@ -178,6 +178,9 @@ build_target_single_arch() {
   fi
 }
 
+# -----------------------------
+# Build one target (multi-arch)
+# -----------------------------
 build_target_multi_arch() {
   local target="$1" stage="$2"
   local base_tag="${branch}-${target}"
@@ -216,6 +219,86 @@ build_target_multi_arch() {
 }
 
 # -----------------------------
+# Create arch-suffixed aliases (local)
+# -----------------------------
+create_arch_aliases_local() {
+  echo ""
+  echo "=== Creating arch-suffixed local aliases for branch ${branch} (${ARCH_SUFFIX}) ==="
+
+  local has_aituis=false
+  local has_gui_aituis=false
+
+  for target in $TARGETS; do
+    [[ "$target" == "aituis" ]] && has_aituis=true
+    [[ "$target" == "gui-aituis" ]] && has_gui_aituis=true
+  done
+
+  # {branch}-tui-{arch} → {branch}-aituis-{arch}
+  if $has_aituis; then
+    if docker image inspect "${FINAL_IMAGE}:${branch}-aituis-${ARCH_SUFFIX}" >/dev/null 2>&1; then
+      docker tag "${FINAL_IMAGE}:${branch}-aituis-${ARCH_SUFFIX}" "${FINAL_IMAGE}:${branch}-tui-${ARCH_SUFFIX}"
+      echo "✓ ${branch}-tui-${ARCH_SUFFIX} → ${branch}-aituis-${ARCH_SUFFIX}"
+    fi
+  fi
+
+  # {branch}-full-{arch} → {branch}-gui-aituis-{arch}
+  # {branch}-{arch}      → {branch}-full-{arch}
+  if $has_gui_aituis; then
+    if docker image inspect "${FINAL_IMAGE}:${branch}-gui-aituis-${ARCH_SUFFIX}" >/dev/null 2>&1; then
+      docker tag "${FINAL_IMAGE}:${branch}-gui-aituis-${ARCH_SUFFIX}" "${FINAL_IMAGE}:${branch}-full-${ARCH_SUFFIX}"
+      echo "✓ ${branch}-full-${ARCH_SUFFIX} → ${branch}-gui-aituis-${ARCH_SUFFIX}"
+
+      docker tag "${FINAL_IMAGE}:${branch}-full-${ARCH_SUFFIX}" "${FINAL_IMAGE}:${branch}-${ARCH_SUFFIX}"
+      echo "✓ ${branch}-${ARCH_SUFFIX} → ${branch}-full-${ARCH_SUFFIX}"
+
+      if [[ "${branch}" == "devo" ]]; then
+        docker tag "${FINAL_IMAGE}:devo-${ARCH_SUFFIX}" "${FINAL_IMAGE}:latest-${ARCH_SUFFIX}"
+        echo "✓ latest-${ARCH_SUFFIX} → devo-${ARCH_SUFFIX}"
+      fi
+    fi
+  fi
+}
+
+# -----------------------------
+# Push arch-suffixed aliases
+# -----------------------------
+push_arch_aliases() {
+  [[ "$PUSH_IMAGE" != "true" ]] && return
+
+  echo ""
+  echo "=== Pushing arch-suffixed aliases for branch ${branch} (${ARCH_SUFFIX}) ==="
+
+  local tags_to_push=()
+
+  # Real targets
+  for t in $TARGETS; do
+    tags_to_push+=("${branch}-${t}-${ARCH_SUFFIX}")
+  done
+
+  # Aliases: -tui, -full, branch, latest (for devo)
+  if docker image inspect "${FINAL_IMAGE}:${branch}-tui-${ARCH_SUFFIX}" >/dev/null 2>&1; then
+    tags_to_push+=("${branch}-tui-${ARCH_SUFFIX}")
+  fi
+  if docker image inspect "${FINAL_IMAGE}:${branch}-full-${ARCH_SUFFIX}" >/dev/null 2>&1; then
+    tags_to_push+=("${branch}-full-${ARCH_SUFFIX}")
+  fi
+  if docker image inspect "${FINAL_IMAGE}:${branch}-${ARCH_SUFFIX}" >/dev/null 2>&1; then
+    tags_to_push+=("${branch}-${ARCH_SUFFIX}")
+  fi
+  if [[ "${branch}" == "devo" ]] && docker image inspect "${FINAL_IMAGE}:latest-${ARCH_SUFFIX}" >/dev/null 2>&1; then
+    tags_to_push+=("latest-${ARCH_SUFFIX}")
+  fi
+
+  # Deduplicate
+  tags_to_push=($(printf "%s\n" "${tags_to_push[@]}" | sort -u))
+
+  for tag in "${tags_to_push[@]}"; do
+    echo "→ Pushing ${IMAGE_NAME}:${tag}"
+    docker push "${IMAGE_NAME}:${tag}"
+  done
+}
+
+# -----------------------------
 # Manifest updater (canonical tags)
 # -----------------------------
 update_multi_arch_manifests() {
@@ -224,23 +307,28 @@ update_multi_arch_manifests() {
   echo ""
   echo "=== Updating multi-arch manifests for canonical tags ==="
 
-  local base_tags=()
-  for t in $TARGETS; do
-    base_tags+=("${branch}-${t}")
-  done
-  base_tags+=("${branch}-full" "${branch}" "${branch}-tui")
-  [[ "$branch" == "devo" ]] && base_tags+=("latest")
+  local canonical_tags=()
 
-  for base in "${base_tags[@]}"; do
+  # Intermediate variants
+  canonical_tags+=("${branch}-lite" "${branch}-aituis" "${branch}-gui" "${branch}-gui-aituis")
+
+  # Aliases
+  canonical_tags+=("${branch}-tui" "${branch}-full" "${branch}")
+
+  # devo-only latest
+  [[ "$branch" == "devo" ]] && canonical_tags+=("latest")
+
+  # For each canonical tag, merge available -amd64 and -arm64
+  for base in "${canonical_tags[@]}"; do
     local sources=()
-    for p in amd64 arm64; do
-      if docker buildx imagetools inspect "${IMAGE_NAME}:${base}-${p}" >/dev/null 2>&1; then
-        sources+=("${IMAGE_NAME}:${base}-${p}")
+
+    for arch in amd64 arm64; do
+      if docker buildx imagetools inspect "${IMAGE_NAME}:${base}-${arch}" >/dev/null 2>&1; then
+        sources+=("${IMAGE_NAME}:${base}-${arch}")
       fi
     done
 
-    # If we already have a direct multi-arch tag (from buildx multi-arch mode),
-    # include it as a source as well.
+    # If multi-arch buildx already pushed canonical directly, include it too
     if docker buildx imagetools inspect "${IMAGE_NAME}:${base}" >/dev/null 2>&1; then
       sources+=("${IMAGE_NAME}:${base}")
     fi
@@ -255,48 +343,7 @@ update_multi_arch_manifests() {
 }
 
 # -----------------------------
-# Local aliases (for convenience)
-# -----------------------------
-create_local_aliases() {
-  echo ""
-  echo "=== Creating local aliases for branch ${branch} ==="
-
-  local has_aituis=false
-  local has_gui_aituis=false
-
-  for target in $TARGETS; do
-    [[ "$target" == "aituis" ]] && has_aituis=true
-    [[ "$target" == "gui-aituis" ]] && has_gui_aituis=true
-  done
-
-  # Use native-arch images for local aliases
-  local suffix="${ARCH_SUFFIX}"
-
-  if $has_aituis; then
-    if docker image inspect "${FINAL_IMAGE}:${branch}-aituis-${suffix}" >/dev/null 2>&1; then
-      docker tag "${FINAL_IMAGE}:${branch}-aituis-${suffix}" "${FINAL_IMAGE}:${branch}-tui-${suffix}"
-      echo "✓ ${branch}-tui-${suffix} → ${branch}-aituis-${suffix}"
-    fi
-  fi
-
-  if $has_gui_aituis; then
-    if docker image inspect "${FINAL_IMAGE}:${branch}-gui-aituis-${suffix}" >/dev/null 2>&1; then
-      docker tag "${FINAL_IMAGE}:${branch}-gui-aituis-${suffix}" "${FINAL_IMAGE}:${branch}-full-${suffix}"
-      echo "✓ ${branch}-full-${suffix} → ${branch}-gui-aituis-${suffix}"
-
-      docker tag "${FINAL_IMAGE}:${branch}-full-${suffix}" "${FINAL_IMAGE}:${branch}-${suffix}"
-      echo "✓ ${branch}-${suffix} → ${branch}-full-${suffix}"
-
-      if [[ "${branch}" == "devo" ]]; then
-        docker tag "${FINAL_IMAGE}:devo-${suffix}" "${FINAL_IMAGE}:latest-${suffix}"
-        echo "✓ latest-${suffix} → devo-${suffix}"
-      fi
-    fi
-  fi
-}
-
-# -----------------------------
-# Config extraction (from best image we have locally)
+# Config extraction (from best local image)
 # -----------------------------
 extract_generated_configs() {
   echo ""
@@ -368,7 +415,12 @@ for target in $TARGETS; do
   fi
 done
 
-create_local_aliases
+# Only meaningful in single-arch mode (multi-arch mode uses canonical tags directly)
+if [[ "$USE_BUILDX" == "single" ]]; then
+  create_arch_aliases_local
+  push_arch_aliases
+fi
+
 extract_generated_configs
 update_multi_arch_manifests
 
