@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Skewed Emacs build — safe multi-arch with manifest-aware canonical tags
 
 set -euo pipefail
@@ -96,7 +96,7 @@ elif [[ -n "${CI_COMMIT_REF_NAME:-}" ]]; then
 else
   branch="$(git -C "$PROJECT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo devo)"
 fi
-branch="${branch//\//-}"
+branch="$(printf '%s' "$branch" | tr '/' '-')"
 
 # -----------------------------
 # lisply-mcp revision
