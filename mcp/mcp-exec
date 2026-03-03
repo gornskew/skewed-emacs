@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 #
 # MCP exec wrapper - starts compose stack on demand if needed,
 # then execs into the container to run the MCP wrapper.
@@ -7,7 +7,7 @@
 # the MCP protocol messages from the final exec. Any stray output
 # will corrupt the MCP stdio protocol and cause the client to fail.
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 COMPOSE_DIR="${SCRIPT_DIR}/.."
 SERVICE_NAME="skewed-emacs"
 LOG_FILE="/tmp/mcp-exec.log"
