@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Install skewed-emacs as a systemd service on the current machine.
 #
 # Substitutes %%USER%% with the invoking user and derives SKEWED_DIR
@@ -7,12 +7,12 @@
 # Usage (run as the user who will own the service, with sudo available):
 #
 #   cd /path/to/skewed-emacs
-#   sh systemd-system/deploy-systemd.sh
+#   bash systemd-system/deploy-systemd.sh
 #
 # Or, to override user/dir explicitly:
 #
 #   SKEWED_USER=dave SKEWED_DIR=/home/dave/projects/skewed-emacs \
-#     sh systemd-system/deploy-systemd.sh
+#     bash systemd-system/deploy-systemd.sh
 
 set -e
 
@@ -23,7 +23,7 @@ SYSTEMD_DIR="/etc/systemd/system"
 
 # ---- Resolve user and skewed-emacs directory --------------------------------
 
-SKEWED_USER="${SKEWED_USER:-$(logname 2>/dev/null || echo "${USER:-$(id -un)}" )}"
+SKEWED_USER="${SKEWED_USER:-$(logname 2>/dev/null || echo "$USER")}"
 SKEWED_DIR="${SKEWED_DIR:-$(cd "${SCRIPT_DIR}/.." && pwd)}"
 
 echo "=== Skewed Emacs systemd deploy ==="
@@ -42,7 +42,7 @@ if [ ! -x "${SKEWED_DIR}/compose-dev" ]; then
     echo "ERROR: compose-dev not found/executable at ${SKEWED_DIR}/compose-dev"; exit 1
 fi
 
-if ! id "${SKEWED_USER}" > /dev/null 2>&1; then
+if ! id "${SKEWED_USER}" &>/dev/null; then
     echo "ERROR: User ${SKEWED_USER} does not exist"; exit 1
 fi
 
@@ -64,7 +64,7 @@ if [ -f "${SYSTEMD_DIR}/${SERVICE_NAME}.service" ]; then
     echo ""
 fi
 
-printf '%s\n' "${UNIT_CONTENT}" | sudo tee "${SYSTEMD_DIR}/${SERVICE_NAME}.service" > /dev/null
+echo "${UNIT_CONTENT}" | sudo tee "${SYSTEMD_DIR}/${SERVICE_NAME}.service" > /dev/null
 echo "Wrote ${SYSTEMD_DIR}/${SERVICE_NAME}.service"
 
 sudo systemctl daemon-reload
@@ -79,22 +79,18 @@ if systemctl is-active --quiet "${SERVICE_NAME}" 2>/dev/null; then
     echo "  sudo systemctl restart ${SERVICE_NAME}"
 else
     echo ""
-    printf "Start %s now? [y/N] " "${SERVICE_NAME}"
-    read -r answer
-    case "$answer" in
-        [Yy]*)
-            sudo systemctl start "${SERVICE_NAME}"
-            echo "Waiting for containers..."
-            sleep 10
-            sudo systemctl status "${SERVICE_NAME}" --no-pager || true
-            echo ""
-            echo "Verify enterprise container health:"
-            echo "  docker exec genworks-gdl-enterprise-smp curl -sf http://localhost:9098/lisply/ping-lisp"
-            ;;
-        *)
-            echo "Start when ready: sudo systemctl start ${SERVICE_NAME}"
-            ;;
-    esac
+    read -r -p "Start ${SERVICE_NAME} now? [y/N] " answer
+    if [[ "${answer}" =~ ^[Yy]$ ]]; then
+        sudo systemctl start "${SERVICE_NAME}"
+        echo "Waiting for containers..."
+        sleep 10
+        sudo systemctl status "${SERVICE_NAME}" --no-pager || true
+        echo ""
+        echo "Verify enterprise container health:"
+        echo "  docker exec genworks-gdl-enterprise-smp curl -sf http://localhost:9098/lisply/ping-lisp"
+    else
+        echo "Start when ready: sudo systemctl start ${SERVICE_NAME}"
+    fi
 fi
 
 echo ""
