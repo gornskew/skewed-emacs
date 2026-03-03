@@ -1,4 +1,75 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
+
+# =============================================================================
+# PREFLIGHT: environment sanity checks (bash version, docker)
+# =============================================================================
+preflight_checks() {
+    local ok=true
+
+    # --- Bash version ---
+    if [ "${BASH_VERSINFO[0]}" -lt 4 ] 2>/dev/null; then
+        echo ""
+        echo "╔══════════════════════════════════════════════════════════════════╗"
+        echo "║  ERROR: bash 4+ required (you have: ${BASH_VERSION:-unknown})          ║"
+        echo "╠══════════════════════════════════════════════════════════════════╣"
+        echo "║  macOS ships bash 3.2 and does not update it automatically.     ║"
+        echo "║                                                                  ║"
+        echo "║  Fix:                                                            ║"
+        echo "║    1. Install Homebrew:  https://brew.sh                        ║"
+        echo "║    2. brew install bash                                          ║"
+        echo "║    3. Add to ~/.zprofile:                                        ║"
+        echo "║         export PATH=\"/opt/homebrew/bin:\$PATH\"                  ║"
+        echo "║       (Apple Silicon: /opt/homebrew  Intel Mac: /usr/local)     ║"
+        echo "║    4. Open a new terminal and retry.                            ║"
+        echo "║                                                                  ║"
+        echo "║  See README.md section: macOS Prerequisites                     ║"
+        echo "╚══════════════════════════════════════════════════════════════════╝"
+        echo ""
+        ok=false
+    fi
+
+    # --- Docker ---
+    if ! command -v docker &>/dev/null; then
+        echo ""
+        echo "╔══════════════════════════════════════════════════════════════════╗"
+        echo "║  ERROR: docker not found on PATH                                ║"
+        echo "╠══════════════════════════════════════════════════════════════════╣"
+        echo "║  Docker is required to run the Skewed Emacs stack.              ║"
+        echo "║                                                                  ║"
+        echo "║  Fix:                                                            ║"
+        echo "║    • macOS / Windows:                                            ║"
+        echo "║        Install Docker Desktop:                                   ║"
+        echo "║        https://www.docker.com/products/docker-desktop/          ║"
+        echo "║    • Linux:                                                      ║"
+        echo "║        https://docs.docker.com/engine/install/                  ║"
+        echo "║                                                                  ║"
+        echo "║  After installing, open a new terminal and retry.              ║"
+        echo "╚══════════════════════════════════════════════════════════════════╝"
+        echo ""
+        ok=false
+    elif ! docker info &>/dev/null; then
+        echo ""
+        echo "╔══════════════════════════════════════════════════════════════════╗"
+        echo "║  ERROR: docker is installed but not running / not accessible    ║"
+        echo "╠══════════════════════════════════════════════════════════════════╣"
+        echo "║  Fix:                                                            ║"
+        echo "║    • macOS / Windows: start Docker Desktop and wait for it      ║"
+        echo "║      to show the green 'Engine running' status, then retry.    ║"
+        echo "║    • Linux: sudo systemctl start docker                         ║"
+        echo "╚══════════════════════════════════════════════════════════════════╝"
+        echo ""
+        ok=false
+    fi
+
+    [ "$ok" = true ]
+}
+
+# Run preflight immediately on any non-trivial invocation
+case "${1:-help}" in
+    help|--help|-h) ;;   # skip preflight for pure help
+    *) preflight_checks || exit 1 ;;
+esac
+
 
 cd "${0%/*}"
 
@@ -47,11 +118,6 @@ log_error() { printf "%b\n" "${RED}[ERROR]${NC} $1"; }
 
 # Check if docker compose is available
 check_docker_compose() {
-    if ! command -v docker &> /dev/null; then
-        log_error "Docker is not installed or not in PATH"
-        exit 1
-    fi
-
     if docker compose version &> /dev/null; then
         COMPOSE_CMD="docker compose"
     elif docker-compose version &> /dev/null; then
