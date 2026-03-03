@@ -122,10 +122,6 @@ preflight_checks() {
     [ "$_pf_ok" = "true" ]
 }
 
-case "${1:-help}" in
-    help|--help|-h) ;;
-    *) preflight_checks || exit 1 ;;
-esac
 
 # =============================================================================
 # DOCKER COMPOSE DETECTION + FILE LIST DISPLAY
@@ -499,6 +495,11 @@ show_skew_welcome() {
 # MAIN
 # =============================================================================
 main() {
+    case "${1:-help}" in
+        help|--help|-h) ;;
+        *) preflight_checks || exit 1 ;;
+    esac
+
     check_docker_compose
 
     case "${1:-help}" in
