@@ -311,3 +311,6 @@ fi
 
 
 
+
+# Skewed Emacs shell helpers
+. "/home/dcooper8/.config/skewed-emacs/shell-functions.sh"

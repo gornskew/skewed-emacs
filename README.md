@@ -102,7 +102,6 @@ Your host machine stays clean. The only intentional side effect is that
 ### Requirements
 
  - Git
- - Recent Bash — see [macOS-Specific Section](#macos-specific-section) if on a Mac
  - Docker — see [macOS-Specific Section](#macos-specific-section) if on a Mac
 
 
@@ -331,57 +330,12 @@ described in the [instructions](windows-keybindings/README.md).
 
 ## macOS-Specific Section
 
-### macOS Prerequisites: Modern Bash
+### macOS Prerequisites
 
-macOS ships with **bash 3.2** (from 2007) due to licensing constraints.
-`compose-dev` requires **bash 4+**. You need to install a modern bash
-via [Homebrew](https://brew.sh) and ensure it is first on your `$PATH`.
+`compose-dev` is pure POSIX sh — no special shell is required on macOS.
+The only requirement is **Docker Desktop**.
 
-#### Step 1: Install Homebrew (if not already installed)
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-After installation, Homebrew will print a **"Next steps"** section.
-Follow it — it will tell you to run two `eval` or `export` commands.
-**Do not skip this.** It is what puts `/opt/homebrew/bin` on your PATH.
-
-#### Step 2: Install modern bash
-
-```bash
-brew install bash
-```
-
-#### Step 3: Verify the right bash is on your PATH
-
-```bash
-which bash          # should show /opt/homebrew/bin/bash
-bash --version      # should show 5.x or later
-```
-
-If `which bash` still shows `/bin/bash`, your PATH is not set up correctly.
-Add this to your `~/.zprofile` (for login shells) **and** `~/.zshrc`
-(for interactive shells):
-
-```zsh
-export PATH="/opt/homebrew/bin:$PATH"
-```
-
-Then reload:
-
-```zsh
-source ~/.zprofile
-source ~/.zshrc
-which bash   # now shows /opt/homebrew/bin/bash
-```
-
-> **Apple Silicon (M1/M2/M3/M4) vs Intel:** Homebrew installs to
-> `/opt/homebrew/bin` on Apple Silicon and `/usr/local/bin` on Intel.
-> The `brew` post-install instructions will tell you the correct path
-> for your machine. When in doubt: `brew --prefix` prints it.
-
-#### Step 4: Verify Docker is available
+#### Install Docker Desktop
 
 Install [Docker Desktop for Mac](https://www.docker.com/products/docker-desktop/)
 if you haven't already, then confirm:
@@ -390,7 +344,7 @@ if you haven't already, then confirm:
 docker info   # should print engine info without errors
 ```
 
-Once both bash 4+ and Docker are on your PATH, `./compose-dev up` will work normally.
+Once Docker is running, `./compose-dev up` will work normally.
 
 ---
 
