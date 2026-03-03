@@ -94,26 +94,16 @@ other.
 
 ## Containerized Runnings (recommended)
 
-### Requirements 
- - Recent Bash (see MacOS requirement below)
- - Docker (see MacOS section below if unsure)
+Everything runs inside Docker containers — **you do not run `./setup`,
+install dot-files, or modify your Emacs configuration on the host.**
+Your host machine stays clean. The only intentional side effect is that
+`./compose-dev up` adds `eskew` and `egskew` to your `~/.bashrc`.
+
+### Requirements
+
  - Git
-
-### Rationale
-
-This is the easiest and recommended way to run Skewed Emacs. Everything
-runs inside Docker containers — **you do not run `./setup`, install
-dot-files, or modify your Emacs configuration on the host.** Your host
-machine stays clean.
-
-The only intentional side effect on your host is that `./compose-dev up`
-adds two shell functions (`eskew` and `egskew`) to your `~/.bashrc` so
-you can connect to the containerized Emacs from your host terminal.
-That is the full extent of host-side changes.
-
-Prerequisites: a [bash 4+](https://www.gnu.org/software/bash/) shell
-and [Docker](https://www.docker.com/get-started). See
-[macOS Prerequisites](#macos-prerequisites-modern-bash) if on a Mac.
+ - Recent Bash — see [macOS-Specific Section](#macos-specific-section) if on a Mac
+ - Docker — see [macOS-Specific Section](#macos-specific-section) if on a Mac
 
 
 ### Initial Setup
@@ -251,8 +241,8 @@ placeholder files on your host if they don't exist yet.
 
 If you use `EMACS_IMAGE_VARIANT=lite`, these agents are not installed.
 An external host MCP consumer such as Claude Desktop can still be
-used, via the mcp which gets generated at `./compose-dev up` time and
-should be in `skewed-emacs/mcp/`.
+used, via the MCP config generated at `./compose-dev up` time and
+written to `skewed-emacs/mcp/`.
 
 
 ### Supplemental Service Overlays (Commercial GDL)
