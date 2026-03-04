@@ -1,5 +1,4 @@
-# Skewed Emacs: Ready-to-go, Opinionated Emacs Environment that
-  supports MCP for elisp and Common Lisp
+# Skewed Emacs: Ready-to-go, Opinionated Emacs Environment that supports MCP for elisp and Common Lisp
 
 Skewed Emacs is a containerized Emacs development environment with a
 package-rich, native-compiled emacs elisp user configuration, that
