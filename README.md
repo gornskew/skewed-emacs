@@ -426,6 +426,21 @@ your life, you can replicate those across most Windows programs using
 the free AutoHotkey program, for which we bundle a config, also
 described in the [instructions](windows-keybindings/README.md).
 
+### Emacs Through the Gangway (ttyd) on Windows
+
+If you take the gangway — Emacs in a browser tab on port 6942, or a
+hosted session — Edge and Chrome will steal a few chords before the
+terminal sees them: `C-n` opens a new window, `C-p` prints, and `C-w`
+closes the tab you are working in. No setting inside the page can
+stop that. We bundle a second AutoHotkey config,
+`autohotkey-config-for-emacs-in-ttyd.ahk`, which catches those chords
+at the OS level and hands the terminal something Emacs understands
+(the shipped Emacs config binds `M-]` to `kill-region` for exactly
+this reason). Run that script before you open a ttyd tab; the
+[instructions](windows-keybindings/README.md#emacs-in-a-browser-tab-ttyd)
+walk through it, plus an Edge registry policy for anyone who wants the
+genuine control characters back.
+
 ## macOS-Specific Section
 
 ### macOS Prerequisites
