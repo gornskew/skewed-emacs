@@ -227,19 +227,37 @@ RUN set -euxo pipefail; \
    sleep 8; \
    emacsclient --eval "(load \"~/skewed-emacs/docker/wait-for-async.el\")"
 
-# Build skewed_search index inside the image (no host mounts).
-# Uses lisply-search.el which handles cloning repos if /projects/ is empty.
-RUN set -euxo pipefail; \
+# Build the lisply_search index inside the image (no host mounts).
+# lisply-search.el clones each corpus repository that is not already
+# under /projects/ (empty in a build).  A corpus that cannot be fetched
+# is logged as SOURCE MISSING and skipped; the index is still written
+# from the rest, and the step FAILS if no index file results.  Verify by
+# presence: from 2026-08-20 to 2026-09-09 every image went green with no
+# index aboard, because one failed clone skipped the whole build.
+#
+# Private corpora (genworks-learn lives inside the private genworks/apps
+# repository) authenticate through a BuildKit secret mounted as the
+# build user's ~/.netrc -- never a build-arg, which would land in the
+# image history.  docker/build passes it from CORPUS_NETRC=<file>, one
+# line:  machine gitlab.genworks.com login <user> password <token>
+# Without the secret the private corpus is skipped.  To make a missing
+# corpus fail the build instead, set LISPLY_INDEX_STRICT=true
+# (docker/build --strict-index).
+ARG LISPLY_INDEX_STRICT=false
+RUN --mount=type=secret,id=corpus_netrc,target=/home/emacs-user/.netrc,uid=1000,gid=1000 \
+   set -euxo pipefail; \
    if [ "${SKEWED_BUILD_SKEWED_INDEX}" = "true" ]; then \
      mkdir -p /projects; \
-     ln -sfn /home/emacs-user/skewed-emacs /projects/skewed-emacs; \
+     ln -sfn /home/emacs-user/skewed-emacs /projects/readymax; \
      cd /home/emacs-user/skewed-emacs; \
-     emacs --batch \
+     GIT_TERMINAL_PROMPT=0 LISPLY_INDEX_STRICT="${LISPLY_INDEX_STRICT}" emacs --batch \
        --eval "(add-to-list 'load-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/source\")" \
-       --eval "(setq lisply-search-services-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/skewed-search-config.sexp\")" \
-       --eval "(setq lisply-search-index-path \"~/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp\")" \
+       --eval "(setq lisply-search-services-path \"/home/emacs-user/skewed-emacs/dot-files/emacs.d/sideloaded/lisply-backend/lisply-search-config.sexp\")" \
+       --eval "(setq lisply-search-index-path \"~/.emacs.d/sideloaded/lisply-backend/lisply-search-index.sexp\")" \
        -l lisply-search.el \
        --eval "(lisply-search-build-index-with-clone \"${GIT_BRANCH}\")"; \
+     test -s ~/.emacs.d/sideloaded/lisply-backend/lisply-search-index.sexp \
+       || { echo "ERROR: the lisply_search index was not written" >&2; exit 1; }; \
    fi
 
 # Cleanup builder caches.

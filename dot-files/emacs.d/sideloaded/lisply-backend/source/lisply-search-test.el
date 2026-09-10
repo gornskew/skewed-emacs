@@ -1,4 +1,4 @@
-;;; lisply-search-test.el --- Regression tests for skewed_search -*- lexical-binding: t; -*-
+;;; lisply-search-test.el --- Regression tests for lisply_search -*- lexical-binding: t; -*-
 
 ;; Copyright © 2026 Gornskew Enterprises
 ;;

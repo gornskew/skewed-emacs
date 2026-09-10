@@ -25,6 +25,7 @@ TARGETS=""
 PLATFORMS=""
 CLI_SET_PUSH=""
 CLI_SET_BUILD_INDEX="true"
+CLI_SET_INDEX_STRICT="false"
 MANIFEST_ONLY="false"
 SKIP_MANIFESTS="false"
 USE_ZSTD="false"
@@ -60,8 +61,16 @@ Branch:
   --branch=NAME         override branch (default: current git branch, or devo)
 
 Search index:
-  --with-search-index   build skewed_search index (default)
-  --no-search-index     skip skewed_search index
+  --with-search-index   build the lisply_search index (default)
+  --no-search-index     skip the lisply_search index
+  --strict-index        fail the build when any corpus repository cannot
+                        be fetched (default: skip it, index the rest)
+  CORPUS_NETRC=<file>   environment: a netrc file granting read access to
+                        the private corpus repositories (genworks-learn
+                        lives in the private genworks/apps repo); handed
+                        to BuildKit as a secret, never baked into a layer.
+                        One line per host:
+                          machine gitlab.genworks.com login <user> password <token>
 
 Push:
   --push                push images
@@ -105,6 +114,7 @@ while [[ $# -gt 0 ]]; do
     --skip-manifests) SKIP_MANIFESTS="true"; shift ;;
     --with-search-index) CLI_SET_BUILD_INDEX="true"; shift ;;
     --no-search-index) CLI_SET_BUILD_INDEX="false"; shift ;;
+    --strict-index) CLI_SET_INDEX_STRICT="true"; shift ;;
     *) echo "Unknown option: $1" >&2; exit 1 ;;
   esac
 done
@@ -170,6 +180,24 @@ get_stage_for_target() {
 }
 
 # -----------------------------
+# Index build args, shared by both build paths
+# -----------------------------
+# Prepends to the caller's `args' array: the strictness build-arg and,
+# when CORPUS_NETRC names a readable file, the corpus credential as a
+# BuildKit secret (id corpus_netrc; the Dockerfile mounts it as the
+# build user's ~/.netrc for the index step only).
+add_index_args() {
+  args=("--build-arg" "LISPLY_INDEX_STRICT=${CLI_SET_INDEX_STRICT}" "${args[@]}")
+  if [[ -n "${CORPUS_NETRC:-}" ]]; then
+    if [[ ! -r "$CORPUS_NETRC" ]]; then
+      echo "Error: CORPUS_NETRC=${CORPUS_NETRC} is not a readable file" >&2
+      exit 1
+    fi
+    args=("--secret" "id=corpus_netrc,src=${CORPUS_NETRC}" "${args[@]}")
+  fi
+}
+
+# -----------------------------
 # Build one target (single-arch)
 # -----------------------------
 build_target_single_arch() {
@@ -199,6 +227,7 @@ build_target_single_arch() {
     "-f" "${DOCKERFILE_PATH}"
     "${BUILD_CONTEXT}"
   )
+  add_index_args
 
   DOCKER_BUILDKIT=1 "${cmd[@]}" "${args[@]}"
 
@@ -238,6 +267,7 @@ build_target_multi_arch() {
     "-f" "${DOCKERFILE_PATH}"
     "${BUILD_CONTEXT}"
   )
+  add_index_args
 
   if [[ "$USE_ZSTD" == "true" ]]; then
     if [[ "$PUSH_IMAGE" != "true" ]]; then
@@ -464,6 +494,8 @@ echo "Targets:          $TARGETS"
 echo "Image name:       ${IMAGE_NAME}"
 echo "Push:             ${PUSH_IMAGE}"
 echo "Search index:     ${CLI_SET_BUILD_INDEX}"
+echo "Strict index:     ${CLI_SET_INDEX_STRICT}"
+echo "Corpus netrc:     ${CORPUS_NETRC:-(none: private corpora skipped)}"
 echo "═══════════════════════════════════════════════════════════════"
 
 if [[ "$MANIFEST_ONLY" == "true" ]]; then

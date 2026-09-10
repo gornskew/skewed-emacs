@@ -1448,9 +1448,14 @@ During a Cyclops proxy development session, an LLM agent attempted to add new bi
 **Key Takeaway**: When paredit-mode blocks an operation, treat it as a signal that your mental model is wrong—not as an obstacle to work around.
 
 
-## skewed_search Tool - Pre-processing Prompts with GDL Knowledge
+## lisply_search Tool - Pre-processing Prompts with GDL Knowledge
 
-The `skewed_search` MCP tool provides lexical search over curated GDL/Gendl documentation and source code. The index is pre-built at Docker build time with snippets extracted and embedded, making it fully self-contained (no `/projects` mount needed at runtime for search).
+The `lisply_search` MCP tool provides lexical search over curated GDL/Gendl documentation and source code. The index is pre-built at Docker build time with snippets extracted and embedded, making it fully self-contained (no `/projects` mount needed at runtime for search).
+
+The tool was called `skewed_search` until 2026-09-09. The old name is
+still advertised as a deprecated alias (and the old HTTP endpoint still
+answers) for one release so agents configured before the rename keep
+working; new prompts and docs say `lisply_search`.
 
 ### Architecture
 
@@ -1461,7 +1466,7 @@ The `skewed_search` MCP tool provides lexical search over curated GDL/Gendl docu
 │  Source files ──► lisply-search-build-index   │
 │       │                    │                            │
 │       ▼                    ▼                            │
-│  Pre-extract snippets → skewed-search-index.sexp (~16MB)   │
+│  Pre-extract snippets → lisply-search-index.sexp (~16MB)   │
 │  (24 lines, 1200 chars per snippet)                     │
 └─────────────────────────────────────────────────────────┘
                          │
@@ -1470,14 +1475,14 @@ The `skewed_search` MCP tool provides lexical search over curated GDL/Gendl docu
 ┌─────────────────────────────────────────────────────────┐
 │  Runtime                                                │
 │                                                         │
-│  skewed_search query → inverted term index → snippets      │
+│  lisply_search query → inverted term index → snippets      │
 │                                                         │
 │  Index cached in memory with snippet-map for fast       │
 │  term-to-candidate lookup                               │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### When to Use skewed_search
+### When to Use lisply_search
 
 **Always search before**:
 - Writing `define-object` code (search for similar patterns)
@@ -1487,9 +1492,20 @@ The `skewed_search` MCP tool provides lexical search over curated GDL/Gendl docu
 
 ### Available Sources
 
-Sources are defined in the Single Source of Truth: `services.sexp` under
-`:skewed-search-config` → `:sources`. Do not hardcode source names in docs;
-consult `services.sexp` for the current list.
+Sources are defined in `lisply-search-config.sexp` (beside this file)
+under `:lisply-search-config` → `:sources`; the file is the single source
+of truth, so consult it rather than any list copied into docs. As of
+2026-09-09 the sources are `gendl` (the open-source engine), `readymax`
+(this console's own configuration and lisply backend) and
+`genworks-learn` (the Genworks training material, a directory of the
+private `genworks/apps` repository -- fetched at build time only when the
+build has a credential; see `docker/build --help`, CORPUS_NETRC).
+
+At build time a corpus that cannot be fetched is skipped with a
+`SOURCE MISSING` line and the index is built from the rest; the build
+fails only if no index results at all (or with `--strict-index`). At
+runtime the response's `sources` field lists what the index actually
+carries.
 
 ### Search Patterns
 
@@ -1497,49 +1513,49 @@ Common search queries for different tasks:
 
 ```
 # Section syntax for define-object
-skewed_search(query="define-object hidden-objects", k=5)
+lisply_search(query="define-object hidden-objects", k=5)
 
 # Web page patterns  
-skewed_search(query="base-html-page body computed-slots", k=3)
+lisply_search(query="base-html-page body computed-slots", k=3)
 
 # Creating new projects
-skewed_search(query="gendl-skel create project", k=3)
+lisply_search(query="gendl-skel create project", k=3)
 
 # URL routing for non-root paths
-skewed_search(query="fixed-url-prefix", k=5)
+lisply_search(query="fixed-url-prefix", k=5)
 
 # Output formats (PDF, etc.)
-skewed_search(query="with-format pdf cad-output", k=5)
+lisply_search(query="with-format pdf cad-output", k=5)
 
 # Mixin patterns
-skewed_search(query="base-html-div inner-html", k=5)
+lisply_search(query="base-html-div inner-html", k=5)
 ```
 
 ### Example Usage
 
 **Before writing GDL web code:**
 ```python
-skewed_search(query="base-html-page computed-slots body", k=3)
+lisply_search(query="base-html-page computed-slots body", k=3)
 ```
 
 **Broader matching (OR semantics):**
 ```python
-skewed_search(query="base-html-page computed-slots body", k=3, match_mode="any")
+lisply_search(query="base-html-page computed-slots body", k=3, match_mode="any")
 ```
 
 **Broader matching with cap (OR semantics):**
 ```python
-skewed_search(query="base-html-page computed-slots body", k=3, match_mode="any", any_max_candidates=800)
+lisply_search(query="base-html-page computed-slots body", k=3, match_mode="any", any_max_candidates=800)
 ```
 
 **Before explaining define-object sections:**
 ```python
-skewed_search(query="hidden-objects pseudo-inputs", sources=["gendl-src", "gdl-docs"], k=5)
+lisply_search(query="hidden-objects pseudo-inputs", sources=["gendl"], k=5)
 ```
 
-**Before creating a new project:**
+**Before walking a newcomer through the basics (the training material):**
 ```python
-skewed_search(query="gendl-skel project structure", sources=["claude-curated"], k=3)
+lisply_search(query="define-object first example", sources=["genworks-learn"], k=3)
 ```
 
 ### Tool Parameters
@@ -1563,14 +1579,14 @@ skewed_search(query="gendl-skel project structure", sources=["claude-curated"], 
 {
   "query": "define-object computed-slots",
   "search_mode": "lexical",
-  "sources": ["examples", "claude-curated"],
+  "sources": ["gendl", "readymax", "genworks-learn"],
   "hits": [
     {
       "id": "hit-001",
       "score": 1.0,
-      "source": "claude-curated",
-      "repo": "xfer",
-      "path": "gendl-project-guide/gendl-key-points.lisp",
+      "source": "genworks-learn",
+      "repo": "apps",
+      "path": "genworks-learn/t1/source/first-object.lisp",
       "start_line": 1,
       "end_line": 24,
       "snippet": "...(actual code/text)...",
@@ -1588,22 +1604,27 @@ skewed_search(query="gendl-skel project structure", sources=["claude-curated"], 
 ### Best Practices
 
 1. **Search first, code second**: Before writing any GDL code, search for similar patterns
-2. **Use `claude-curated` for guidance**: This source contains documentation specifically written for Claude
+2. **Use `genworks-learn` for guidance**: the training material walks through the concepts in order; `gendl` is the engine's own source and docs
 3. **Combine sources**: Use multiple sources for comprehensive results
 4. **Be specific**: More specific queries yield more relevant results
 5. **Check the path**: The `path` field tells you where the snippet came from for context
 
 ### Configuration
 
-The search configuration is embedded inside `skewed-search-index.sexp` (generated from `services.sexp` at build time).
-There is no separate config file at runtime.
+The search configuration is read from `lisply-search-config.sexp` at
+build time and a copy is embedded inside `lisply-search-index.sexp`, which
+is all the runtime consults.
 
 ### Rebuilding the Index
 
-The index is built during Docker build. To rebuild manually:
+The index is built during the Docker build. To rebuild it inside a
+running console against the host-mounted `/projects` (every source
+already present there is used as-is, nothing is cloned):
 
 ```elisp
-(lisply-search-build-index)
+(lisply-search-build-index-with-clone)
 ```
 
-This scans all configured sources and pre-extracts snippets into the index file.
+This scans the configured sources, pre-extracts snippets into the index
+file, and logs a `SOURCE MISSING` line for any source it could not find.
+The runtime cache reloads on the next query when the file's mtime changes.

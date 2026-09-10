@@ -45,9 +45,11 @@
                                                    ("description" . "Not used in Emacs Lisp but kept for protocol compatibility")))))
                        ("required" . ["code"]))))
 
-   ;; skewed_search tool
-   `(("name" . "skewed_search")
-     ("description" . "Unified search over GDL/Gendl/skewed-emacs / related docs & code")
+   ;; lisply_search tool (skewed_search until 2026-09-09; the old name
+   ;; is still advertised below as a deprecated alias for one release,
+   ;; so agents configured before the rename keep working)
+   `(("name" . "lisply_search")
+     ("description" . "Search the indexed corpus: Gendl/GDL source and docs, the console's own configuration, and the Genworks training material")
      ("inputSchema" . (("type" . "object")
                        ("properties" . (("query" . (("type" . "string")
                                                    ("description" . "Natural-language or keyword query")))
@@ -67,6 +69,17 @@
                                                                 ("description" . "Soft cap for snippet length")))
                                        ("include_metadata" . (("type" . "boolean")
                                                               ("description" . "Include metadata in hits (default true)")))))
+                       ("required" . ["query"]))))
+
+   ;; Deprecated alias of lisply_search -- same arguments, same corpus.
+   ;; Remove one release after 2026-09-09.
+   `(("name" . "skewed_search")
+     ("description" . "DEPRECATED: renamed lisply_search (same arguments, same corpus); use lisply_search")
+     ("inputSchema" . (("type" . "object")
+                       ("properties" . (("query" . (("type" . "string")
+                                                   ("description" . "Natural-language or keyword query")))
+                                       ("k" . (("type" . "integer")
+                                               ("description" . "Max number of hits to return (default 8)")))))
                        ("required" . ["query"]))))
 
 

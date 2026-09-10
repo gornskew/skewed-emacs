@@ -1,4 +1,4 @@
-;;; search.el --- Skewed search for GDL/Gendl corpora -*- lexical-binding: t; -*-
+;;; lisply-search.el --- lisply_search: corpus search for GDL/Gendl and the console -*- lexical-binding: t; -*-
 
 ;; Copyright © 2026 Genworks
 ;; SPDX-License-Identifier: AGPL-3.0-or-later
@@ -26,27 +26,33 @@
 ;;;; ============================================================
 
 (defgroup lisply-search nil
-  "Skewed search for GDL/Gendl corpora."
+  "lisply_search: corpus search for GDL/Gendl and the console."
   :group 'tools)
 
 (defcustom lisply-search-services-path
-  (expand-file-name "sideloaded/lisply-backend/skewed-search-config.sexp"
-                    (file-truename user-emacs-directory))
-  "Path to the file carrying the `:skewed-search-config' plist.
+  (let* ((dir (expand-file-name "sideloaded/lisply-backend/"
+                                (file-truename user-emacs-directory)))
+         (new (expand-file-name "lisply-search-config.sexp" dir))
+         (old (expand-file-name "skewed-search-config.sexp" dir)))
+    (if (or (file-exists-p new) (not (file-exists-p old))) new old))
+  "Path to the file carrying the `:lisply-search-config' plist.
 
 Until 2026-08-15 this pointed at the stack's services.sexp, because that
 was the only single-source-of-truth file around.  The search corpus
 config never belonged there -- nothing in the stack generator ever read
 it, and the only consumer has always been this file -- so when the stack
-machinery moved out to the Basilisk repo it went to
-skewed-search-config.sexp, which ships beside lisply-search.el.
+machinery moved out to the Basilisk repo it went to a config file that
+ships beside lisply-search.el.  Renamed with the tool on 2026-09-09
+(skewed_search -> lisply_search); the old file name and the old
+`:skewed-search-config' key are still read.
 
-The name is kept for compatibility with callers that set it explicitly."
+The variable name is kept for compatibility with callers that set it
+explicitly."
   :type 'string
   :group 'lisply-search)
 
 (defcustom lisply-search-index-path
-  (expand-file-name "~/.emacs.d/sideloaded/lisply-backend/skewed-search-index.sexp")
+  (expand-file-name "~/.emacs.d/sideloaded/lisply-backend/lisply-search-index.sexp")
   "Path to the search index file."
   :type 'string
   :group 'lisply-search)
@@ -135,23 +141,32 @@ Note: Cannot distinguish between nil value and missing key."
 ;;;; ============================================================
 
 (defun lisply-search--read-config ()
-  "Read search config from services.sexp.
-Returns plist: (:sources ... :extensions ... :ignore-dirs ...)."
+  "Read the search config from `lisply-search-services-path'.
+Returns plist: (:sources ... :extensions ... :ignore-dirs ...).  The
+top-level key is `:lisply-search-config'; the pre-rename
+`:skewed-search-config' is still accepted."
   (let* ((services (lisply-search--read-sexp-file lisply-search-services-path))
-         (cfg (plist-get services :skewed-search-config)))
+         (cfg (or (plist-get services :lisply-search-config)
+                  (plist-get services :skewed-search-config))))
     (when cfg
-      ;; Pass through as-is since services.sexp already uses plists
+      ;; Pass through as-is: the config file already uses plists
       cfg)))
 
 (defun lisply-search--config-sources (config)
-  "Extract sources from CONFIG as list of (:name N :root R :repo R :repo-root RR)."
+  "Extract sources from CONFIG as a flat list of entry plists.
+Each entry carries :name :root :repo :repo-root :repo-url, plus the
+optional :sparse (paths for a sparse checkout when the corpus is one
+directory of a larger repo) and :branch (overriding the build's
+default branch for that clone)."
   (let ((sources (lisply-search--pget config :sources)))
     (mapcan
      (lambda (source)
        (cl-destructuring-bind (&key name entries) source
          (mapcar
           (lambda (entry)
-            (cl-destructuring-bind (&key root repo repo-root repo-url) entry
+            (cl-destructuring-bind (&key root repo repo-root repo-url sparse branch
+                                         &allow-other-keys)
+                entry
               (let* (;; Expand relative paths from /projects
                      (abs-root (if (and root (not (file-name-absolute-p root)))
                                    (expand-file-name root "/projects")
@@ -163,7 +178,9 @@ Returns plist: (:sources ... :extensions ... :ignore-dirs ...)."
                       :root abs-root
                       :repo repo
                       :repo-root abs-repo-root
-                      :repo-url repo-url))))
+                      :repo-url repo-url
+                      :sparse (lisply-search--to-list sparse)
+                      :branch branch))))
           entries)))
      sources)))
 
@@ -341,7 +358,8 @@ Skip IGNORE-DIRS and paths matching EXCLUDES patterns."
          (excludes (lisply-search--config-exclude-paths config))
          entries)
     (unless sources
-      (error "No sources configured in services.sexp :skewed-search-config"))
+      (error "lisply-search: no sources configured under :lisply-search-config in %s"
+             lisply-search-services-path))
     ;; Scan each source
     (dolist (source sources)
       (let ((root (plist-get source :root)))
@@ -349,6 +367,8 @@ Skip IGNORE-DIRS and paths matching EXCLUDES patterns."
             (lisply-search--log "WARNING: Source root missing: %s" root)
           (dolist (path (lisply-search--list-files root extensions ignore-dirs excludes))
             (push (lisply-search--build-file-entry source path config) entries)))))
+    (when (null entries)
+      (error "lisply-search: nothing to index -- every configured source root is missing"))
     ;; Build index plist
     (let* ((files (nreverse entries))
            (index (list :version lisply-search--index-version
@@ -371,69 +391,111 @@ Skip IGNORE-DIRS and paths matching EXCLUDES patterns."
 ;;;; Clone Support (for Docker builds with empty /projects/)
 ;;;; ============================================================
 
+(defun lisply-search--git (dir &rest args)
+  "Run git with ARGS (in DIR when non-nil), logging to *lisply-search-clone*.
+Returns the exit status."
+  (apply #'process-file "git" nil "*lisply-search-clone*" t
+         (append (when dir (list "-C" dir)) args)))
+
 (defun lisply-search--clone-entry (source-info branch)
-  "Clone repo for SOURCE-INFO if it doesn't exist.
-BRANCH defaults to master. Returns t on success or if already exists."
+  "Make the :root of SOURCE-INFO exist, cloning its :repo-url if needed.
+The clone lands in :repo-root -- the repository's own directory, which
+may be an ancestor of :root -- so a corpus that is one directory of a
+larger repository can be fetched as a sparse checkout of just that
+directory (:sparse, a list of paths).  An entry's own :branch overrides
+BRANCH, which defaults to master.  Returns non-nil when :root exists
+afterwards."
   (let* ((root (plist-get source-info :root))
+         (repo-root (or (plist-get source-info :repo-root) root))
          (repo-url (plist-get source-info :repo-url))
-         (branch (or branch "master")))
+         (sparse (plist-get source-info :sparse))
+         (branch (or (plist-get source-info :branch) branch "master")))
     (cond
      ((or (null root) (string-empty-p root))
       (lisply-search--log "Skip clone: no root path")
       nil)
-     ((or (null repo-url) (string-empty-p repo-url))
-      ;; No repo-url means local-only source, that's OK
-      t)
      ((file-exists-p root)
       (lisply-search--log "Exists, skip clone: %s" root)
       t)
+     ((or (null repo-url) (string-empty-p repo-url))
+      (lisply-search--log "SOURCE MISSING (local-only, no repo-url): %s" root)
+      nil)
+     ((and sparse (file-exists-p repo-root))
+      ;; The repository is already here but not our directory: widen it.
+      (lisply-search--log "Widening sparse checkout %s by %s" repo-root sparse)
+      (apply #'lisply-search--git repo-root "sparse-checkout" "add" sparse)
+      (if (file-exists-p root)
+          (progn (lisply-search--log "Sparse checkout widened: %s" root) t)
+        (lisply-search--log "SOURCE MISSING after widening: %s" root)
+        nil))
      (t
-      (lisply-search--log "Cloning %s -> %s (branch: %s)" repo-url root branch)
-      (make-directory (file-name-directory root) t)
-      (let ((exit (process-file
-                   "git" nil "*lisply-search-clone*" t
-                   "clone" "--depth" "1" "--branch" branch repo-url root)))
-        (if (and (integerp exit) (zerop exit))
-            (progn
-              (lisply-search--log "Clone succeeded: %s" root)
-              t)
-          (lisply-search--log "Clone FAILED: %s (exit %s)" root exit)
-          nil))))))
+      (lisply-search--log "Cloning %s -> %s (branch: %s%s)" repo-url repo-root branch
+                          (if sparse (format ", sparse: %s" sparse) ""))
+      (make-directory (file-name-directory (directory-file-name repo-root)) t)
+      (let ((exit (apply #'lisply-search--git nil
+                         (append (list "clone" "--depth" "1" "--branch" branch)
+                                 (when sparse (list "--filter=blob:none" "--sparse"))
+                                 (list repo-url repo-root)))))
+        (when (and sparse (integerp exit) (zerop exit))
+          (setq exit (apply #'lisply-search--git repo-root "sparse-checkout" "set" sparse)))
+        (cond
+         ((not (and (integerp exit) (zerop exit)))
+          (lisply-search--log "Clone FAILED: %s (exit %s)" repo-root exit)
+          nil)
+         ((file-exists-p root)
+          (lisply-search--log "Clone succeeded: %s" root)
+          t)
+         (t
+          (lisply-search--log "Clone landed but SOURCE MISSING inside it: %s" root)
+          nil)))))))
 
 (defun lisply-search--clone-all-sources (config branch)
-  "Clone all sources from CONFIG that have :repo-url.
-Returns t if all succeed, nil if any fail."
-  (let* ((sources (lisply-search--config-sources config))
-         (failed nil)
-         (cloned 0)
-         (skipped 0))
+  "Make every source in CONFIG present, cloning where needed.
+Returns the list of source roots still missing afterwards; nil means
+every source is present."
+  (let ((sources (lisply-search--config-sources config))
+        missing)
     (if (null sources)
         (progn
           (lisply-search--log "No sources configured, nothing to clone")
           nil)
       (dolist (source sources)
-        (let ((repo-url (plist-get source :repo-url)))
-          (if (or (null repo-url) (string-empty-p repo-url))
-              (cl-incf skipped)
-            (unless (lisply-search--clone-entry source branch)
-              (setq failed t))
-            (cl-incf cloned))))
-      (lisply-search--log "Clone summary: %d attempted, %d skipped, %s"
-                          cloned skipped (if failed "SOME FAILED" "all OK"))
-      (not failed))))
+        (unless (lisply-search--clone-entry source branch)
+          (push (plist-get source :root) missing)))
+      (setq missing (nreverse missing))
+      (lisply-search--log "Source summary: %d configured, %d present, %d missing%s"
+                          (length sources)
+                          (- (length sources) (length missing))
+                          (length missing)
+                          (if missing (format " -- %s" (string-join missing ", ")) ""))
+      missing)))
 
-(defun lisply-search-build-index-with-clone (&optional branch)
-  "Clone corpora if needed, then build the index.
-BRANCH specifies git branch (default: master).
-In Docker builds, /projects/ is empty so repos get cloned fresh.
-In dev, existing repos are used as-is."
+(defun lisply-search-build-index-with-clone (&optional branch strict)
+  "Clone corpora as needed, then build the index from every source present.
+BRANCH is the default git branch for clones (master); an entry's own
+:branch wins.  In Docker builds /projects/ is empty and the repos are
+cloned fresh; in dev the existing repos are used as-is.
+
+A source that cannot be fetched is logged as SOURCE MISSING and
+skipped, and the index is still built from the rest: a partial corpus
+beats none.  (From 2026-08-20 to 2026-09-09 every shipped console image
+carried no index at all, because one corpus repository had gone away
+and a failed clone used to skip the whole build -- silently, since the
+build step still exited 0.)  When STRICT is non-nil, or the environment
+variable LISPLY_INDEX_STRICT is \"true\", a missing source is an error
+instead, so a CI build cannot go green with a short corpus."
   (interactive)
-  (let ((config (lisply-search--read-config)))
+  (let ((config (lisply-search--read-config))
+        (strict (or strict (equal (getenv "LISPLY_INDEX_STRICT") "true"))))
     (if (not config)
-        (lisply-search--log "ERROR: No config found in services.sexp")
-      (if (lisply-search--clone-all-sources config branch)
-          (lisply-search-build-index)
-        (lisply-search--log "Index build skipped due to clone failures")))))
+        (error "lisply-search: no config found at %s" lisply-search-services-path)
+      (let ((missing (lisply-search--clone-all-sources config branch)))
+        (when missing
+          (lisply-search--log "SOURCE MISSING: %s" (string-join missing ", ")))
+        (if (and missing strict)
+            (error "lisply-search: %d source(s) missing in strict mode: %s"
+                   (length missing) (string-join missing ", "))
+          (lisply-search-build-index))))))
 
 
 ;;;; Runtime: Index Loading & Caching
@@ -744,44 +806,56 @@ Returns plist: (:query Q :search-mode M :sources [S...] :hits [H...])."
               result)))
     (nreverse result)))
 
+(defun lisply-search--serve-http-query (json-input)
+  "Answer one lisply_search HTTP request whose parsed JSON body is JSON-INPUT.
+Shared by the lisply-search endpoint and its pre-rename alias."
+  (let* ((query (and json-input (cdr (assoc 'query json-input)))))
+    (if (not (and query (stringp query) (not (string-empty-p query))))
+        (emacs-lisply-send-response '(("error" . "Missing required parameter: query")))
+      (condition-case err
+          (let* ((raw-match (or (cdr (assoc 'match_mode json-input))
+                                (cdr (assoc 'match-mode json-input))))
+                 (raw-any-max (or (cdr (assoc 'any_max_candidates json-input))
+                                  (cdr (assoc 'any-max-candidates json-input))))
+                 (match-mode (cond
+                              ((or (eq raw-match :all) (equal raw-match "all")) :all)
+                              ((or (eq raw-match :any) (equal raw-match "any")) :any)
+                              (t nil)))
+                 (any-max-candidates (cond
+                                      ((numberp raw-any-max) raw-any-max)
+                                      ((and (stringp raw-any-max)
+                                            (string-match-p "\\`[0-9]+\\'" raw-any-max))
+                                       (string-to-number raw-any-max))
+                                      (t nil)))
+                 (params (list :query query
+                               :k (cdr (assoc 'k json-input))
+                               :sources (cdr (assoc 'sources json-input))
+                               :language (cdr (assoc 'language json-input))
+                               :match-mode match-mode
+                               :any-max-candidates any-max-candidates
+                               :max-snippet-tokens (cdr (assoc 'max_snippet_tokens json-input))
+                               :include-metadata (not (eq (cdr (assoc 'include_metadata json-input))
+                                                          :json-false))))
+                 (result (lisply-search params))
+                 (json-result (lisply-search--plist-to-alist result)))
+            (emacs-lisply-send-response json-result))
+        (error
+         (emacs-lisply-send-response
+          `(("error" . ,(format "%s" err)))))))))
+
 (when (featurep 'simple-httpd)
+  (defservlet* lisply/lisply-search application/json ()
+    "Handle the lisply_search endpoint."
+    (lisply-search--serve-http-query
+     (and (fboundp 'emacs-lisply-parse-json-body)
+          (emacs-lisply-parse-json-body))))
+  ;; The pre-rename endpoint (skewed_search, until 2026-09-09), kept
+  ;; one release so MCP wrappers built before the rename keep working.
   (defservlet* lisply/skewed-search application/json ()
-    "Handle search endpoint."
-    (let* ((json-input (and (fboundp 'emacs-lisply-parse-json-body)
-                            (emacs-lisply-parse-json-body)))
-           (query (and json-input (cdr (assoc 'query json-input)))))
-      (if (not (and query (stringp query) (not (string-empty-p query))))
-          (emacs-lisply-send-response '(("error" . "Missing required parameter: query")))
-        (condition-case err
-            (let* ((raw-match (or (cdr (assoc 'match_mode json-input))
-                                  (cdr (assoc 'match-mode json-input))))
-                   (raw-any-max (or (cdr (assoc 'any_max_candidates json-input))
-                                    (cdr (assoc 'any-max-candidates json-input))))
-                   (match-mode (cond
-                                ((or (eq raw-match :all) (equal raw-match "all")) :all)
-                                ((or (eq raw-match :any) (equal raw-match "any")) :any)
-                                (t nil)))
-                   (any-max-candidates (cond
-                                        ((numberp raw-any-max) raw-any-max)
-                                        ((and (stringp raw-any-max)
-                                              (string-match-p "\\`[0-9]+\\'" raw-any-max))
-                                         (string-to-number raw-any-max))
-                                        (t nil)))
-                   (params (list :query query
-                                 :k (cdr (assoc 'k json-input))
-                                 :sources (cdr (assoc 'sources json-input))
-                                 :language (cdr (assoc 'language json-input))
-                                 :match-mode match-mode
-                                 :any-max-candidates any-max-candidates
-                                 :max-snippet-tokens (cdr (assoc 'max_snippet_tokens json-input))
-                                 :include-metadata (not (eq (cdr (assoc 'include_metadata json-input))
-                                                            :json-false))))
-                   (result (lisply-search params))
-                   (json-result (lisply-search--plist-to-alist result)))
-              (emacs-lisply-send-response json-result))
-          (error
-           (emacs-lisply-send-response
-            `(("error" . ,(format "%s" err))))))))))
+    "Deprecated alias of lisply/lisply-search."
+    (lisply-search--serve-http-query
+     (and (fboundp 'emacs-lisply-parse-json-body)
+          (emacs-lisply-parse-json-body)))))
 
 (provide 'lisply-search)
-;;; search.el ends here
+;;; lisply-search.el ends here
